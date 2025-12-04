@@ -14,7 +14,7 @@ import sys
 import shutil
 
 # Import from our modules
-from utils import detect_system_theme
+from utils import detect_system_theme, ThemeManager
 from core import (
     LOG_FILE,
     URL_VALIDATION_TIMEOUT_HEAD, MIN_FREE_SPACE_GB, THEME_COLORS,
@@ -52,10 +52,10 @@ class ModlistInstaller:
         self.modlist_data = None
         self.categories = self.config_manager.load_categories()
         
-        # Theme
-        system_theme = detect_system_theme()
-        self.current_theme = system_theme
-        self.theme_colors = THEME_COLORS
+        # Theme manager (centralized)
+        self.theme_manager = ThemeManager()
+        self.current_theme = self.theme_manager.current_theme
+        self.theme_colors = self.theme_manager.colors
         
         # Installation variables
         self.starsector_path = tk.StringVar()
@@ -109,7 +109,8 @@ class ModlistInstaller:
         info_frame, main_paned, self.header_text, self.mod_listbox = create_modlist_section(
             left_frame,
             self.on_mod_click,
-            lambda e: self.root.after(100, self.display_modlist_info)
+            lambda e: self.root.after(100, self.display_modlist_info),
+            self.theme_manager
         )
         
         # Track selected line
@@ -403,10 +404,13 @@ class ModlistInstaller:
     
     def configure_listbox_theme(self):
         """Configure listbox colors based on theme."""
-        colors = self.theme_colors[self.current_theme]
+        colors = self.theme_manager.get_colors()
         
+        # Apply to both header and modlist
+        self.header_text.config(bg=colors['listbox_bg'], fg=colors['listbox_fg'])
         self.mod_listbox.config(bg=colors['listbox_bg'], fg=colors['listbox_fg'])
         
+        # Configure tags
         self.mod_listbox.tag_configure('category', background=colors['category_bg'], 
             foreground=colors['category_fg'], justify='center')
         self.mod_listbox.tag_configure('mod', foreground=colors['listbox_fg'])

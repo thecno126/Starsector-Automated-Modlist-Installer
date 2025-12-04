@@ -63,7 +63,7 @@ def create_path_section(main_frame, path_var, browse_callback):
     return path_frame, path_entry, browse_btn, path_status_label
 
 
-def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback):
+def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback, theme_manager):
     """Create the modlist information section."""
     info_frame = tk.LabelFrame(main_frame, text="Current Modlist", padx=5, pady=5)
     info_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 5))
@@ -76,8 +76,18 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback)
     left_container = tk.Frame(main_paned)
     main_paned.add(left_container, stretch="always")
     
+    # Get theme colors from centralized manager
+    colors = theme_manager.get_colors()
+    
     # Header text
-    header_text = tk.Text(left_container, height=4, wrap=tk.WORD, state=tk.DISABLED)
+    header_text = tk.Text(
+        left_container, 
+        height=4, 
+        wrap=tk.WORD, 
+        state=tk.DISABLED,
+        bg=colors['listbox_bg'],
+        fg=colors['listbox_fg']
+    )
     header_text.pack(fill=tk.X, pady=(0, 5))
     
     # Modlist container with scrollbar
@@ -94,7 +104,9 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback)
         font=("Courier", 11),
         wrap=tk.WORD,
         state=tk.DISABLED,
-        cursor="arrow"
+        cursor="arrow",
+        bg=colors['listbox_bg'],
+        fg=colors['listbox_fg']
     )
     mod_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
     scrollbar.config(command=mod_listbox.yview)

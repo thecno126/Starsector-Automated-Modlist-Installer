@@ -30,3 +30,49 @@ def detect_system_theme():
             return 'light'
     except:
         return 'light'
+
+
+class ThemeManager:
+    """Centralized theme manager to ensure consistency across all UI components."""
+    
+    def __init__(self):
+        """Initialize theme manager with system theme detection."""
+        self.current_theme = detect_system_theme()
+        self.colors = {
+            'light': {
+                'bg': '#f0f0f0',
+                'fg': '#000000',
+                'listbox_bg': '#ffffff',
+                'listbox_fg': '#000000',
+                'category_bg': '#34495e',
+                'category_fg': '#ffffff',
+                'selected_bg': '#3498db',
+                'selected_fg': '#ffffff',
+                'header_bg': '#34495e',
+                'header_fg': '#ffffff'
+            },
+            'dark': {
+                'bg': '#2b2b2b',
+                'fg': '#ffffff',
+                'listbox_bg': '#1e1e1e',
+                'listbox_fg': '#ffffff',
+                'category_bg': '#34495e',
+                'category_fg': '#ffffff',
+                'selected_bg': '#3498db',
+                'selected_fg': '#ffffff',
+                'header_bg': '#34495e',
+                'header_fg': '#ffffff'
+            }
+        }
+    
+    def get_colors(self):
+        """Get current theme colors."""
+        return self.colors[self.current_theme]
+    
+    def get_color(self, key):
+        """Get specific color from current theme."""
+        return self.colors[self.current_theme].get(key, '#ffffff')
+    
+    def is_dark_mode(self):
+        """Check if dark mode is active."""
+        return self.current_theme == 'dark'
