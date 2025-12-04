@@ -1,6 +1,6 @@
 # Tests
 
-Comprehensive test suite for ASTRA Modlist Installer (18 tests total).
+Comprehensive test suite for ASTRA Modlist Installer (25 tests total).
 
 ## Running Tests
 
@@ -15,14 +15,15 @@ pytest
 pytest -v
 
 # Run specific test
-pytest tests/test_all.py::test_extract_zip_success -v
+pytest tests/test_all.py::test_theme_detection -v
 ```
 
 ## Test Coverage
 
-**Unit Tests (10 tests):**
+**Unit Tests (17 tests):**
 - ConfigManager: load/save/reset for modlist, categories, preferences (4 tests)
 - ModInstaller: download, ZIP/7z extraction, zip-slip protection, already-installed detection (6 tests)
+- ThemeManager: system detection, color schemes, consistency, forced theme (7 tests)
 
 **Integration & Scenario Tests (8 tests):**
 - CSV import to installation workflow
@@ -39,5 +40,5 @@ pytest tests/test_all.py::test_extract_zip_success -v
 ```
 tests/
 ├── README.md      # This file
-└── test_all.py    # All tests in one file
+└── test_all.py    # All 25 tests in one file
 ```
