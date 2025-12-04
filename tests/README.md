@@ -1,34 +1,34 @@
 # Tests
 
-Suite de tests unitaires pour ASTRA Modlist Installer.
+Unit test suite for ASTRA Modlist Installer.
 
-## Exécution
+## Running Tests
 
 ```bash
-# Installer les dépendances
+# Install dependencies
 pip install -r requirements.txt
 
-# Lancer tous les tests
+# Run all tests
 pytest
 
-# Avec verbosité
+# With verbose output
 pytest -v
 
-# Tests spécifiques
+# Specific tests
 pytest tests/test_config_manager.py
 pytest tests/test_installer.py
 ```
 
-## Couverture
+## Coverage
 
-- `test_config_manager.py`: Tests pour ConfigManager (load/save/reset pour modlist, catégories, préférences)
-- `test_installer.py`: Tests pour ModInstaller (téléchargement, extraction ZIP/7z, protection zip-slip, détection déjà installé)
+- `test_config_manager.py`: Tests for ConfigManager (load/save/reset for modlist, categories, preferences)
+- `test_installer.py`: Tests for ModInstaller (download, ZIP/7z extraction, zip-slip protection, already-installed detection)
 
 ## Structure
 
 ```
 tests/
-├── README.md                  # Ce fichier
-├── test_config_manager.py     # Tests ConfigManager
-└── test_installer.py          # Tests ModInstaller
+├── README.md                  # This file
+├── test_config_manager.py     # ConfigManager tests
+└── test_installer.py          # ModInstaller tests
 ```

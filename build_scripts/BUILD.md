@@ -1,23 +1,23 @@
-# ASTRA Modlist Installer - Guide de Build & Distribution
+# ASTRA Modlist Installer - Build & Distribution Guide
 
 ## 🚀 Quick Start
 
-### Création des exécutables
+### Building Executables
 
-**Sur macOS/Linux :**
+**On macOS/Linux:**
 ```bash
 cd build_scripts
-chmod +x build.sh  # Première fois uniquement
+chmod +x build.sh  # First time only
 ./build.sh
 ```
 
-**Sur Windows :**
+**On Windows:**
 ```cmd
 cd build_scripts
 build.bat
 ```
 
-Les exécutables seront créés dans le dossier `../dist/`
+Executables will be created in the `../dist/` folder
 
 ---
 
@@ -52,20 +52,20 @@ ASTRA-Modlist-Installer/
 
 ---
 
-## 🛠️ Instructions de Build Manuel
+## 🛠️ Manual Build Instructions
 
-Si vous préférez compiler manuellement :
+If you prefer to compile manually:
 
-### 1. Installer PyInstaller
+### 1. Install PyInstaller
 ```bash
-# Sur macOS/Linux avec Python 3.14+
+# On macOS/Linux with Python 3.14+
 pip3 install --break-system-packages pyinstaller
 
-# Sur Windows ou avec environnement virtuel
+# On Windows or with virtual environment
 pip install pyinstaller
 ```
 
-### 2. Compiler l'application
+### 2. Compile the application
 ```bash
 cd build_scripts
 pyinstaller --clean -y --distpath ../dist --workpath ../build modlist_installer.spec
@@ -73,24 +73,24 @@ pyinstaller --clean -y --distpath ../dist --workpath ../build modlist_installer.
 
 ---
 
-## 🎨 Personnalisation
+## 🎨 Customization
 
-### Ajouter une icône
+### Adding an Icon
 
-**Pour Windows (.ico) :**
-1. Créez/obtenez un fichier `.ico` de 256x256
-2. Placez-le à la racine du projet en tant que `icon.ico`
-3. Éditez `build_scripts/modlist_installer.spec` :
+**For Windows (.ico):**
+1. Create/obtain a 256x256 `.ico` file
+2. Place it at project root as `icon.ico`
+3. Edit `build_scripts/modlist_installer.spec`:
    ```python
-   icon='../icon.ico',  # Pour Windows
+   icon='../icon.ico',  # For Windows
    ```
 
-**Pour macOS (.icns) :**
-1. Créez/obtenez un fichier `.icns`
-2. Placez-le à la racine du projet en tant que `icon.icns`
-3. Éditez le fichier `.spec` :
+**For macOS (.icns):**
+1. Create/obtain an `.icns` file
+2. Place it at project root as `icon.icns`
+3. Edit the `.spec` file:
    ```python
-   icon='../icon.icns',  # Pour macOS
+   icon='../icon.icns',  # For macOS
    ```
 
 ### Optimizing Build Size
@@ -206,32 +206,32 @@ dpkg-deb --build astra-installer_1.0
 
 ---
 
-## 🔧 Dépannage
+## 🔧 Troubleshooting
 
-### "ModuleNotFoundError" lors de l'exécution de l'exécutable
-- Ajoutez le module manquant à `hiddenimports` dans le fichier `.spec`
-- Recompilez avec `./build.sh` ou `build.bat`
+### "ModuleNotFoundError" when running executable
+- Add the missing module to `hiddenimports` in the `.spec` file
+- Recompile with `./build.sh` or `build.bat`
 
-### Exécutable trop volumineux
-- Activez la compression UPX (`upx=True` - déjà activé)
-- Ajoutez les bibliothèques inutilisées à la liste `excludes`
-- Utilisez le mode one-folder au lieu de one-file
+### Executable too large
+- Enable UPX compression (`upx=True` - already enabled)
+- Add unused libraries to the `excludes` list
+- Use one-folder mode instead of one-file
 
-### macOS : "L'app est endommagée et ne peut pas être ouverte"
+### macOS: "The app is damaged and can't be opened"
 ```bash
 xattr -cr ../dist/Modlist-Installer.app
 ```
 
-### Windows : Faux positif antivirus
-- Signez le code de l'exécutable (nécessite un certificat)
-- Ou ajoutez une exception dans l'antivirus
+### Windows: Antivirus false positive
+- Code sign the executable (requires certificate)
+- Or add an exception in antivirus
 
-### Python 3.14+ : "externally-managed-environment"
+### Python 3.14+: "externally-managed-environment"
 ```bash
-# Utilisez --break-system-packages (déjà intégré dans build.sh)
+# Use --break-system-packages (already in build.sh)
 pip3 install --break-system-packages pyinstaller
 
-# Ou créez un environnement virtuel
+# Or create a virtual environment
 python3 -m venv venv
 source venv/bin/activate  # macOS/Linux
 venv\Scripts\activate     # Windows
