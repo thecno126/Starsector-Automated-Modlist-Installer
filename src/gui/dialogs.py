@@ -145,7 +145,7 @@ def open_edit_mod_dialog(parent, app, current_mod):
     btn_frame = tk.Frame(dlg)
     btn_frame.grid(row=4, column=0, columnspan=2, pady=12)
     tk.Button(btn_frame, text="Cancel", command=dlg.destroy, width=10).pack(side=tk.RIGHT, padx=6)
-    tk.Button(btn_frame, text="Save", command=submit, bg="#3498db", fg="white", width=10).pack(side=tk.RIGHT)
+    tk.Button(btn_frame, text="Save", command=submit, width=10).pack(side=tk.RIGHT)
 
 
 def open_manage_categories_dialog(parent, app):

@@ -41,8 +41,7 @@ def create_path_section(main_frame, path_var, browse_callback):
     path_entry = tk.Entry(
         path_container,
         textvariable=path_var,
-        font=("Arial", 10),
-        state="readonly"
+        font=("Arial", 10)
     )
     path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
     
@@ -188,20 +187,35 @@ def create_log_section(main_frame):
     return log_frame, progress_bar, log_text
 
 
-def create_bottom_buttons(main_frame, install_callback, quit_callback):
-    """Create the bottom button panel."""
+def create_bottom_buttons(main_frame, install_callback, quit_callback, trust_gdrive_var=None):
+    """Create the bottom button panel with optional Google Drive trust checkbox."""
     button_frame = tk.Frame(main_frame)
     button_frame.pack(side=tk.BOTTOM, fill=tk.X)
-    button_frame.configure(height=35)
+    button_frame.configure(height=50 if trust_gdrive_var else 35)
     button_frame.pack_propagate(False)
+    
+    # Google Drive trust checkbox (if provided)
+    if trust_gdrive_var is not None:
+        gdrive_check_frame = tk.Frame(button_frame)
+        gdrive_check_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        gdrive_check = tk.Checkbutton(
+            gdrive_check_frame,
+            text="Trust Google Drive large files (bypass virus scan warning)",
+            variable=trust_gdrive_var,
+            font=("Arial", 9)
+        )
+        gdrive_check.pack(anchor=tk.W, padx=5)
 
-    button_frame.columnconfigure(0, weight=1)
-    button_frame.columnconfigure(1, weight=1)
+    button_container = tk.Frame(button_frame)
+    button_container.pack(fill=tk.BOTH, expand=True)
+    button_container.columnconfigure(0, weight=1)
+    button_container.columnconfigure(1, weight=1)
 
-    install_btn = _create_button(button_frame, "Install Modlist", install_callback, height=1)
+    install_btn = _create_button(button_container, "Install Modlist", install_callback, height=1)
     install_btn.grid(row=0, column=0, sticky="we", padx=(0, 3))
 
-    quit_btn = _create_button(button_frame, "Quit", quit_callback, height=1)
+    quit_btn = _create_button(button_container, "Quit", quit_callback, height=1)
     quit_btn.grid(row=0, column=1, sticky="we", padx=(3, 0))
     
     return button_frame, install_btn, quit_btn

@@ -114,3 +114,157 @@ def askyesno(title, message, parent=None):
 def askokcancel(title, message, parent=None):
     """Show an OK/Cancel question dialog."""
     return _show_dialog("question", title, message, parent, [("OK", True), ("Cancel", False)])
+
+
+def show_validation_report(parent, github_count, gdrive_mods, other_domains, failed_list):
+    """
+    Show URL validation report dialog with domain breakdown.
+    
+    Args:
+        parent: Parent window
+        github_count: Number of GitHub URLs
+        gdrive_mods: List of Google Drive mods
+        other_domains: Dict of {domain: [mod, ...]}
+        failed_list: List of {'mod': mod, 'status': code, 'error': str}
+        
+    Returns:
+        str: 'continue' to proceed, 'cancel' to abort
+    """
+    result = {'action': 'cancel'}
+    
+    dialog = tk.Toplevel(parent)
+    dialog.title("Pre-Installation Check")
+    dialog.transient(parent)
+    dialog.grab_set()
+    dialog.resizable(False, False)
+    
+    # Main frame
+    main_frame = tk.Frame(dialog)
+    main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+    
+    # Title
+    tk.Label(main_frame, text="Download Sources Analysis", 
+             font=("Arial", 14, "bold")).pack(pady=(0, 15))
+    
+    # Summary frame
+    summary_frame = tk.Frame(main_frame)
+    summary_frame.pack(fill=tk.X, pady=(0, 15))
+    
+    # GitHub mods
+    if github_count > 0:
+        github_frame = tk.Frame(summary_frame)
+        github_frame.pack(fill=tk.X, pady=(0, 8))
+        
+        tk.Label(github_frame, text=f"✓ {github_count} mod(s) from GitHub", 
+                font=("Arial", 11, "bold"), fg="#2d862d").pack(anchor=tk.W)
+    
+    # Google Drive mods with info
+    if len(gdrive_mods) > 0:
+        gdrive_frame = tk.Frame(summary_frame)
+        gdrive_frame.pack(fill=tk.X, pady=(0, 8))
+        
+        tk.Label(gdrive_frame, text=f"✓ {len(gdrive_mods)} mod(s) from Google Drive", 
+                font=("Arial", 11, "bold"), fg="#3b82f6").pack(anchor=tk.W)
+        
+        # Info about large files
+        info_text = tk.Label(gdrive_frame, 
+            text="Large files bypass Google's virus scan and may need a second confirmation to download.",
+            font=("Arial", 9, "italic"), fg="#666", wraplength=450, justify=tk.LEFT)
+        info_text.pack(anchor=tk.W, padx=(20, 0), pady=(2, 0))
+        
+        # List Google Drive mods
+        gdrive_list_frame = tk.Frame(gdrive_frame, relief=tk.SUNKEN, bd=1, bg="#e6f2ff")
+        gdrive_list_frame.pack(fill=tk.X, padx=(20, 0), pady=(4, 0))
+        
+        gdrive_text = tk.Text(gdrive_list_frame, height=min(4, len(gdrive_mods)), width=55,
+                             font=("Courier", 9), wrap=tk.WORD, bg="#e6f2ff", relief=tk.FLAT)
+        for mod in gdrive_mods:
+            gdrive_text.insert(tk.END, f"  • {mod.get('name', 'Unknown')}\n")
+        gdrive_text.config(state=tk.DISABLED)
+        gdrive_text.pack(padx=5, pady=5)
+    
+    # Other domains
+    if other_domains:
+        other_frame = tk.Frame(summary_frame)
+        other_frame.pack(fill=tk.X, pady=(0, 8))
+        
+        total_other = sum(len(mods) for mods in other_domains.values())
+        tk.Label(other_frame, text=f"⚠ {total_other} mod(s) from other sources", 
+                font=("Arial", 11, "bold"), fg="#d97706").pack(anchor=tk.W)
+        
+        # List each domain with its mods
+        other_list_frame = tk.Frame(other_frame, relief=tk.SUNKEN, bd=1, bg="#fff9e6")
+        other_list_frame.pack(fill=tk.X, padx=(20, 0), pady=(4, 0))
+        
+        other_text = tk.Text(other_list_frame, height=min(5, total_other), width=55,
+                            font=("Courier", 9), wrap=tk.WORD, bg="#fff9e6", relief=tk.FLAT)
+        
+        for domain, mods in sorted(other_domains.items()):
+            for mod in mods:
+                other_text.insert(tk.END, f"  • {mod.get('name', 'Unknown')} ({domain})\n")
+        
+        other_text.config(state=tk.DISABLED)
+        other_text.pack(padx=5, pady=5)
+    
+    # Failed mods
+    if failed_list:
+        failed_frame = tk.Frame(summary_frame)
+        failed_frame.pack(fill=tk.X, pady=(0, 0))
+        
+        tk.Label(failed_frame, text=f"✗ {len(failed_list)} mod(s) inaccessible", 
+                font=("Arial", 11, "bold"), fg="#dc2626").pack(anchor=tk.W, pady=(0, 2))
+        
+        tk.Label(failed_frame, 
+            text="These mods cannot be downloaded. Check URLs or contact mod authors.",
+            font=("Arial", 9, "italic"), fg="#666", wraplength=450, justify=tk.LEFT).pack(anchor=tk.W, padx=(20, 0), pady=(2, 0))
+        
+        # Scrollable list of failed mods
+        failed_list_frame = tk.Frame(failed_frame, relief=tk.SUNKEN, bd=1, bg="#ffe6e6")
+        failed_list_frame.pack(fill=tk.X, padx=(20, 0), pady=(4, 0))
+        
+        failed_text = tk.Text(failed_list_frame, height=min(5, len(failed_list)), width=55, 
+                             font=("Courier", 9), wrap=tk.WORD, bg="#ffe6e6", relief=tk.FLAT)
+        
+        for fail in failed_list:
+            mod_name = fail['mod'].get('name', 'Unknown')
+            error = fail['error']
+            failed_text.insert(tk.END, f"  • {mod_name}: {error}\n")
+        
+        failed_text.config(state=tk.DISABLED)
+        failed_text.pack(padx=5, pady=5)
+    
+    # Buttons frame
+    button_frame = tk.Frame(main_frame)
+    button_frame.pack(fill=tk.X, pady=(15, 0))
+    
+    def on_continue():
+        result['action'] = 'continue'
+        dialog.destroy()
+    
+    def on_cancel():
+        result['action'] = 'cancel'
+        dialog.destroy()
+    
+    # Center the buttons
+    button_container = tk.Frame(button_frame)
+    button_container.pack(anchor=tk.CENTER)
+    
+    if github_count > 0 or len(gdrive_mods) > 0 or other_domains:
+        tk.Button(button_container, text="Continue", command=on_continue,
+                 font=("Arial", 10, "bold"), cursor="hand2", padx=20, pady=8).pack(side=tk.LEFT, padx=(0, 5))
+    
+    tk.Button(button_container, text="Cancel", command=on_cancel,
+             font=("Arial", 10), cursor="hand2", padx=20, pady=8).pack(side=tk.LEFT)
+    
+    # Keyboard bindings
+    dialog.bind("<Escape>", lambda e: on_cancel())
+    dialog.bind("<Return>", lambda e: on_continue() if github_count > 0 or len(gdrive_mods) > 0 or other_domains else None)
+    
+    # Center on parent
+    dialog.update_idletasks()
+    x = parent.winfo_x() + (parent.winfo_width() - dialog.winfo_width()) // 2
+    y = parent.winfo_y() + (parent.winfo_height() - dialog.winfo_height()) // 2
+    dialog.geometry(f"+{x}+{y}")
+    
+    dialog.wait_window()
+    return result['action']

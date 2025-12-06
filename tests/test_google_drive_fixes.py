@@ -2,6 +2,10 @@
 Tests for Google Drive URL fixing functionality.
 """
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
 import pytest
 from gui.dialogs import fix_google_drive_url
 from core.installer import ModInstaller
