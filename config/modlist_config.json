@@ -1,8 +1,8 @@
 {
   "modlist_name": "ASTRA",
-  "version": "1.0",
+  "version": "0.7",
   "starsector_version": "0.98a-RC8",
-  "description": "Starsector Modlist",
+  "description": "A vanilla friendly Starsector modlist",
   "mods": [
     {
       "name": "Lunalib",

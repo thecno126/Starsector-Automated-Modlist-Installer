@@ -91,7 +91,8 @@ class ModlistInstaller:
         
         # Keyboard shortcuts
         self.root.bind('<Control-q>', lambda e: self.root.destroy())
-        self.root.bind('<Control-s>', lambda e: self.save_modlist_config())
+        # Bind Ctrl+S to save configuration
+        self.root.bind('<Control-s>', lambda e: self.save_modlist_config(log_message=True))
         self.root.bind('<Control-a>', lambda e: self.open_add_mod_dialog())
     
     def create_ui(self):
@@ -218,6 +219,9 @@ class ModlistInstaller:
             
             self.is_installing = False
             self.is_paused = False
+        
+        # Save configuration before closing
+        self.save_modlist_config()
         
         # Cleanup and exit
         self.log("Application closing...")
@@ -495,12 +499,17 @@ class ModlistInstaller:
     # Display
     # ============================================
     
-    def save_modlist_config(self):
-        """Save the current modlist configuration."""
+    def save_modlist_config(self, log_message=False):
+        """Save the current modlist configuration.
+        
+        Args:
+            log_message: If True, log a confirmation message (default: False)
+        """
         if not self.modlist_data:
             return
         self.config_manager.save_modlist_config(self.modlist_data)
-        self.log("Configuration saved")
+        if log_message:
+            self.log("Configuration saved", debug=True)
     
     def reset_modlist_config(self):
         """Reset the modlist configuration."""
@@ -617,10 +626,9 @@ class ModlistInstaller:
             info: If True, display in blue (for informational messages)
             warning: If True, display in orange (for warnings)
             debug: If True, display in gray (for debug messages)
-            success: If True, display in green (for success messages)
         """
         if threading.current_thread() is not threading.main_thread():
-            self.root.after(0, lambda: self.log(message, error, info, warning, debug, success))
+            self.root.after(0, lambda: self.log(message, error, info, warning, debug))
             return
 
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -658,9 +666,6 @@ class ModlistInstaller:
         elif warning:
             tag = "warning"
             self.log_text.tag_config("warning", foreground="#e67e22")  # Orange
-        elif success:
-            tag = "success"
-            self.log_text.tag_config("success", foreground="#2ecc71")  # Green
         elif info:
             tag = "info"
             self.log_text.tag_config("info", foreground="#3498db")  # Blue
@@ -950,7 +955,7 @@ class ModlistInstaller:
             custom_dialogs.showerror("Validation Error", f"Failed to validate URLs: {validation_result['error']}")
             return None
         
-        if validation_result['data'] is None:
+        if not validation_result['data']:
             custom_dialogs.showerror("Validation Timeout", "URL validation took too long. Try again or check your internet connection.")
             return None
         
@@ -1202,7 +1207,7 @@ class ModlistInstaller:
                     # Already logged by installer
                     skipped += 1
                 elif success:
-                    self.log(f"  ✓ {mod['name']} installed successfully", success=True)
+                    self.log(f"  ✓ {mod['name']} installed successfully")
                     extracted += 1
                 else:
                     self.log(f"  ✗ Failed to install {mod['name']}", error=True)
