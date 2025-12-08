@@ -617,9 +617,10 @@ class ModlistInstaller:
             info: If True, display in blue (for informational messages)
             warning: If True, display in orange (for warnings)
             debug: If True, display in gray (for debug messages)
+            success: If True, display in green (for success messages)
         """
         if threading.current_thread() is not threading.main_thread():
-            self.root.after(0, lambda: self.log(message, error, info, warning, debug))
+            self.root.after(0, lambda: self.log(message, error, info, warning, debug, success))
             return
 
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -657,6 +658,9 @@ class ModlistInstaller:
         elif warning:
             tag = "warning"
             self.log_text.tag_config("warning", foreground="#e67e22")  # Orange
+        elif success:
+            tag = "success"
+            self.log_text.tag_config("success", foreground="#2ecc71")  # Green
         elif info:
             tag = "info"
             self.log_text.tag_config("info", foreground="#3498db")  # Blue
@@ -946,7 +950,7 @@ class ModlistInstaller:
             custom_dialogs.showerror("Validation Error", f"Failed to validate URLs: {validation_result['error']}")
             return None
         
-        if not validation_result['data']:
+        if validation_result['data'] is None:
             custom_dialogs.showerror("Validation Timeout", "URL validation took too long. Try again or check your internet connection.")
             return None
         
@@ -1198,7 +1202,7 @@ class ModlistInstaller:
                     # Already logged by installer
                     skipped += 1
                 elif success:
-                    self.log(f"  ✓ {mod['name']} installed successfully")
+                    self.log(f"  ✓ {mod['name']} installed successfully", success=True)
                     extracted += 1
                 else:
                     self.log(f"  ✗ Failed to install {mod['name']}", error=True)
