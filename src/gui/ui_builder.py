@@ -6,6 +6,13 @@ Contains functions to create the user interface components.
 import tkinter as tk
 from tkinter import ttk, scrolledtext
 
+from core import (
+    UI_BOTTOM_BUTTON_HEIGHT,
+    UI_RIGHT_PANEL_WIDTH,
+    UI_RIGHT_PANEL_MINSIZE,
+    UI_LEFT_PANEL_MINSIZE
+)
+
 
 # Helper function to create buttons with consistent styling
 def _create_button(parent, text, command, width=10, font_size=9, **kwargs):
@@ -58,8 +65,8 @@ def create_path_section(main_frame, path_var, browse_callback):
     return path_frame, path_entry, browse_btn, path_status_label
 
 
-def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback):
-    """Create the modlist information section."""
+def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback, search_callback=None):
+    """Create the modlist information section with optional search."""
     info_frame = tk.LabelFrame(main_frame, text="Current Modlist", padx=5, pady=5)
     info_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 5))
     
@@ -79,6 +86,25 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback)
         state=tk.DISABLED
     )
     header_text.pack(fill=tk.X, pady=(0, 5))
+    
+    # Search bar (if callback provided)
+    search_var = None
+    if search_callback:
+        search_frame = tk.Frame(left_container)
+        search_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        tk.Label(search_frame, text="🔍", font=("Arial", 12)).pack(side=tk.LEFT, padx=(0, 5))
+        
+        search_var = tk.StringVar()
+        search_entry = tk.Entry(search_frame, textvariable=search_var, font=("Arial", 10))
+        search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        
+        clear_btn = tk.Button(search_frame, text="✕", command=lambda: search_var.set(""),
+                             font=("Arial", 10), width=3)
+        clear_btn.pack(side=tk.RIGHT)
+        
+        # Bind search callback
+        search_var.trace_add('write', lambda *args: search_callback(search_var.get()))
     
     # Modlist container with scrollbar
     list_container = tk.Frame(left_container)
@@ -102,7 +128,7 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback)
     mod_listbox.bind('<Button-1>', mod_click_callback)
     main_paned.bind('<ButtonRelease-1>', pane_resize_callback)
     
-    return info_frame, main_paned, header_text, mod_listbox
+    return info_frame, main_paned, header_text, mod_listbox, search_var
 
 
 def create_button_panel(main_paned, callbacks):
@@ -173,10 +199,21 @@ def create_button_panel(main_paned, callbacks):
     }
 
 
-def create_log_section(main_frame):
-    """Create the log section with progress bar."""
+def create_log_section(main_frame, current_mod_var=None):
+    """Create the log section with progress bar and optional current mod label."""
     log_frame = tk.LabelFrame(main_frame, text="Installation Log", padx=5, pady=5)
     log_frame.pack(fill=tk.BOTH, expand=True)
+    
+    # Current mod label (if variable provided)
+    if current_mod_var:
+        current_mod_label = tk.Label(
+            log_frame,
+            textvariable=current_mod_var,
+            font=("Arial", 9, "italic"),
+            fg="#3498db",
+            anchor=tk.W
+        )
+        current_mod_label.pack(fill=tk.X, pady=(0, 3))
     
     progress_bar = ttk.Progressbar(log_frame, mode='determinate')
     progress_bar.pack(fill=tk.X, pady=(0, 5))
@@ -187,25 +224,12 @@ def create_log_section(main_frame):
     return log_frame, progress_bar, log_text
 
 
-def create_bottom_buttons(main_frame, install_callback, quit_callback, trust_gdrive_var=None):
-    """Create the bottom button panel with optional Google Drive trust checkbox."""
+def create_bottom_buttons(main_frame, install_callback, quit_callback):
+    """Create the bottom button panel."""
     button_frame = tk.Frame(main_frame)
     button_frame.pack(side=tk.BOTTOM, fill=tk.X)
-    button_frame.configure(height=50 if trust_gdrive_var else 35)
+    button_frame.configure(height=UI_BOTTOM_BUTTON_HEIGHT)
     button_frame.pack_propagate(False)
-    
-    # Google Drive trust checkbox (if provided)
-    if trust_gdrive_var is not None:
-        gdrive_check_frame = tk.Frame(button_frame)
-        gdrive_check_frame.pack(fill=tk.X, pady=(0, 5))
-        
-        gdrive_check = tk.Checkbutton(
-            gdrive_check_frame,
-            text="Trust Google Drive large files (bypass virus scan warning)",
-            variable=trust_gdrive_var,
-            font=("Arial", 9)
-        )
-        gdrive_check.pack(anchor=tk.W, padx=5)
 
     button_container = tk.Frame(button_frame)
     button_container.pack(fill=tk.BOTH, expand=True)

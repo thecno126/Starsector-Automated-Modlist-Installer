@@ -40,10 +40,8 @@ class ConfigManager:
                 os.replace(temp_path, file_path)
             except Exception:
                 # Cleanup temp file if something failed
-                try:
+                if os.path.exists(temp_path):
                     os.unlink(temp_path)
-                except Exception:
-                    pass
                 raise
         except Exception as e:
             print(f"Error saving {file_path.name}: {e}")
@@ -100,8 +98,8 @@ class ConfigManager:
             try:
                 with open(self.categories_file, 'r', encoding='utf-8') as f:
                     return json.load(f)
-            except Exception:
-                pass
+            except (json.JSONDecodeError, IOError) as e:
+                print(f"Error loading categories: {e}")
         
         # Default categories
         default = ["Required", "Graphics", "Gameplay", "Content", "Quality of Life", "Utility", "Uncategorized"]
@@ -123,12 +121,12 @@ class ConfigManager:
         Returns:
             dict: User preferences
         """
-        try:
-            if self.prefs_file.exists():
+        if self.prefs_file.exists():
+            try:
                 with open(self.prefs_file, 'r', encoding='utf-8') as f:
                     return json.load(f)
-        except Exception:
-            pass
+            except (json.JSONDecodeError, IOError) as e:
+                print(f"Error loading preferences: {e}")
         return {}
     
     def save_preferences(self, prefs):

@@ -9,7 +9,7 @@ import csv
 import threading
 import re
 from pathlib import Path
-from gui import custom_dialogs
+from . import custom_dialogs
 
 
 def fix_google_drive_url(url):
@@ -366,9 +366,9 @@ def open_export_csv_dialog(parent, app):
         app.log(f"Exported {len(app.modlist_data.get('mods', []))} mods to {csv_file}")
         custom_dialogs.showsuccess("Export Complete", f"Modlist exported successfully to:\n{csv_file}")
     
-    except Exception as e:
-        app.log(f"Error exporting CSV: {e}", error=True)
-        custom_dialogs.showerror("Export Error", f"Failed to export CSV:\n{str(e)}")
+    except (OSError, csv.Error, UnicodeEncodeError) as e:
+        app.log(f"Error exporting CSV: {type(e).__name__}: {e}", error=True)
+        custom_dialogs.showerror("Export Error", f"Failed to export CSV:\n{type(e).__name__}: {str(e)}")
 
 
 def _import_csv_file(csv_path: str, app):
@@ -510,9 +510,9 @@ def _import_csv_file(csv_path: str, app):
             app.root.after(0, lambda: custom_dialogs.showsuccess("Import complete", summary))
         
         app.root.after(0, lambda: _set_ui_enabled(app, True))
-    except Exception as e:
-        app.log(f"  ✗ Error importing CSV: {e}", error=True)
-        app.root.after(0, lambda: custom_dialogs.showerror("Import failed", f"Error during CSV import: {e}"))
+    except (FileNotFoundError, csv.Error, UnicodeDecodeError, ValueError) as e:
+        app.log(f"  ✗ Error importing CSV: {type(e).__name__}: {e}", error=True)
+        app.root.after(0, lambda: custom_dialogs.showerror("Import failed", f"Error during CSV import:\n{type(e).__name__}: {e}"))
         app.root.after(0, lambda: _set_ui_enabled(app, True))
 
 
@@ -525,5 +525,5 @@ def _set_ui_enabled(app, enabled: bool):
         app.export_btn.config(state=state)
         app.reset_btn.config(state=state)
         app.quit_btn.config(state=state)
-    except Exception:
-        pass
+    except (AttributeError, tk.TclError):
+        pass  # Widget not available or destroyed

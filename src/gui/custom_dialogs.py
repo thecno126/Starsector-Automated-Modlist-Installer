@@ -21,7 +21,6 @@ class StyledDialog:
         """
         self.result = None
         self.dialog = tk.Toplevel(parent)
-        self.dialog.title(title)
         self.dialog.transient(parent)
         self.dialog.grab_set()
         self.dialog.resizable(False, False)
@@ -133,7 +132,6 @@ def show_validation_report(parent, github_count, gdrive_mods, other_domains, fai
     result = {'action': 'cancel'}
     
     dialog = tk.Toplevel(parent)
-    dialog.title("Pre-Installation Check")
     dialog.transient(parent)
     dialog.grab_set()
     dialog.resizable(False, False)

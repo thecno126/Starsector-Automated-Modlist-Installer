@@ -433,8 +433,8 @@ class TestInstallationScenarios:
         for mod in mods_to_install:
             # Simulate archive structure (single root folder matching mod name)
             mock_members = [f"{mod['name']}/mod_info.json", f"{mod['name']}/data/config.json"]
-            # Use _is_already_installed_simple instead
-            if installer._is_already_installed_simple(mock_members, mods_dir):
+            # Use unified _check_if_installed with is_7z=True (simple check)
+            if installer._check_if_installed(None, mock_members, mods_dir, is_7z=True):
                 already_installed.append(mod['name'])
             else:
                 needs_download.append(mod)
