@@ -14,7 +14,7 @@ A professional tool to manage and install Starsector modlists with parallel down
 - 💾 **Reliable saves** - Atomic configuration writes and auto-save on exit
 - 🌐 **Google Drive support** - Automatic HTML detection and URL fixing
 - 📊 **Category management** - Organize mods with drag-and-drop reordering
-- 🎨 **Modern UI** - Clean Tkinter interface with progress tracking and colored logs
+- 🎨 **Graphical interface** - Tkinter interface with progress tracking and colored logs
 - 📋 **CSV Import/Export** - Share modlists easily
 - ✅ **36 unit tests** with pytest for reliability
 
