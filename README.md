@@ -14,11 +14,16 @@ A professional tool to manage and install Starsector modlists with parallel down
 - 💾 **Reliable saves** - Atomic configuration writes and auto-save on exit
 - 🌐 **Google Drive support** - Automatic HTML detection and URL fixing
 - 📊 **Category management** - Organize mods with drag-and-drop reordering
-- 🎨 **Graphical interface** - Tkinter interface with progress tracking and colored logs
+- 🎨 **TriOS-themed interface** - Modern dark UI matching TriOS mod manager with colored logs
 - 📋 **CSV Import/Export** - Share modlists easily
 - ✅ **36 unit tests** with pytest for reliability
 
 ### Recent Improvements
+- 🎨 **TriOS Theme Integration** - Modern dark theme matching TriOS mod manager
+- 🖥️ **macOS UI Fixes** - Custom Canvas-based buttons for proper color rendering on macOS
+- ✨ **Enhanced Dialogs** - All popups now use consistent TriOS theme with centered buttons
+- 🔲 **Borderless Design** - Removed white borders from all text widgets for cleaner look
+- ⚡ **Non-blocking UI** - Async URL validation prevents UI freezing
 - 🚀 **Code refactoring** - 150+ lines eliminated, improved elegance and maintainability
 - 🎯 **URL validation cache** - Reduces redundant network requests (1-hour cache)
 - 🔁 **Automatic retry** - Up to 3 attempts with exponential backoff for network failures
@@ -121,12 +126,14 @@ ASTRA-Modlist-Installer/
 - 📥 **Import/Export** - Share modlists via CSV format
 - 🌐 **Smart downloads** - Handles ZIP, 7z, and Google Drive links
 - 📊 **Progress tracking** - Real-time installation progress with detailed logs
-- 🎨 **Theme support** - System theme detection (light/dark mode)
+- 🎨 **TriOS Theme** - Consistent dark theme with cyan accents matching TriOS mod manager
 - 🏷️ **Category management** - Create, rename, delete, and reorder categories
 - 💾 **Auto-save** - Configuration saved automatically on exit
 - 🔄 **Retry logic** - Automatic retry with exponential backoff on network failures
 
 **Advanced Features:**
+- **TriOS Theme Integration** - Custom Canvas-based buttons for proper theming on macOS (bypasses Aqua limitations)
+- **Non-blocking UI** - Async URL validation with `root.after()` prevents freezing during validation
 - **URL Validation Cache** - 1-hour cache reduces redundant network checks
 - **Archive Validation** - Integrity checks for ZIP and 7z files
 - **Version Comparison** - Smart parsing of version strings (supports "1.2.3", "2.0a", etc.)
