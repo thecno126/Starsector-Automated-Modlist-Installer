@@ -21,6 +21,7 @@ class StyledDialog:
         """
         self.result = None
         self.dialog = tk.Toplevel(parent)
+        self.dialog.title(title)
         self.dialog.transient(parent)
         self.dialog.grab_set()
         self.dialog.resizable(False, False)
@@ -29,17 +30,29 @@ class StyledDialog:
         content_frame = tk.Frame(self.dialog)
         content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
+        # Title
+        title_label = tk.Label(content_frame, text=title, font=("Arial", 12, "bold"))
+        title_label.pack(pady=(0, 15))
+        
         # Icon and message
         message_frame = tk.Frame(content_frame)
         message_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
         
-        # Icon
+        # Icon with color coding
         icons = {"info": "ℹ", "success": "✓", "warning": "⚠", "error": "✗", "question": "?"}
-        tk.Label(message_frame, text=icons.get(dialog_type, "ℹ"), 
-                font=("Arial", 36, "bold")).pack(side=tk.LEFT, padx=(0, 15))
+        icon_colors = {
+            "info": "#3498db",      # Blue
+            "success": "#2ecc71",   # Green
+            "warning": "#e67e22",   # Orange
+            "error": "#e74c3c",     # Red
+            "question": "#3498db"   # Blue
+        }
+        icon_label = tk.Label(message_frame, text=icons.get(dialog_type, "ℹ"), 
+                font=("Arial", 36, "bold"), fg=icon_colors.get(dialog_type, "#3498db"))
+        icon_label.pack(side=tk.LEFT, padx=(0, 15))
         
         # Message
-        tk.Label(message_frame, text=message, font=("Arial", 11),
+        tk.Label(message_frame, text=message, font=("Arial", 10),
                 wraplength=350, justify=tk.LEFT).pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
         # Buttons
@@ -50,11 +63,23 @@ class StyledDialog:
         if buttons is None:
             buttons = [("Yes", True), ("No", False)] if dialog_type == "question" else [("OK", True)]
         
+        # Button color scheme based on dialog type
+        primary_color = {
+            "success": "#2ecc71",
+            "error": "#e74c3c",
+            "warning": "#e67e22",
+            "info": "#3498db",
+            "question": "#3498db"
+        }.get(dialog_type, "#3498db")
+        
         # Create buttons (reversed for right-to-left packing)
         for i, (label, value) in enumerate(reversed(buttons)):
+            # First button gets primary color, others get gray
+            bg_color = primary_color if i == len(buttons) - 1 else "#95a5a6"
             tk.Button(button_frame, text=label, command=lambda v=value: self._on_button_click(v),
                      font=("Arial", 10, "bold"), cursor="hand2", padx=20, 
-                     pady=10).pack(side=tk.RIGHT, padx=(0, 5) if i > 0 else 0)
+                     pady=8, bg=bg_color, fg="white" if bg_color != "#95a5a6" else "black",
+                     relief=tk.RAISED, bd=1).pack(side=tk.RIGHT, padx=(0, 5) if i > 0 else 0)
         
         # Keyboard bindings
         self.dialog.bind("<Return>", lambda e: self._on_button_click(buttons[0][1]))
@@ -270,10 +295,12 @@ def show_validation_report(parent, github_mods, gdrive_mods, other_domains, fail
     
     if len(github_mods) > 0 or len(gdrive_mods) > 0 or other_domains:
         tk.Button(button_container, text="Continue", command=on_continue,
-                 font=("Arial", 10, "bold"), cursor="hand2", padx=20, pady=8).pack(side=tk.LEFT, padx=(0, 5))
+                 font=("Arial", 10, "bold"), cursor="hand2", padx=20, pady=8,
+                 bg="#2ecc71", fg="white", relief=tk.RAISED, bd=1).pack(side=tk.LEFT, padx=(0, 5))
     
     tk.Button(button_container, text="Cancel", command=on_cancel,
-             font=("Arial", 10), cursor="hand2", padx=20, pady=8).pack(side=tk.LEFT)
+             font=("Arial", 10), cursor="hand2", padx=20, pady=8,
+             bg="#95a5a6", fg="black", relief=tk.RAISED, bd=1).pack(side=tk.LEFT)
     
     # Keyboard bindings
     dialog.bind("<Escape>", lambda e: on_cancel())
