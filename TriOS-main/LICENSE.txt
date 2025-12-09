@@ -1,0 +1,48 @@
+TriOS Community License v1.0
+Last revised 11 May 2025
+
+--------------------------------------------------------------------
+
+1. Purpose
+
+This license strikes a balance between open collaboration and protection against wholesale cloning of TriOS. Small, targeted reuse is encouraged under standard open-source terms. Copying large portions or re-branding TriOS as your own requires sharing alike and keeping things free for everyone.
+
+--------------------------------------------------------------------
+
+2. Definitions
+
+- "TriOS Source" – any source code, binaries, or documentation distributed by the TriOS project.
+
+- "Limited Use" – incorporating individual files or clearly isolated components (e.g., WispGrid) without substantially re-creating TriOS’s overall functionality or look-and-feel.
+
+- "Extensive Use" – cloning, forking, or otherwise including all or a substantial part of TriOS, or copying one or more complete features with the intent to offer a competing or replacement system.
+
+--------------------------------------------------------------------
+
+3. Grant of Rights
+
+Except as modified below, the Apache License 2.0 (the "Apache 2.0") applies to all TriOS Source.
+
+3.1 Limited Use
+
+For Limited Use, you receive all rights granted by Apache 2.0 with no extra obligations.
+
+3.2 Extensive Use
+
+If your use qualifies as Extensive Use, the following additional conditions apply:
+
+  1. Source-Availability – You must make the complete source code of your derivative work publicly accessible under this License (TriOS Community License v1.0) or a later official version of it.
+
+  2. No Closed Forks – You may not distribute or deploy any derivative work under a proprietary or closed-source license.
+
+  3. No Paywalls – You may not charge license fees or usage fees for the derivative work itself. (Selling support, hosting, or related services is fine.)
+
+Failure to meet these extra conditions automatically reclassifies your activity as unlicensed copying.
+
+--------------------------------------------------------------------
+
+4. Disclaimer & Liability
+
+THE TRIOS SOURCE IS PROVIDED "AS IS", WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, AS SET FORTH IN APACHE 2.0 SECTIONS 7 AND 8. TO THE MAXIMUM EXTENT PERMITTED BY LAW, LICENSORS WILL NOT BE LIABLE FOR ANY DAMAGES ARISING FROM USE OF THE TRIOS SOURCE.
+
+--------------------------------------------------------------------

@@ -1,0 +1,9 @@
+# Usage: `dart run ffigen --config build_bit7z_bindings.yaml`
+
+name: Bit7zBinding
+output: lib/bit7z/bit7z_bindings.dart
+headers:
+  entry-points:
+    - assets/windows/bit7z/include/bit7z/bitfileextractor.hpp
+    - assets/windows/bit7z/include/bit7z/bitarchivereader.hpp
+

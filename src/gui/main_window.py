@@ -41,6 +41,7 @@ from .ui_builder import (
     create_log_section,
     create_bottom_buttons
 )
+from utils.theme import TriOSTheme
 
 
 class ModlistInstaller:
@@ -48,10 +49,13 @@ class ModlistInstaller:
     
     def __init__(self, root):
         self.root = root
-        self.root.title("Modlist Installer")
+        self.root.title("ASTRA Modlist Installer")
         self.root.geometry(f"{UI_DEFAULT_WINDOW_WIDTH}x{UI_DEFAULT_WINDOW_HEIGHT}")
         self.root.resizable(True, True)
         self.root.minsize(UI_MIN_WINDOW_WIDTH, UI_MIN_WINDOW_HEIGHT)
+        
+        # Apply TriOS-inspired theme
+        self.root.configure(bg=TriOSTheme.SURFACE_DARK)
         
         # Config manager
         self.config_manager = ConfigManager()
@@ -551,11 +555,11 @@ class ModlistInstaller:
         self.mod_listbox.config(state=tk.NORMAL)
         self.mod_listbox.delete(1.0, tk.END)
         
-        # Configure category and selection tags (system colors for text)
-        self.mod_listbox.tag_configure('category', background='#34495e', 
-            foreground='#ffffff', justify='center')
-        self.mod_listbox.tag_configure('selected', background='#3498db', 
-            foreground='#ffffff')
+        # Configure category and selection tags (TriOS theme colors)
+        self.mod_listbox.tag_configure('category', background=TriOSTheme.CATEGORY_BG, 
+            foreground=TriOSTheme.CATEGORY_FG, justify='center')
+        self.mod_listbox.tag_configure('selected', background=TriOSTheme.ITEM_SELECTED_BG, 
+            foreground=TriOSTheme.ITEM_SELECTED_FG)
         
         # Group mods by category
         mods = self.modlist_data.get('mods', [])
@@ -660,22 +664,22 @@ class ModlistInstaller:
 
         self.log_text.config(state=tk.NORMAL)
         
-        # Configure tag colors for different log levels
+        # Configure tag colors for different log levels (TriOS theme)
         if error:
             tag = "error"
-            self.log_text.tag_config("error", foreground="#e74c3c")  # Red
+            self.log_text.tag_config("error", foreground=TriOSTheme.LOG_ERROR)
         elif warning:
             tag = "warning"
-            self.log_text.tag_config("warning", foreground="#e67e22")  # Orange
+            self.log_text.tag_config("warning", foreground=TriOSTheme.LOG_WARNING)
         elif success:
             tag = "success"
-            self.log_text.tag_config("success", foreground="#2ecc71")  # Green
+            self.log_text.tag_config("success", foreground=TriOSTheme.LOG_SUCCESS)
         elif info:
             tag = "info"
-            self.log_text.tag_config("info", foreground="#3498db")  # Blue
+            self.log_text.tag_config("info", foreground=TriOSTheme.LOG_INFO)
         elif debug:
             tag = "debug"
-            self.log_text.tag_config("debug", foreground="#95a5a6")  # Gray
+            self.log_text.tag_config("debug", foreground=TriOSTheme.LOG_DEBUG)
         else:
             tag = "normal"
         
@@ -853,10 +857,12 @@ class ModlistInstaller:
         """Toggle pause state."""
         self.is_paused = not self.is_paused
         if self.is_paused:
-            self.pause_install_btn.config(text="Resume", bg="#e67e22")
+            pause_style = TriOSTheme.get_button_style("warning")
+            self.pause_install_btn.config(text="Resume", **pause_style)
             self.log("Installation paused")
         else:
-            self.pause_install_btn.config(text="Pause", bg="#f39c12")
+            pause_style = TriOSTheme.get_button_style("warning")
+            self.pause_install_btn.config(text="Pause", **pause_style)
             self.log("Installation resumed")
     
     def start_installation(self):

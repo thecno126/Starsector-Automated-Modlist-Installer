@@ -5,6 +5,7 @@ Contains functions to create the user interface components.
 
 import tkinter as tk
 from tkinter import ttk, scrolledtext
+from utils.theme import TriOSTheme
 
 from core import (
     UI_BOTTOM_BUTTON_HEIGHT,
@@ -15,10 +16,13 @@ from core import (
 
 
 # Helper function to create buttons with consistent styling
-def _create_button(parent, text, command, width=10, font_size=9, **kwargs):
-    """Create a standard button with consistent styling."""
+def _create_button(parent, text, command, width=10, font_size=9, button_type="primary", **kwargs):
+    """Create a standard button with consistent styling using TriOS theme."""
+    style = TriOSTheme.get_button_style(button_type)
+    # Merge theme style with additional kwargs
+    style.update(kwargs)
     return tk.Button(parent, text=text, command=command, 
-                    font=("Arial", font_size, "bold"), width=width, **kwargs)
+                    font=("Arial", font_size, "bold"), width=width, **style)
 
 
 def create_header(root):

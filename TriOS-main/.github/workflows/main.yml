@@ -1,0 +1,273 @@
+name: Flutter CI
+
+on:
+  push:
+    tags:
+      - '*'
+
+env:
+  flutter_channel: "stable"
+  windows_build_output_path: "build/windows/x64/runner/Release/*"
+  macos_build_output_path: "build/macos/Build/Products/Release/TriOS.app"
+  linux_build_output_path: "build/linux/x64/release/bundle"
+
+jobs:
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Remove Non-Windows Files
+        run: |
+          echo "Deleting files in non-Windows asset directories..."
+          Get-Childitem assets/linux -File -Recurse | Foreach-Object {Write-Output "Deleting: $_.FullName"; Remove-Item $_.FullName -Force}
+          Get-Childitem assets/macos -File -Recurse | Foreach-Object {Write-Output "Deleting: $_.FullName"; Remove-Item $_.FullName -Force}
+          echo "Non-Windows asset files deleted."
+
+      - name: Flutter Setup
+        run: echo "Setting up Flutter..."
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.flutter_channel }}
+          architecture: x64
+          cache: true
+
+      - run: flutter --version
+      - run: flutter clean
+      - run: flutter upgrade
+      - run: flutter config --enable-windows-desktop
+
+      # Use Visual C++ 2019 toolset so that the WebView doesn't crash on Windows 10
+      - name: Set up Visual Studio 2019
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+          toolset: 14.29
+          vcvars_ver: 14.29
+
+      - name: Build Windows
+        run: |
+          echo "Building Windows app..."
+          flutter build windows
+          echo "Build complete."
+
+      - name: Prepare TriOS Directory
+        run: |
+          echo "Preparing directory for Windows artifact..."
+          mkdir TriOS
+
+      - name: Move Build Output to TriOS Directory
+        run: |
+          echo "Moving build output to TriOS directory..."
+          Get-ChildItem ${{ env.windows_build_output_path }} | Move-Item -Destination TriOS/
+          echo "Move complete. Listing contents of the TriOS directory:"
+          dir
+
+      - name: Zip TriOS Directory
+        run: |
+          echo "Zipping Windows artifact..."
+          Compress-Archive -Path TriOS -DestinationPath TriOS-Windows.zip
+          echo "Zipping complete. Listing contents of the workspace:"
+          dir
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-windows
+          path: TriOS-Windows.zip
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Remove Non-macOS Files
+        run: |
+          echo "Deleting files in non-macOS asset directories..."
+          find assets/windows/ -type f -exec echo "Deleting: {}" \; -exec rm -f {} \;
+          find assets/linux/ -type f -exec echo "Deleting: {}" \; -exec rm -f {} \;
+          echo "Non-macOS asset files deleted."
+
+      - name: Flutter Setup
+        run: echo "Setting up Flutter..."
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.flutter_channel }}
+          architecture: x64
+          cache: true
+
+      - run: flutter --version
+      - run: flutter upgrade
+      - run: flutter config --enable-macos-desktop
+
+      - name: Build macOS
+        run: |
+          echo "Building macOS app..."
+          flutter build macos
+          echo "Build complete. Listing contents of the output directory:"
+          ls -l ${{ env.macos_build_output_path }}
+
+      - name: Zip macOS Artifact
+        run: |
+          echo "Zipping macOS artifact..."
+          cd $(dirname ${{ env.macos_build_output_path }})
+          pwd
+          ls -l
+          zip -yr9 $GITHUB_WORKSPACE/TriOS-MacOS.zip $(basename ${{ env.macos_build_output_path }})
+          echo "Zipping complete. Listing contents of the workspace:"
+          ls -l $GITHUB_WORKSPACE
+
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-macos
+          path: TriOS-MacOS.zip
+
+  build-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Remove Non-Linux Files
+        run: |
+          echo "Deleting files in non-Linux asset directories..."
+          find assets/windows/ -type f -exec echo "Deleting: {}" \; -exec rm -f {} \;
+          find assets/macos/ -type f -exec echo "Deleting: {}" \; -exec rm -f {} \;
+          echo "Non-Linux asset files deleted."
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build cmake g++ libgtk-3-dev libcurl4-openssl-dev
+
+      - name: Flutter Setup
+        run: echo "Setting up Flutter..."
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.flutter_channel }}
+          architecture: x64
+          cache: true
+
+      - run: flutter --version
+      - run: flutter upgrade
+      - run: flutter config --enable-linux-desktop
+
+      - name: Build Linux
+        run: |
+          echo "Building Linux app..."
+          flutter build linux
+          echo "Build complete. Listing contents of the output directory:"
+          ls -l ${{ env.linux_build_output_path }}
+
+      - name: Zip Linux Artifact
+        run: |
+          echo "Zipping Linux artifact..."
+          cd $(dirname ${{ env.linux_build_output_path }})
+          mkdir TriOS
+          cp -r $(basename ${{ env.linux_build_output_path }})/* TriOS/
+          pwd
+          ls -l
+          zip -yr9 $GITHUB_WORKSPACE/TriOS-Linux.zip TriOS
+          echo "Zipping complete. Listing contents of the workspace:"
+          ls -l $GITHUB_WORKSPACE
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-linux
+          path: TriOS-Linux.zip
+
+  create-release:
+    runs-on: ubuntu-latest
+    needs: [ build-macos, build-windows, build-linux ]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch Tags
+        run: git fetch --prune --unshallow --tags
+
+      - name: Set Variables
+        run: |
+          echo "Setting version based on git tags..."
+          echo "VERSION=$(git describe --tags)" >> $GITHUB_ENV
+          echo "VERSION: $VERSION"
+          git log --format=%B -n 1 $(git log -1 --pretty=format:"%h") | cat - > changes.txt
+          echo "Generated changes.txt:"
+          cat changes.txt
+          prerelease_regex=".*dev|qa|rc|prerelease|unstable|preview.*"
+          if [[ "$(git describe --tags)" =~ $prerelease_regex ]]; then
+            echo "IS_PRERELEASE=true" >> $GITHUB_ENV;
+            echo "This is a pre-release."
+          else
+            echo "IS_PRERELEASE=false" >> $GITHUB_ENV;
+            echo "This is a stable release."
+          fi
+
+      - name: 'Create GitHub release from a tag'
+        id: create_release
+        uses: ncipollo/release-action@v1
+        with:
+          commit: '${{ github.sha }}'
+          name: ${{ env.VERSION }}
+          tag: ${{ env.VERSION }}
+          bodyFile: changes.txt
+          draft: false
+          prerelease: '${{ env.IS_PRERELEASE }}'
+
+      - name: Download Built Artifacts From Jobs
+        uses: actions/download-artifact@v4
+        with:
+          path: uploads
+          pattern: built-*
+          merge-multiple: true
+
+      - name: List Files Before Uploading macOS Artifact
+        run: |
+          echo "Listing files in the current directory:"
+          ls -l
+
+      - name: Upload macOS Artifact
+        id: upload-macos
+        uses: shogo82148/actions-upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./uploads/TriOS-MacOS.zip
+          asset_name: TriOS-MacOS.zip
+          asset_content_type: application/zip
+
+      - name: List Files Before Uploading Windows Artifact
+        run: |
+          echo "Listing files in the current directory:"
+          ls -l
+
+      - name: Upload Windows Artifact
+        id: upload-windows
+        uses: shogo82148/actions-upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./uploads/TriOS-Windows.zip
+          asset_name: TriOS-Windows.zip
+          asset_content_type: application/zip
+
+      - name: List Files Before Uploading Linux Artifact
+        run: |
+          echo "Listing files in the current directory:"
+          ls -l
+
+      - name: Upload Linux Artifact
+        id: upload-linux
+        uses: shogo82148/actions-upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./uploads/TriOS-Linux.zip
+          asset_name: TriOS-Linux.zip
+          asset_content_type: application/zip

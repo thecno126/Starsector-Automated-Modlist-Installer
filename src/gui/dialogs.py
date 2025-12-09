@@ -10,6 +10,7 @@ import threading
 import re
 from pathlib import Path
 from . import custom_dialogs
+from utils.theme import TriOSTheme
 
 
 def fix_google_drive_url(url):
@@ -87,10 +88,9 @@ def open_add_mod_dialog(parent, app):
 
     btn_frame = tk.Frame(dlg)
     btn_frame.grid(row=4, column=0, columnspan=2, pady=12)
-    tk.Button(btn_frame, text="Cancel", command=dlg.destroy, width=10, bg="#95a5a6", fg="black",
-             font=("Arial", 9, "bold"), cursor="hand2", relief=tk.RAISED, bd=1).pack(side=tk.RIGHT, padx=6)
-    tk.Button(btn_frame, text="Add", command=submit, bg="#2ecc71", fg="white", width=10,
-             font=("Arial", 9, "bold"), cursor="hand2", relief=tk.RAISED, bd=1).pack(side=tk.RIGHT)
+    tk.Button(btn_frame, text="Cancel", command=dlg.destroy, width=10).pack(side=tk.RIGHT, padx=6)
+    add_button = tk.Button(btn_frame, text="Add", command=submit, width=10, **TriOSTheme.get_button_style("success"))
+    add_button.pack(side=tk.RIGHT)
 
 
 def open_edit_mod_dialog(parent, app, current_mod):
@@ -180,10 +180,8 @@ def open_edit_mod_dialog(parent, app, current_mod):
 
     btn_frame = tk.Frame(dlg)
     btn_frame.grid(row=4, column=0, columnspan=2, pady=12)
-    tk.Button(btn_frame, text="Cancel", command=dlg.destroy, width=10, bg="#95a5a6", fg="black",
-             font=("Arial", 9, "bold"), cursor="hand2", relief=tk.RAISED, bd=1).pack(side=tk.RIGHT, padx=6)
-    tk.Button(btn_frame, text="Save", command=submit, width=10, bg="#3498db", fg="white",
-             font=("Arial", 9, "bold"), cursor="hand2", relief=tk.RAISED, bd=1).pack(side=tk.RIGHT)
+    tk.Button(btn_frame, text="Cancel", command=dlg.destroy, width=10).pack(side=tk.RIGHT, padx=6)
+    tk.Button(btn_frame, text="Save", command=submit, width=10).pack(side=tk.RIGHT)
 
 
 def open_manage_categories_dialog(parent, app):
@@ -241,12 +239,10 @@ def open_manage_categories_dialog(parent, app):
         app.categories[idx], app.categories[idx+1] = app.categories[idx+1], app.categories[idx]
         refresh_category_listbox(idx+1)
     
-    up_btn = tk.Button(move_frame, text="↑", command=move_up, bg="#95a5a6", fg="black", font=("Arial", 14, "bold"), width=3,
-                      cursor="hand2", relief=tk.RAISED, bd=1)
+    up_btn = tk.Button(move_frame, text="↑", command=move_up, font=("Arial", 14, "bold"), width=3, **TriOSTheme.get_button_style("secondary"))
     up_btn.pack(pady=(0, 5))
     
-    down_btn = tk.Button(move_frame, text="↓", command=move_down, bg="#95a5a6", fg="black", font=("Arial", 14, "bold"), width=3,
-                        cursor="hand2", relief=tk.RAISED, bd=1)
+    down_btn = tk.Button(move_frame, text="↓", command=move_down, font=("Arial", 14, "bold"), width=3, **TriOSTheme.get_button_style("secondary"))
     down_btn.pack(pady=(5, 0))
         
     # Populate categories
@@ -334,19 +330,15 @@ def open_manage_categories_dialog(parent, app):
     left_frame = tk.Frame(btn_frame)
     left_frame.pack(side=tk.LEFT)
     
-    btn_add = tk.Button(left_frame, text="Add", command=add_category, bg="#2ecc71", fg="white",
-                       font=("Arial", 9, "bold"), cursor="hand2", relief=tk.RAISED, bd=1)
-    btn_rename = tk.Button(left_frame, text="Rename", command=rename_category, bg="#3498db", fg="white",
-                          font=("Arial", 9, "bold"), cursor="hand2", relief=tk.RAISED, bd=1)
-    btn_delete = tk.Button(left_frame, text="Delete", command=delete_category, bg="#e74c3c", fg="white",
-                          font=("Arial", 9, "bold"), cursor="hand2", relief=tk.RAISED, bd=1)
+    btn_add = tk.Button(left_frame, text="Add", command=add_category, **TriOSTheme.get_button_style("success"))
+    btn_rename = tk.Button(left_frame, text="Rename", command=rename_category, **TriOSTheme.get_button_style("info"))
+    btn_delete = tk.Button(left_frame, text="Delete", command=delete_category, **TriOSTheme.get_button_style("danger"))
     
     # Create right-side button
     right_frame = tk.Frame(btn_frame)
     right_frame.pack(side=tk.RIGHT)
     
-    btn_close = tk.Button(right_frame, text="Close", command=dlg.destroy, bg="#95a5a6", fg="black",
-                         font=("Arial", 9, "bold"), cursor="hand2", relief=tk.RAISED, bd=1)
+    btn_close = tk.Button(right_frame, text="Close", command=dlg.destroy)
     
     # Calculate width based on longest text
     max_text_width = max(len("Add"), len("Rename"), len("Delete"), len("Close"))

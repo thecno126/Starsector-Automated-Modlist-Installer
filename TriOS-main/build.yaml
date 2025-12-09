@@ -1,0 +1,29 @@
+targets:
+  $default:
+    builders:
+      dart_json_mapper:
+        options:
+          build_extensions:
+            '^lib/{{}}.dart': 'lib/generated/{{}}.g.dart'
+        generate_for:
+          # here should be listed entry point files having 'void main()' function
+          - lib/main.dart
+
+      # This part is needed to tell original reflectable builder to stay away
+      # it overrides default options for reflectable builder to an **empty** set of files
+#      reflectable:
+#        generate_for:
+#          - no/files
+
+      source_gen|combining_builder:
+        options:
+          build_extensions:
+            '^lib/{{}}.dart': 'lib/generated/{{}}.g.dart'
+
+# bugged: https://github.com/schultek/dart_mappable/issues/192
+#      dart_mappable_builder:
+#        options:
+#          build_extensions:
+#            '^lib/{{}}.dart':
+#              - 'lib/generated/{{}}.mapper.dart'
+#              - 'lib/generated/{{}}.init.dart'
