@@ -290,7 +290,7 @@ def show_validation_report(parent, github_mods, gdrive_mods, other_domains, fail
     
     # Keyboard bindings
     dialog.bind("<Escape>", lambda e: on_cancel())
-    dialog.bind("<Return>", lambda e: on_continue() if github_count > 0 or len(gdrive_mods) > 0 or other_domains else None)
+    dialog.bind("<Return>", lambda e: on_continue() if len(github_mods) > 0 or len(gdrive_mods) > 0 or other_domains else None)
     
     # Center on parent
     dialog.update_idletasks()

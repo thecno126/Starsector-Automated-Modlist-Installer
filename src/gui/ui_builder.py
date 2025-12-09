@@ -32,6 +32,9 @@ class ThemedButton(tk.Canvas):
         # Remove 'state' from kwargs if it exists
         kwargs.pop('state', None)
         
+        # Store width to handle dynamic resizing
+        self.requested_width = width
+        
         super().__init__(parent, width=width, height=height, 
                         highlightthickness=0, bg=bg or TriOSTheme.PRIMARY, **kwargs)
         
@@ -51,6 +54,9 @@ class ThemedButton(tk.Canvas):
         self.text_item = self.create_text(width//2, height//2, text=text, 
                                          fill=self.fg_color, font=font)
         
+        # Bind to configure event to redraw on resize
+        self.bind("<Configure>", self._on_resize)
+        
         # Apply initial state
         if self.is_disabled:
             self.itemconfig(self.rect, fill=TriOSTheme.SURFACE_LIGHT)
@@ -62,6 +68,13 @@ class ThemedButton(tk.Canvas):
             self.bind("<Enter>", self.on_enter)
             self.bind("<Leave>", self.on_leave)
     
+    def _on_resize(self, event):
+        """Redraw button when canvas is resized."""
+        width = event.width
+        height = event.height
+        self.coords(self.rect, 0, 0, width, height)
+        self.coords(self.text_item, width//2, height//2)
+    
     def on_press(self, event):
         self.is_pressed = True
         self.itemconfig(self.rect, fill=self.active_bg)
@@ -71,14 +84,20 @@ class ThemedButton(tk.Canvas):
         if self.is_pressed and self.command:
             self.command()
         self.is_pressed = False
-        # Check if mouse is still over button
-        x, y = event.x, event.y
-        if 0 <= x <= self.winfo_width() and 0 <= y <= self.winfo_height():
-            self.itemconfig(self.rect, fill=self.active_bg)
-            self.itemconfig(self.text_item, fill=self.active_fg)
-        else:
-            self.itemconfig(self.rect, fill=self.bg_color)
-            self.itemconfig(self.text_item, fill=self.fg_color)
+        # Check if mouse is still over button (protect against widget destruction)
+        try:
+            x, y = event.x, event.y
+            width = self.winfo_width()
+            height = self.winfo_height()
+            if 0 <= x <= width and 0 <= y <= height:
+                self.itemconfig(self.rect, fill=self.active_bg)
+                self.itemconfig(self.text_item, fill=self.active_fg)
+            else:
+                self.itemconfig(self.rect, fill=self.bg_color)
+                self.itemconfig(self.text_item, fill=self.fg_color)
+        except tk.TclError:
+            # Widget was destroyed, ignore
+            pass
     
     def on_enter(self, event):
         if not self.is_pressed:
@@ -319,10 +338,10 @@ def create_button_panel(main_paned, callbacks):
     install_section.pack(fill=tk.X, pady=(0, 5))
     
     reset_btn = _create_button(install_section, "Reset", callbacks['reset'], button_type="danger")
-    reset_btn.pack(pady=(0, 3))
+    reset_btn.pack(pady=(0, 3), fill=tk.X)
     
     pause_btn = _create_button(install_section, "Pause", callbacks['pause'], state=tk.DISABLED, button_type="warning")
-    pause_btn.pack(pady=(0, 0))
+    pause_btn.pack(pady=(0, 0), fill=tk.X)
     
     # Reorder section
     reorder_section = tk.LabelFrame(right_frame, text="Reorder", padx=5, pady=3,
@@ -340,23 +359,39 @@ def create_button_panel(main_paned, callbacks):
                                       bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY)
     management_section.pack(fill=tk.X, pady=(0, 5))
     
-    categories_btn = _create_button(management_section, "Categories", callbacks['categories'], button_type="info")
-    categories_btn.pack(pady=(0, 3))
+    # Refresh button with icon and no background, directly under Management title
+    refresh_container = tk.Frame(management_section, bg=TriOSTheme.SURFACE)
+    refresh_container.pack(pady=(0, 8), fill=tk.X)
     
-    add_btn = _create_button(management_section, "Add Mod", callbacks['add'], button_type="success")
-    add_btn.pack(pady=(0, 3))
+    if IS_MACOS:
+        refresh_btn = ThemedButton(refresh_container, "↻ Refresh", command=callbacks['refresh'],
+                                  bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY,
+                                  activebackground=TriOSTheme.SURFACE_LIGHT, activeforeground=TriOSTheme.TEXT_PRIMARY,
+                                  font=("Arial", 9))
+    else:
+        refresh_btn = tk.Button(refresh_container, text="↻ Refresh", command=callbacks['refresh'],
+                               bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY,
+                               activebackground=TriOSTheme.SURFACE_LIGHT, activeforeground=TriOSTheme.TEXT_PRIMARY,
+                               relief=tk.FLAT, font=("Arial", 9), cursor="hand2")
+    refresh_btn.pack(fill=tk.X)
     
-    edit_btn = _create_button(management_section, "Edit Mod", callbacks['edit'], button_type="secondary")
-    edit_btn.pack(pady=(0, 3))
+    categories_btn = _create_button(management_section, "Categories", callbacks['categories'], button_type="plain")
+    categories_btn.pack(pady=(0, 3), fill=tk.X)
     
-    remove_btn = _create_button(management_section, "Remove Mod", callbacks['remove'], button_type="danger")
-    remove_btn.pack(pady=(0, 3))
+    add_btn = _create_button(management_section, "Add Mod", callbacks['add'], button_type="plain")
+    add_btn.pack(pady=(0, 3), fill=tk.X)
+    
+    edit_btn = _create_button(management_section, "Edit Mod", callbacks['edit'], button_type="plain")
+    edit_btn.pack(pady=(0, 3), fill=tk.X)
+    
+    remove_btn = _create_button(management_section, "Remove Mod", callbacks['remove'], button_type="plain")
+    remove_btn.pack(pady=(0, 3), fill=tk.X)
 
-    import_btn = _create_button(management_section, "Import CSV", callbacks['import_csv'], button_type="secondary")
-    import_btn.pack(pady=(0, 3))
+    import_btn = _create_button(management_section, "Import CSV", callbacks['import_csv'], button_type="plain")
+    import_btn.pack(pady=(0, 3), fill=tk.X)
 
-    export_btn = _create_button(management_section, "Export CSV", callbacks['export_csv'], button_type="secondary")
-    export_btn.pack(pady=(0, 0))
+    export_btn = _create_button(management_section, "Export CSV", callbacks['export_csv'], button_type="plain")
+    export_btn.pack(pady=(0, 0), fill=tk.X)
     
     return {
         'reset': reset_btn,
@@ -368,7 +403,8 @@ def create_button_panel(main_paned, callbacks):
         'edit': edit_btn,
         'remove': remove_btn,
         'import': import_btn,
-        'export': export_btn
+        'export': export_btn,
+        'refresh': refresh_btn
     }
 
 

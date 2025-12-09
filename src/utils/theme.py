@@ -143,6 +143,12 @@ class TriOSTheme:
                 "fg": cls.BUTTON_PRIMARY_FG,
                 "activebackground": cls.PRIMARY_DARK,
                 "activeforeground": cls.BUTTON_PRIMARY_FG,
+            },
+            "plain": {
+                "bg": cls.SURFACE,
+                "fg": cls.TEXT_PRIMARY,
+                "activebackground": cls.SURFACE_LIGHT,
+                "activeforeground": cls.TEXT_PRIMARY,
             }
         }
         return styles.get(button_type, styles["primary"])

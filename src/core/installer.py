@@ -23,6 +23,17 @@ from .constants import (
     REQUEST_TIMEOUT, CHUNK_SIZE, URL_VALIDATION_TIMEOUT_HEAD, 
     MAX_VALIDATION_WORKERS, MAX_RETRIES, RETRY_DELAY, BACKOFF_MULTIPLIER
 )
+from utils.mod_utils import (
+    normalize_mod_name,
+    extract_mod_id_from_text,
+    extract_mod_name_from_text,
+    extract_mod_version_from_text,
+    extract_game_version_from_text,
+    extract_all_metadata_from_text,
+    compare_versions,
+    is_mod_name_match,
+    scan_installed_mods
+)
 
 
 def retry_with_backoff(func, max_retries=MAX_RETRIES, delay=RETRY_DELAY, backoff=BACKOFF_MULTIPLIER, 
@@ -201,40 +212,6 @@ def validate_mod_urls(mods, progress_callback=None):
     return results
 
 
-def _compare_versions(version1, version2):
-    """
-    Compare two version strings.
-    
-    Args:
-        version1: First version string (e.g., "1.2.3" or "2.0a")
-        version2: Second version string
-        
-    Returns:
-        int: 1 if version1 > version2, -1 if version1 < version2, 0 if equal
-    """
-    if version1 == version2:
-        return 0
-    
-    def parse_version(v):
-        """Parse version string into list of comparable parts."""
-        v = str(v).lower().replace('v', '').replace('version', '').strip()
-        parts = re.findall(r'\d+|[a-z]+', v)
-        return [int(p) if p.isdigit() else ord(p[0]) - ord('a') + 1 for p in parts]
-    
-    v1_parts = parse_version(version1)
-    v2_parts = parse_version(version2)
-    
-    # Compare parts using zip_longest (no manual padding needed)
-    from itertools import zip_longest
-    for p1, p2 in zip_longest(v1_parts, v2_parts, fillvalue=0):
-        if p1 > p2:
-            return 1
-        elif p1 < p2:
-            return -1
-    
-    return 0
-
-
 class ModInstaller:
     """Handles the installation of mods from URLs."""
     
@@ -246,79 +223,6 @@ class ModInstaller:
             log_callback: Function to call for logging messages
         """
         self.log = log_callback
-    
-    def _extract_version_from_text(self, content):
-        """
-        Extract version string directly from raw mod_info.json text.
-        Searches for "version" field (not "gameVersion") and extracts the value.
-        
-        This bypasses JSON parsing entirely, making it robust against malformed JSON.
-        
-        Args:
-            content: Raw text content of mod_info.json
-            
-        Returns:
-            str: Version string (e.g., "1.5.0", "0.12.1b", "2.0a")
-        """
-        # First try: object format like version: {major: 0, minor: 12, patch: "1b"}
-        # This must come BEFORE the simple string match to avoid capturing gameVersion
-        version_block = re.search(r'"?version"?\s*:\s*\{([^}]+)\}', content, re.IGNORECASE)
-        if version_block:
-            block = version_block.group(1)
-            major = re.search(r'"?major"?\s*:\s*["\']?([0-9]+)', block, re.IGNORECASE)
-            minor = re.search(r'"?minor"?\s*:\s*["\']?([0-9]+)', block, re.IGNORECASE)
-            patch = re.search(r'"?patch"?\s*:\s*["\']?([0-9a-zA-Z]+)', block, re.IGNORECASE)
-            
-            if major:
-                parts = [major.group(1)]
-                if minor:
-                    parts.append(minor.group(1))
-                if patch:
-                    parts.append(patch.group(1))
-                return '.'.join(parts)
-        
-        # Second try: simple version string like "version": "1.5.0" or version: "1.5.0"
-        # Use negative lookbehind to exclude "gameVersion"
-        match = re.search(r'(?<!game)"?version"?\s*:\s*["\']?([0-9]+[0-9a-zA-Z._-]*)', content, re.IGNORECASE)
-        if match:
-            version = match.group(1).rstrip('",}] ')
-            return version
-        
-        return 'unknown'
-    
-    def _extract_id_from_text(self, content):
-        """
-        Extract mod ID directly from raw mod_info.json text.
-        Searches for "id" and extracts the value.
-        
-        Args:
-            content: Raw text content of mod_info.json
-            
-        Returns:
-            str: Mod ID or None if not found
-        """
-        # Look for "id" followed by value
-        # Handles: "id": "value", id: "value", id:'value'
-        match = re.search(r'id["\s:]+["\']([^"\']+)["\']', content, re.IGNORECASE)
-        if match:
-            return match.group(1)
-        return None
-    
-    def _extract_game_version_from_text(self, content):
-        """
-        Extract gameVersion (compatible Starsector version) from mod_info.json text.
-        
-        Args:
-            content: Raw text content of mod_info.json
-            
-        Returns:
-            str: Game version (e.g., "0.98a-RC8") or None if not found
-        """
-        # Look for "gameVersion" field
-        match = re.search(r'"?gameVersion"?\s*:\s*["\']([^"\']+)["\']', content, re.IGNORECASE)
-        if match:
-            return match.group(1)
-        return None
     
     def extract_mod_metadata(self, archive_path, is_7z=False):
         """
@@ -336,6 +240,7 @@ class ModInstaller:
                 if not HAS_7ZIP:
                     return None
                 import py7zr
+                import io
                 with py7zr.SevenZipFile(archive_path, 'r') as archive:
                     members = archive.getnames()
                     # Find mod_info.json
@@ -348,9 +253,14 @@ class ModInstaller:
                     if not mod_info_path:
                         return None
                     
-                    # Extract just mod_info.json to memory
-                    extracted = archive.read([mod_info_path])
-                    content = extracted[mod_info_path].read().decode('utf-8')
+                    # Extract just mod_info.json to a temporary directory
+                    import tempfile
+                    with tempfile.TemporaryDirectory() as tmpdir:
+                        archive.extract(path=tmpdir, targets=[mod_info_path])
+                        # Read the extracted file
+                        extracted_file = Path(tmpdir) / mod_info_path
+                        with open(extracted_file, 'r', encoding='utf-8') as f:
+                            content = f.read()
             else:
                 with zipfile.ZipFile(archive_path, 'r') as archive:
                     members = archive.namelist()
@@ -367,16 +277,73 @@ class ModInstaller:
                     with archive.open(mod_info_path) as f:
                         content = f.read().decode('utf-8')
             
-            # Extract metadata
-            return {
-                'version': self._extract_version_from_text(content),
-                'id': self._extract_id_from_text(content),
-                'gameVersion': self._extract_game_version_from_text(content)
-            }
+            # Extract metadata using centralized function
+            return extract_all_metadata_from_text(content)
             
         except Exception as e:
             self.log(f"  ⚠ Warning: Could not extract metadata: {e}", debug=True)
             return None
+    
+    def is_mod_already_installed(self, mod, mods_dir):
+        """
+        Check if a mod is already installed with the expected version.
+        Uses mod_id for precise matching, falls back to name normalization if mod_id unavailable.
+        
+        Args:
+            mod: Mod dictionary with 'mod_id' (preferred) or 'name' and optional 'mod_version'
+            mods_dir: Path to the Starsector mods directory
+            
+        Returns:
+            bool: True if mod is already installed with same/newer version, False otherwise
+        """
+        mod_id = mod.get('mod_id', '')
+        mod_name = mod.get('name', '')
+        expected_version = mod.get('mod_version')
+        
+        if not mod_id and not mod_name:
+            return False
+        
+        # Use centralized scanner to find matching mod
+        for folder, metadata in scan_installed_mods(mods_dir):
+            installed_mod_id = metadata.get('id')
+            installed_mod_name = metadata.get('name') or ''
+            
+            # Matching logic:
+            # 1. If config has mod_id AND installed mod has mod_id: match by mod_id
+            # 2. Otherwise: match by name normalization
+            is_match = False
+            
+            if mod_id and installed_mod_id:
+                # Both have mod_id: use precise ID matching
+                is_match = (mod_id == installed_mod_id)
+            else:
+                # At least one lacks mod_id: use name matching
+                is_match = is_mod_name_match(mod_name, folder.name, installed_mod_name)
+            
+            if not is_match:
+                continue  # Not the mod we're looking for
+            
+            # Mod found! Now check version if expected_version is provided
+            if expected_version:
+                installed_version = metadata.get('version')
+                if not installed_version or installed_version == 'unknown':
+                    # Mod found but can't determine version - consider it installed
+                    return True
+                
+                # Compare versions using centralized function
+                comparison = compare_versions(expected_version, installed_version)
+                
+                if comparison <= 0:
+                    # Expected version is same or older than installed
+                    return True
+                else:
+                    # Installed version is older - needs update
+                    return False
+            else:
+                # No expected version specified, just check if mod exists
+                return True
+        
+        return False
     
     def install_mod(self, mod, mods_dir):
         """
@@ -384,7 +351,7 @@ class ModInstaller:
         prefer calling download_archive() in threads then extract_archive() sequentially.
         """
         try:
-            mod_version = mod.get('version')
+            mod_version = mod.get('mod_version')  # Changed from 'version' to 'mod_version'
             if mod_version:
                 self.log(f"  Downloading {mod['name']} v{mod_version}...")
             else:
@@ -397,7 +364,7 @@ class ModInstaller:
                 return False
             try:
                 self.log(f"  Inspecting archive contents...")
-                success = self.extract_archive(temp_file, mods_dir, is_7z)
+                success = self.extract_archive(temp_file, mods_dir, is_7z, mod_version)
                 if success:
                     self.log(f"  ✓ {mod['name']} installed successfully")
                 return success
@@ -528,7 +495,7 @@ class ModInstaller:
         except Exception:
             return False
     
-    def extract_archive(self, temp_file, mods_dir, is_7z):
+    def extract_archive(self, temp_file, mods_dir, is_7z, expected_mod_version=None):
         """
         Extract an archive file to the mods directory.
         
@@ -536,20 +503,21 @@ class ModInstaller:
             temp_file: Path to the temporary archive file
             mods_dir: Path to the Starsector mods directory
             is_7z: Boolean indicating if the file is a 7z archive
+            expected_mod_version: Expected mod version from modlist config (optional)
             
         Returns:
             bool or str: True if extraction succeeded, 'skipped' if skipped, False otherwise
         """
         try:
             if is_7z:
-                return self._extract_7z(temp_file, mods_dir)
+                return self._extract_7z(temp_file, mods_dir, expected_mod_version)
             else:
-                return self._extract_zip(temp_file, mods_dir)
+                return self._extract_zip(temp_file, mods_dir, expected_mod_version)
         except Exception as e:
             self.log(f"  ✗ Extraction error: {e}", error=True)
             return False
     
-    def _extract_7z(self, temp_file, mods_dir):
+    def _extract_7z(self, temp_file, mods_dir, expected_mod_version=None):
         """Extract a 7z archive."""
         if not HAS_7ZIP:
             self.log("  ✗ Error: py7zr library not installed. Install with: pip install py7zr", error=True)
@@ -565,7 +533,7 @@ class ModInstaller:
                     return False
 
                 # Check if mod already installed
-                already_result = self._check_if_installed(None, members, mods_dir, is_7z=True)
+                already_result = self._check_if_installed(None, members, mods_dir, is_7z=True, expected_mod_version=expected_mod_version)
                 if already_result:
                     return already_result
 
@@ -587,7 +555,7 @@ class ModInstaller:
             self.log(f"  ✗ Error: Corrupted 7z file", error=True)
             return False
     
-    def _extract_zip(self, temp_file, mods_dir):
+    def _extract_zip(self, temp_file, mods_dir, expected_mod_version=None):
         """Extract a ZIP archive with zip-slip protection."""
         with zipfile.ZipFile(temp_file, 'r') as zip_ref:
             members = [m for m in zip_ref.namelist() if m and not m.endswith('/')]
@@ -597,7 +565,7 @@ class ModInstaller:
                 return False
 
             # Check if mod already installed and get folder to delete if updating
-            already_result = self._check_if_installed(zip_ref, members, mods_dir)
+            already_result = self._check_if_installed(zip_ref, members, mods_dir, expected_mod_version=expected_mod_version)
             
             # If it's a tuple, it means we need to delete the old version first
             if isinstance(already_result, tuple):
@@ -627,7 +595,7 @@ class ModInstaller:
             zip_ref.extractall(mods_dir)
             return True
     
-    def _check_if_installed(self, archive_ref, members, mods_dir, is_7z=False):
+    def _check_if_installed(self, archive_ref, members, mods_dir, is_7z=False, expected_mod_version=None):
         """
         Check if a mod is already installed. For ZIP archives, compares versions.
         For 7z archives, only checks existence.
@@ -637,6 +605,7 @@ class ModInstaller:
             members: List of file paths in the archive
             mods_dir: Path to the Starsector mods directory
             is_7z: True if this is a 7z archive
+            expected_mod_version: Expected mod version from modlist config (optional)
             
         Returns:
             str: 'skipped' if same/older version or already exists
@@ -675,16 +644,19 @@ class ModInstaller:
                 with archive_ref.open(mod_info_path_in_archive) as archive_file:
                     new_content = archive_file.read().decode('utf-8')
                 
-                installed_version = self._extract_version_from_text(installed_content)
-                new_version = self._extract_version_from_text(new_content)
-                mod_id = self._extract_id_from_text(new_content) or root_dir
+                installed_version = extract_mod_version_from_text(installed_content)
+                new_version = extract_mod_version_from_text(new_content)
+                mod_id = extract_mod_id_from_text(new_content) or root_dir
                 
-                # Compare versions
-                version_comparison = _compare_versions(new_version, installed_version)
+                # Use expected_mod_version from modlist config if provided, otherwise use archive version
+                version_to_install = expected_mod_version if expected_mod_version else new_version
+                
+                # Compare versions using centralized function
+                version_comparison = compare_versions(version_to_install, installed_version)
                 
                 if version_comparison > 0:
                     # Newer version available
-                    self.log(f"  ⬆ Update available: '{mod_id}' {installed_version} → {new_version}", info=True)
+                    self.log(f"  ⬆ Update available: '{mod_id}' {installed_version} → {version_to_install}", info=True)
                     self.log(f"  Installing newer version...", info=True)
                     return (mod_root, True)
                 
@@ -733,30 +705,26 @@ class ModInstaller:
                     self.log(f"  ⚠ Warning: Could not read existing enabled_mods.json: {e}", info=True)
                     existing_ids = []
             
-            # Collect mod IDs from newly installed mods
+            # Collect mod IDs from newly installed mods using centralized scanner
             new_ids = []
             
             for mod_name in installed_mod_names:
-                mod_folder = mods_dir / mod_name
-                mod_info_file = mod_folder / "mod_info.json"
+                # Create a filter to match specific mod folder
+                def filter_by_folder(folder, content):
+                    return folder.name == mod_name
                 
-                if not mod_info_file.exists():
-                    self.log(f"  ⚠ Warning: No mod_info.json found for '{mod_name}'", info=True)
-                    continue
-                
-                try:
-                    with open(mod_info_file, 'r', encoding='utf-8') as f:
-                        content = f.read()
-                    
-                    mod_id = self._extract_id_from_text(content)
+                # Use scanner to find the mod
+                found = False
+                for folder, metadata in scan_installed_mods(mods_dir, filter_by_folder):
+                    mod_id = metadata.get('id')
                     if mod_id:
                         new_ids.append(mod_id)
                         self.log(f"  ✓ Found mod ID '{mod_id}' for {mod_name}", debug=True)
-                    else:
-                        self.log(f"  ⚠ Warning: Could not extract ID from '{mod_name}'", info=True)
-                        
-                except (IOError, UnicodeDecodeError) as e:
-                    self.log(f"  ⚠ Warning: Error reading mod_info.json for '{mod_name}': {e}", info=True)
+                        found = True
+                        break
+                
+                if not found:
+                    self.log(f"  ⚠ Warning: Could not extract ID from '{mod_name}'", info=True)
             
             # Merge: combine existing + new IDs, removing duplicates while preserving order
             if merge:
@@ -827,49 +795,34 @@ class ModInstaller:
                 self.log("  No version info in modlist for comparison", debug=True)
                 return outdated_mods
             
-            # Scan installed mods
-            for folder in mods_dir.iterdir():
-                if not folder.is_dir() or folder.name.startswith('.'):
-                    continue
+            # Scan installed mods using centralized scanner
+            for folder, metadata in scan_installed_mods(mods_dir):
+                mod_id = metadata.get('id')
+                installed_version = metadata.get('version')
+                content = metadata.get('content')
                 
-                mod_info_file = folder / "mod_info.json"
-                if not mod_info_file.exists():
-                    continue
-                
-                try:
-                    with open(mod_info_file, 'r', encoding='utf-8') as f:
-                        content = f.read()
-                    
-                    # Extract mod info
-                    mod_id = self._extract_id_from_text(content)
-                    installed_version = self._extract_version_from_text(content)
-                    
-                    # Try to match with modlist by name (search in content or folder name)
-                    for modlist_name, modlist_mod in modlist_lookup.items():
-                        # Check if this mod matches by name (case-insensitive partial match)
-                        if (modlist_name.lower() in content.lower() or 
-                            modlist_name.lower() in folder.name.lower()):
+                # Try to match with modlist by name (search in content or folder name)
+                for modlist_name, modlist_mod in modlist_lookup.items():
+                    # Check if this mod matches by name (case-insensitive partial match)
+                    if (modlist_name.lower() in content.lower() or 
+                        modlist_name.lower() in folder.name.lower()):
+                        
+                        expected_version = modlist_mod.get('version')
+                        
+                        if installed_version != 'unknown' and expected_version:
+                            # Compare versions using centralized function
+                            comparison = compare_versions(installed_version, expected_version)
                             
-                            expected_version = modlist_mod.get('version')
-                            
-                            if installed_version != 'unknown' and expected_version:
-                                # Compare versions
-                                comparison = _compare_versions(installed_version, expected_version)
-                                
-                                if comparison < 0:  # Installed version is older
-                                    outdated_mods.append({
-                                        'name': modlist_name,
-                                        'folder': folder.name,
-                                        'installed_version': installed_version,
-                                        'expected_version': expected_version,
-                                        'mod_id': mod_id or folder.name
-                                    })
-                                    self.log(f"  ⚠ Outdated: {modlist_name} ({installed_version} < {expected_version})", info=True)
-                            break  # Found match, no need to check other modlist entries
-                            
-                except (IOError, UnicodeDecodeError) as e:
-                    self.log(f"  ⚠ Warning: Error reading {folder.name}/mod_info.json: {e}", debug=True)
-                    continue
+                            if comparison < 0:  # Installed version is older
+                                outdated_mods.append({
+                                    'name': modlist_name,
+                                    'folder': folder.name,
+                                    'installed_version': installed_version,
+                                    'expected_version': expected_version,
+                                    'mod_id': mod_id or folder.name
+                                })
+                                self.log(f"  ⚠ Outdated: {modlist_name} ({installed_version} < {expected_version})", info=True)
+                        break  # Found match, no need to check other modlist entries
             
             return outdated_mods
             
@@ -926,43 +879,24 @@ class ModInstaller:
                 self.log("  Could not parse expected game version", debug=True)
                 return incompatible_mods
             
-            # Scan installed mods
-            for folder in mods_dir.iterdir():
-                if not folder.is_dir() or folder.name.startswith('.'):
-                    continue
+            # Scan installed mods using centralized scanner
+            for folder, metadata in scan_installed_mods(mods_dir):
+                mod_id = metadata.get('id')
+                mod_game_version = metadata.get('gameVersion')
+                mod_name = metadata.get('name') or folder.name
                 
-                mod_info_file = folder / "mod_info.json"
-                if not mod_info_file.exists():
-                    continue
-                
-                try:
-                    with open(mod_info_file, 'r', encoding='utf-8') as f:
-                        content = f.read()
+                if mod_game_version:
+                    mod_major = extract_major_version(mod_game_version)
                     
-                    # Extract mod info
-                    mod_id = self._extract_id_from_text(content)
-                    mod_game_version = self._extract_game_version_from_text(content)
-                    
-                    # Extract mod name from content
-                    name_match = re.search(r'"?name"?\s*:\s*"([^"]+)"', content, re.IGNORECASE)
-                    mod_name = name_match.group(1) if name_match else folder.name
-                    
-                    if mod_game_version:
-                        mod_major = extract_major_version(mod_game_version)
-                        
-                        # Compare major versions (0.98a vs 0.97a, ignore RC numbers)
-                        if mod_major and mod_major != expected_major:
-                            incompatible_mods.append({
-                                'name': mod_name,
-                                'folder': folder.name,
-                                'mod_game_version': mod_game_version,
-                                'expected_game_version': expected_game_version,
-                                'mod_id': mod_id or folder.name
-                            })
-                        
-                except (IOError, UnicodeDecodeError) as e:
-                    self.log(f"  ⚠ Warning: Error reading {folder.name}/mod_info.json: {e}", debug=True)
-                    continue
+                    # Compare major versions (0.98a vs 0.97a, ignore RC numbers)
+                    if mod_major and mod_major != expected_major:
+                        incompatible_mods.append({
+                            'name': mod_name,
+                            'folder': folder.name,
+                            'mod_game_version': mod_game_version,
+                            'expected_game_version': expected_game_version,
+                            'mod_id': mod_id or folder.name
+                        })
             
             return incompatible_mods
             

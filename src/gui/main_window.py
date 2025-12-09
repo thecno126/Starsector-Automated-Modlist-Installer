@@ -6,6 +6,7 @@ Simplified version using modular components.
 import tkinter as tk
 from tkinter import filedialog, ttk
 import requests
+import re
 from . import custom_dialogs
 from pathlib import Path
 import threading
@@ -31,7 +32,8 @@ from .dialogs import (
     open_manage_categories_dialog,
     open_import_csv_dialog,
     open_export_csv_dialog,
-    fix_google_drive_url
+    fix_google_drive_url,
+    show_google_drive_confirmation_dialog
 )
 from .ui_builder import (
     create_header,
@@ -42,6 +44,16 @@ from .ui_builder import (
     create_bottom_buttons
 )
 from utils.theme import TriOSTheme
+from utils.mod_utils import (
+    normalize_mod_name,
+    extract_mod_id_from_text,
+    extract_mod_name_from_text,
+    extract_mod_version_from_text,
+    extract_game_version_from_text,
+    is_mod_name_match,
+    scan_installed_mods
+)
+from utils.path_validator import StarsectorPathValidator
 
 
 class ModlistInstaller:
@@ -149,7 +161,8 @@ class ModlistInstaller:
             'edit': self.edit_selected_mod,
             'remove': self.remove_selected_mod,
             'import_csv': self.open_import_csv_dialog,
-            'export_csv': self.open_export_csv_dialog
+            'export_csv': self.open_export_csv_dialog,
+            'refresh': self.refresh_mod_metadata
         }
         
         buttons = create_button_panel(main_paned, button_callbacks)
@@ -163,6 +176,7 @@ class ModlistInstaller:
         self.remove_btn = buttons['remove']
         self.import_btn = buttons['import']
         self.export_btn = buttons['export']
+        self.refresh_btn = buttons['refresh']
         
         # Bottom buttons (on left side)
         button_frame, self.install_modlist_btn, self.quit_btn = create_bottom_buttons(
@@ -243,7 +257,9 @@ class ModlistInstaller:
         line_num = int(index.split('.')[0])
         line_text = self.mod_listbox.get(f"{line_num}.0", f"{line_num}.end")
         
-        if line_text.strip().startswith("•"):
+        line_stripped = line_text.strip()
+        # Check if it's a mod line (starts with ✓, ○, or ↑)
+        if line_stripped.startswith("✓") or line_stripped.startswith("○") or line_stripped.startswith("↑"):
             self.selected_mod_line = line_num
             self.highlight_selected_mod()
     
@@ -359,12 +375,21 @@ class ModlistInstaller:
         ):
             return
         
+        # Find and remove the mod using normalized matching
         mods = self.modlist_data.get('mods', [])
         original_count = len(mods)
-        self.modlist_data['mods'] = [m for m in mods if m['name'] != mod_name]
         
-        if len(self.modlist_data['mods']) < original_count:
-            self.log(f"Removed mod: {mod_name}")
+        # Try exact match first
+        mod_to_remove = next((m for m in mods if m.get('name') == mod_name), None)
+        
+        # If not found, try normalized matching
+        if not mod_to_remove:
+            normalized_search = normalize_mod_name(mod_name)
+            mod_to_remove = next((m for m in mods if normalize_mod_name(m.get('name', '')) == normalized_search), None)
+        
+        if mod_to_remove:
+            self.modlist_data['mods'].remove(mod_to_remove)
+            self.log(f"Removed mod: {mod_to_remove.get('name')}")
             self.save_modlist_config()
             self.display_modlist_info()
             self.selected_mod_line = None
@@ -490,8 +515,6 @@ class ModlistInstaller:
     
     def _find_category_below(self, line_num):
         """Find category header below given line."""
-    def _find_category_below(self, line_num):
-        """Find category header below given line."""
         try:
             max_line = int(self.mod_listbox.index('end-1c').split('.')[0])
         except (tk.TclError, ValueError):
@@ -566,6 +589,11 @@ class ModlistInstaller:
         self.mod_listbox.tag_configure('selected', background=TriOSTheme.ITEM_SELECTED_BG, 
             foreground=TriOSTheme.ITEM_SELECTED_FG)
         
+        # Configure tags for installed/not installed mods
+        self.mod_listbox.tag_configure('installed', foreground=TriOSTheme.SUCCESS)
+        self.mod_listbox.tag_configure('not_installed', foreground=TriOSTheme.TEXT_SECONDARY)
+        self.mod_listbox.tag_configure('outdated', foreground='#e67e22')  # Orange for update available
+        
         # Group mods by category
         mods = self.modlist_data.get('mods', [])
         
@@ -578,13 +606,26 @@ class ModlistInstaller:
             cat = mod.get('category', 'Uncategorized')
             categories.setdefault(cat, []).append(mod)
         
+        # Check installation status
+        starsector_path = self.starsector_path.get()
+        mods_dir = Path(starsector_path) / "mods" if starsector_path else None
+        
         # Display categories (only those with mods after filtering)
         for cat in self.categories:
             if cat in categories:
                 self.mod_listbox.insert(tk.END, f"{cat}\n", 'category')
                 
                 for mod in categories[cat]:
-                    self.mod_listbox.insert(tk.END, f"  • {mod['name']}\n", 'mod')
+                    # Check if mod is installed
+                    is_installed = False
+                    if mods_dir and mods_dir.exists():
+                        is_installed = self.mod_installer.is_mod_already_installed(mod, mods_dir)
+                    
+                    # Choose icon based on installation status
+                    icon = "✓" if is_installed else "○"
+                    tag = 'installed' if is_installed else 'not_installed'
+                    
+                    self.mod_listbox.insert(tk.END, f"  {icon} {mod['name']}\n", ('mod', tag))
         
         self.mod_listbox.config(state=tk.DISABLED)
     
@@ -604,7 +645,9 @@ class ModlistInstaller:
         
         for line_num in range(1, max_line + 1):
             line_text = self.mod_listbox.get(f"{line_num}.0", f"{line_num}.end")
-            if line_text.strip().startswith("•") and mod_name in line_text:
+            line_stripped = line_text.strip()
+            # Check if it's a mod line (starts with ✓, ○, or ↑)
+            if (line_stripped.startswith("✓") or line_stripped.startswith("○") or line_stripped.startswith("↑")) and mod_name in line_text:
                 self.selected_mod_line = line_num
                 self.highlight_selected_mod()
                 return
@@ -615,16 +658,51 @@ class ModlistInstaller:
     # Utility Methods
     # ============================================
     
+    def _get_mod_game_version(self, mod):
+        """Get game_version from mod dict, handling legacy 'version' field.
+        
+        Args:
+            mod: Mod dictionary
+            
+        Returns:
+            str: Game version or empty string
+        """
+        return mod.get('game_version') or mod.get('version') or ''
+    
     def _extract_mod_name_from_line(self, line_text):
         """Extract mod name from a listbox line."""
-        if not line_text.strip().startswith("•"):
+        line = line_text.strip()
+        # Check if it's a mod line (starts with ✓, ○, or ↑)
+        if not (line.startswith("✓") or line.startswith("○") or line.startswith("↑")):
             return None
-        return line_text.replace("  • ", "").split(" v")[0].strip()
+        # Remove icon prefix and extract name (before version if present)
+        name_part = line_text.replace("  ✓ ", "").replace("  ○ ", "").replace("  ↑ ", "")
+        return name_part.split(" v")[0].strip()
     
     def _find_mod_by_name(self, mod_name):
-        """Find a mod dict by name."""
+        """Find a mod dict by name using exact match or normalized matching.
+        
+        Args:
+            mod_name: Name to search for
+            
+        Returns:
+            dict: Mod dictionary or None if not found
+        """
         mods = self.modlist_data.get('mods', [])
-        return next((m for m in mods if m['name'] == mod_name), None)
+        
+        # First try exact match (fastest)
+        exact_match = next((m for m in mods if m.get('name') == mod_name), None)
+        if exact_match:
+            return exact_match
+        
+        # Try normalized matching as fallback
+        normalized_search = normalize_mod_name(mod_name)
+        for mod in mods:
+            mod_config_name = mod.get('name', '')
+            if normalize_mod_name(mod_config_name) == normalized_search:
+                return mod
+        
+        return None
     
     def log(self, message, error=False, info=False, warning=False, debug=False, success=False):
         """Append a message to the log with different severity levels.
@@ -716,102 +794,37 @@ class ModlistInstaller:
         self.config_manager.save_preferences(prefs)
     
     def auto_detect_starsector(self):
-        """Auto-detect Starsector installation."""
-        platform_paths = {
-            "win32": [
-                Path("C:/Program Files (x86)/Fractal Softworks/Starsector"),
-                Path("C:/Program Files/Fractal Softworks/Starsector"),
-                Path.home() / "Games/Starsector"
-            ],
-            "darwin": [
-                Path.home() / "Applications/Starsector.app",
-                Path("/Applications/Starsector.app")
-            ]
-        }
-        
-        common_paths = platform_paths.get(sys.platform, [
-            Path.home() / "Games/starsector",
-            Path.home() / ".local/share/starsector",
-            Path("/opt/starsector")
-        ])
-        
-        for path in common_paths:
-            if path.exists() and (path / "mods").exists():
-                self.starsector_path.set(str(path))
-                self._auto_detected = True
-                return
-        
-        self._auto_detected = False
+        """Auto-detect Starsector installation using StarsectorPathValidator."""
+        detected_path = StarsectorPathValidator.auto_detect()
+        if detected_path:
+            self.starsector_path.set(str(detected_path))
+            self._auto_detected = True
+        else:
+            self._auto_detected = False
     
     def validate_starsector_path(self, path_str):
         """Validate Starsector installation path."""
+        if not path_str:
+            return False, "Path is empty"
+        
         path = Path(path_str)
-        if not path.exists():
-            return False, "Path does not exist"
-        
-        # macOS app bundle
-        if self._is_mac_app_bundle(path):
-            return self._ensure_mods_folder(path)
-        
-        # Windows/Linux installation
-        if self._has_jre(path) and self._has_game_files(path):
-            return self._ensure_mods_folder(path)
-        
-        return False, "Not a valid Starsector installation (missing JRE or game files)"
-    
-    def _is_mac_app_bundle(self, path):
-        """Check if path is a macOS Starsector.app bundle."""
-        return (
-            str(path).endswith('.app') and 
-            (path / "Contents/Home").exists() and
-            (path / "Contents/Resources/Java").exists()
-        )
-    
-    def _has_jre(self, path):
-        """Check if Starsector installation has JRE."""
-        return any([
-            (path / "jre").exists(),
-            (path / "jre_linux").exists(),
-            (path / "Contents/Home").exists(),
-        ])
-    
-    def _has_game_files(self, path):
-        """Check if Starsector installation has game files."""
-        return any([
-            (path / "starsector.exe").exists(),
-            (path / "starsector.sh").exists(),
-            (path / "Contents/Resources/Java/starsector.command").exists(),
-            (path / "Contents/Resources/Java").exists(),
-        ])
-    
-    def _ensure_mods_folder(self, path):
-        """Ensure mods folder exists, create if needed."""
-        mods_folder = path / "mods"
-        if mods_folder.exists():
+        if StarsectorPathValidator.validate(path):
             return True, "Valid"
-        
-        try:
-            mods_folder.mkdir(parents=True, exist_ok=True)
-            self.log(f"Created mods folder: {mods_folder}")
-            return True, "Valid"
-        except Exception as e:
-            return False, f"Cannot create mods folder: {e}"
+        else:
+            return False, "Not a valid Starsector installation (missing required files)"
     
     def check_disk_space(self, required_gb=MIN_FREE_SPACE_GB):
         """Check if there's enough free disk space."""
         if not self.starsector_path.get():
             return True, ""
         
-        try:
-            path = Path(self.starsector_path.get())
-            stat = shutil.disk_usage(path)
-            free_gb = stat.free / (1024**3)
-            
-            if free_gb < required_gb:
-                return False, f"Low disk space: {free_gb:.1f}GB free (recommended: {required_gb}GB+)"
-            return True, f"{free_gb:.1f}GB free"
-        except Exception:
-            return True, ""
+        has_space, free_gb = StarsectorPathValidator.check_disk_space(
+            Path(self.starsector_path.get()), required_gb
+        )
+        
+        if not has_space:
+            return False, f"Low disk space: {free_gb:.1f}GB free (recommended: {required_gb}GB+)"
+        return True, f"{free_gb:.1f}GB free"
     
     def select_starsector_path(self):
         """Open dialog to select Starsector folder."""
@@ -869,6 +882,41 @@ class ModlistInstaller:
             pause_style = TriOSTheme.get_button_style("warning")
             self.pause_install_btn.config(text="Pause", **pause_style)
             self.log("Installation resumed")
+    
+    def refresh_mod_metadata(self):
+        """Manually refresh mod metadata from installed mods without full installation."""
+        starsector_dir = self.starsector_path.get()
+        
+        if not starsector_dir:
+            custom_dialogs.showerror("Error", "Starsector path not set. Please configure it in settings.")
+            return
+        
+        mods_dir = Path(starsector_dir) / "mods"
+        
+        if not mods_dir.exists():
+            custom_dialogs.showerror("Error", f"Mods directory not found: {mods_dir}")
+            return
+        
+        # Disable button during refresh
+        if self.refresh_btn:
+            self.refresh_btn.config(state=tk.DISABLED, text="Refreshing...")
+        
+        self.log("=" * 50)
+        self.log("Refreshing mod metadata from installed mods...")
+        
+        try:
+            self._update_mod_metadata_from_installed(mods_dir)
+            self.save_modlist_config()
+            self.display_modlist_info()
+            self.log("✓ Metadata refresh complete!")
+            custom_dialogs.showsuccess("Success", "Mod metadata has been refreshed from installed mods")
+        except Exception as e:
+            self.log(f"✗ Error refreshing metadata: {e}", error=True)
+            custom_dialogs.showerror("Error", f"Failed to refresh metadata: {e}")
+        finally:
+            # Re-enable button
+            if self.refresh_btn:
+                self.refresh_btn.config(state=tk.NORMAL, text="Refresh")
     
     def start_installation(self):
         """Start the installation process."""
@@ -1042,16 +1090,6 @@ class ModlistInstaller:
                 return False
         
         return True
-        
-        # Start installation directly (validation already confirmed)
-        self.is_installing = True
-        self.is_paused = False
-        self.install_modlist_btn.config(state=tk.DISABLED, text="Installing...")
-        self.pause_install_btn.config(state=tk.NORMAL)
-        self.install_progress_bar['value'] = 0
-        
-        thread = threading.Thread(target=self.install_mods, daemon=True)
-        thread.start()
     
     def install_specific_mods(self, mod_names, temp_mods=None, skip_gdrive_check=False):
         """Install only specific mods by name.
@@ -1201,78 +1239,120 @@ class ModlistInstaller:
         self.log(f"Starting installation of {total_mods} mod{'s' if total_mods > 1 else ''}...")
         self.log("=" * 50)
 
+        # Pre-filter: Check which mods are already installed with correct version
+        self.log("Checking for already installed mods...")
+        mods_to_download = []
+        pre_skipped = 0
+        
+        for mod in mods_to_install:
+            mod_name = mod.get('name', 'Unknown')
+            mod_version = mod.get('mod_version')
+            
+            if self.mod_installer.is_mod_already_installed(mod, mods_dir):
+                version_str = f" v{mod_version}" if mod_version else ""
+                self.log(f"  ℹ Skipped: '{mod_name}'{version_str} already installed", info=True)
+                pre_skipped += 1
+            else:
+                mods_to_download.append(mod)
+        
+        if pre_skipped > 0:
+            self.log(f"Pre-filtered {pre_skipped} already installed mod(s)")
+        
+        if not mods_to_download:
+            self.log("All mods are already installed!", info=True)
+            self.install_progress_bar['value'] = 100
+            self._finalize_installation(mods_dir, [], 0, pre_skipped, [], [], total_mods)
+            return
+
         # Step 1: parallel downloads
         self.log(f"Starting parallel downloads (workers={MAX_DOWNLOAD_WORKERS})...")
         download_results, gdrive_failed = self._download_mods_parallel(
-            mods_to_install, 
+            mods_to_download, 
             skip_gdrive_check=skip_gdrive_check
         )
         
         # Check if installation was canceled during downloads
         if not self.is_installing:
-            self.log("Installation aborted")
-            self.install_modlist_btn.config(state=tk.NORMAL, text="Install Modlist")
-            self.pause_install_btn.config(state=tk.DISABLED)
+            self._finalize_installation_cancelled()
             return
         
         # Step 2: sequential extraction
+        extraction_results = self._extract_downloaded_mods(download_results, mods_dir)
+        extracted, skipped, extraction_failures = extraction_results
+        
+        # Add pre-skipped mods to total skipped count
+        total_skipped = skipped + pre_skipped
+        
+        # Check if installation was canceled during extraction
+        if not self.is_installing:
+            return
+        
+        # Step 3: Update statistics and finalize
+        self._finalize_installation(
+            mods_dir, download_results, extracted, total_skipped, 
+            gdrive_failed, extraction_failures, total_mods
+        )
+    
+    def _finalize_installation_cancelled(self):
+        """Cleanup and reset UI after installation cancellation."""
+        self.log("Installation aborted")
+        self.install_modlist_btn.config(state=tk.NORMAL, text="Install Modlist")
+        self.pause_install_btn.config(state=tk.DISABLED)
+    
+    def _extract_downloaded_mods(self, download_results, mods_dir):
+        """Extract all downloaded mods sequentially.
+        
+        Args:
+            download_results: List of (mod, temp_path, is_7z) tuples
+            mods_dir: Path to Starsector mods directory
+            
+        Returns:
+            tuple: (extracted_count, skipped_count, extraction_failures_list)
+        """
         self.log("Starting sequential extraction...")
         extracted = 0
         skipped = 0
-        extraction_failures = []  # Track mods that failed extraction
+        extraction_failures = []
         
         if not download_results:
             self.log("All mods were skipped (already installed or failed to download)", info=True)
             self.install_progress_bar['value'] = 100
+            return (0, 0, [])
         
         for i, (mod, temp_path, is_7z) in enumerate(download_results, 1):
-            # Check if installation was canceled
+            # Check cancellation
             if not self.is_installing:
                 self.log("\nInstallation canceled during extraction", error=True)
-                # Clean up remaining unprocessed temp files
-                for _, remaining_temp_path, _ in download_results[i-1:]:
-                    try:
-                        Path(remaining_temp_path).unlink()
-                    except Exception:
-                        pass
+                self._cleanup_remaining_downloads(download_results, i-1)
                 break
                 
             while self.is_paused:
                 threading.Event().wait(0.1)
             
             mod_name = mod.get('name', 'Unknown')
-            mod_version = mod.get('version')
+            mod_version = self._get_mod_game_version(mod)
             
             # Update progress indicator
             self.current_mod_name.set(f"📦 Extracting: {mod_name}")
             
-            if mod_version:
-                self.log(f"\n[{i}/{len(download_results)}] Installing {mod_name} v{mod_version}...")
-            else:
-                self.log(f"\n[{i}/{len(download_results)}] Installing {mod_name}...")
+            version_str = f" v{mod_version}" if mod_version else ""
+            self.log(f"\n[{i}/{len(download_results)}] Installing {mod_name}{version_str}...")
+            
             try:
-                # Auto-detect game_version BEFORE extraction (while archive is still intact)
-                if not mod.get('game_version') and Path(temp_path).exists():
-                    try:
-                        metadata = self.mod_installer.extract_mod_metadata(Path(temp_path), is_7z)
-                        if metadata and metadata.get('gameVersion'):
-                            # Update in modlist_data
-                            for m in self.modlist_data.get('mods', []):
-                                if m['name'] == mod['name']:
-                                    m['game_version'] = metadata['gameVersion']
-                                    self.log(f"  ℹ Auto-detected game version: {metadata['gameVersion']}", info=True)
-                                    break
-                    except Exception as e:
-                        self.log(f"  ⚠ Could not auto-detect game version: {e}", debug=True)
+                # Auto-detect game_version BEFORE extraction
+                self._auto_detect_game_version(mod, temp_path, is_7z)
                 
-                success = self.mod_installer.extract_archive(Path(temp_path), mods_dir, is_7z)
+                # Pass mod_version to enable version comparison during extraction
+                expected_mod_version = mod.get('mod_version')
+                success = self.mod_installer.extract_archive(Path(temp_path), mods_dir, is_7z, expected_mod_version)
                 
+                # Clean up temp file
                 try:
                     Path(temp_path).unlink()
                 except Exception:
                     pass
+                
                 if success == 'skipped':
-                    # Already logged by installer
                     skipped += 1
                 elif success:
                     self.log(f"  ✓ {mod['name']} installed successfully", success=True)
@@ -1285,11 +1365,168 @@ class ModlistInstaller:
                 self.log(f"  ✗ Unexpected extraction error for {mod.get('name')}: {e}", error=True)
                 extraction_failures.append(mod)
                 skipped += 1
-            # progress: second half (based on total attempted, not total in list)
+            
+            # Update progress bar
             progress = 50 + ((extracted + skipped) / len(download_results)) * 50
             self.install_progress_bar['value'] = progress
             self.root.update_idletasks()
         
+        return (extracted, skipped, extraction_failures)
+    
+    def _cleanup_remaining_downloads(self, download_results, start_index):
+        """Clean up unprocessed downloaded files after cancellation.
+        
+        Args:
+            download_results: List of (mod, temp_path, is_7z) tuples
+            start_index: Index from which to start cleanup
+        """
+        for _, remaining_temp_path, _ in download_results[start_index:]:
+            try:
+                Path(remaining_temp_path).unlink()
+            except Exception:
+                pass
+    
+    def _auto_detect_game_version(self, mod, temp_path, is_7z):
+        """Auto-detect and update game_version and mod_version from mod archive.
+        
+        Args:
+            mod: Mod dictionary
+            temp_path: Path to downloaded archive
+            is_7z: Whether archive is 7z format
+        """
+        try:
+            metadata = self.mod_installer.extract_mod_metadata(Path(temp_path), is_7z)
+            if metadata:
+                # Update in modlist_data
+                for m in self.modlist_data.get('mods', []):
+                    if m['name'] == mod['name']:
+                        if not m.get('game_version') and metadata.get('gameVersion'):
+                            m['game_version'] = metadata['gameVersion']
+                            self.log(f"  ℹ Auto-detected game version: {metadata['gameVersion']}", info=True)
+                        if not m.get('mod_version') and metadata.get('version'):
+                            m['mod_version'] = metadata['version']
+                            self.log(f"  ℹ Auto-detected mod version: {metadata['version']}", info=True)
+                        break
+        except Exception as e:
+            self.log(f"  ⚠ Could not auto-detect metadata: {e}", debug=True)
+    
+    def _collect_installed_mod_folders(self, download_results, mods_dir):
+        """Collect folder names of successfully installed mods for enabled_mods.json.
+        
+        Args:
+            download_results: List of (mod, temp_path, is_7z) tuples
+            mods_dir: Path to Starsector mods directory
+            
+        Returns:
+            list: Folder names of installed mods
+        """
+        successfully_installed_mods = []
+        
+        for mod in download_results:
+            mod_obj, _, _ = mod
+            mod_name = mod_obj.get('name')
+            
+            # Use centralized scanner to find matching folders
+            for folder, metadata in scan_installed_mods(mods_dir):
+                content = metadata.get('content', '')
+                # Check if the mod name matches (case-insensitive partial match)
+                if mod_name.lower() in content.lower() or mod_name.lower() in folder.name.lower():
+                    if folder.name not in successfully_installed_mods:
+                        successfully_installed_mods.append(folder.name)
+                        break  # Found it, move to next mod
+        
+        return successfully_installed_mods
+    
+    def _update_mod_metadata_from_installed(self, mods_dir):
+        """Auto-detect and update mod metadata (mod_id, name, versions) from installed mods.
+        
+        Scans all installed mods and updates the modlist config with accurate metadata.
+        Uses mod_id as primary key for matching.
+        
+        Args:
+            mods_dir: Path to Starsector mods directory
+        """
+        updated_count = 0
+        
+        # Get all mods from config
+        mods = self.modlist_data.get('mods', [])
+        
+        # Scan all installed mod folders using centralized scanner
+        for folder, metadata in scan_installed_mods(mods_dir):
+            installed_id = metadata.get('id')
+            installed_name = metadata.get('name')
+            installed_version = metadata.get('version')
+            installed_game_version = metadata.get('gameVersion')
+            
+            if not installed_id:
+                continue
+            
+            # Find matching mod in config by mod_id or name
+            for mod in mods:
+                config_id = mod.get('mod_id')
+                config_name = mod.get('name', '')
+                
+                # Match by mod_id (primary) or name normalization (fallback)
+                is_match = False
+                if config_id == installed_id:
+                    is_match = True
+                elif not config_id and config_name and installed_name:
+                    # Fallback: use centralized matching function
+                    if is_mod_name_match(config_name, folder.name, installed_name):
+                        is_match = True
+                
+                if is_match:
+                    # Update mod metadata
+                    changed = False
+                    
+                    # Always update mod_id if missing
+                    if not mod.get('mod_id'):
+                        mod['mod_id'] = installed_id
+                        changed = True
+                    
+                    # Update name ONLY if missing (never overwrite existing custom names)
+                    if not mod.get('name') and installed_name:
+                        mod['name'] = installed_name
+                        changed = True
+                    
+                    # Update versions only if different
+                    if installed_version and installed_version != 'unknown':
+                        current_mod_version = mod.get('mod_version')
+                        if current_mod_version != installed_version:
+                            mod['mod_version'] = installed_version
+                            changed = True
+                    
+                    if installed_game_version:
+                        current_game_version = mod.get('game_version')
+                        if current_game_version != installed_game_version:
+                            mod['game_version'] = installed_game_version
+                            # Remove legacy 'version' field
+                            if 'version' in mod:
+                                del mod['version']
+                            changed = True
+                    
+                    if changed:
+                        updated_count += 1
+                        self.log(f"  ✓ Updated metadata: {mod.get('name')} (ID: {installed_id})", info=True)
+                    
+                    break
+        
+        if updated_count > 0:
+            self.log(f"✓ Updated metadata for {updated_count} mod(s)")
+    
+    def _finalize_installation(self, mods_dir, download_results, extracted, skipped, 
+                               gdrive_failed, extraction_failures, total_mods):
+        """Finalize installation: update stats, enabled_mods.json, and show summary.
+        
+        Args:
+            mods_dir: Path to Starsector mods directory
+            download_results: List of successfully downloaded mods
+            extracted: Number of successfully extracted mods
+            skipped: Number of skipped mods
+            gdrive_failed: List of Google Drive failures during download
+            extraction_failures: List of mods that failed extraction
+            total_mods: Total number of mods attempted
+        """
         # Identify Google Drive mods that failed extraction (likely HTML instead of ZIP)
         gdrive_extraction_failures = [
             mod for mod in extraction_failures
@@ -1337,38 +1574,23 @@ class ModlistInstaller:
         self.log("Updating mod activation...")
         
         # Collect successfully installed mod folder names
-        successfully_installed_mods = []
-        for mod in download_results:
-            mod_obj, _, _ = mod
-            mod_name = mod_obj.get('name')
-            
-            # Try to find the mod folder in mods_dir
-            # The folder name might be different from the mod name
-            # We'll scan for folders that might match
-            for folder in mods_dir.iterdir():
-                if folder.is_dir() and folder.name not in ['.', '..']:
-                    # Check if this folder has a mod_info.json
-                    mod_info = folder / "mod_info.json"
-                    if mod_info.exists():
-                        try:
-                            with open(mod_info, 'r', encoding='utf-8') as f:
-                                content = f.read()
-                            # Check if the mod name matches (case-insensitive partial match)
-                            if mod_name.lower() in content.lower() or mod_name.lower() in folder.name.lower():
-                                if folder.name not in successfully_installed_mods:
-                                    successfully_installed_mods.append(folder.name)
-                        except Exception:
-                            pass
+        successfully_installed_mods = self._collect_installed_mod_folders(download_results, mods_dir)
         
         # Update enabled_mods.json
         if successfully_installed_mods:
             self.mod_installer.update_enabled_mods(mods_dir, successfully_installed_mods)
             self.log(f"✓ Activated {len(successfully_installed_mods)} mod(s) in Starsector")
         
-        # Save modlist to persist any auto-detected game_version values
+        # Auto-detect and update mod metadata (mod_id, name, versions) for all mods in config
+        self.log("Updating mod metadata from installed mods...")
+        self._update_mod_metadata_from_installed(mods_dir)
+        
+        # Save modlist to persist updated metadata and any auto-detected game_version values
         self.save_modlist_config(log_message=False)
         
-        self.log("\nYou can now start Starsector. All installed mods are already activated except those with incorrect game version, manage them via TriOS.")
+        # Only show INSTALLED banner if there are no Google Drive issues to handle
+        if len(all_gdrive_issues) == 0:
+            self._show_installation_complete_message()
 
         self.is_installing = False
         self.install_modlist_btn.config(state=tk.NORMAL, text="Install Modlist")
@@ -1383,6 +1605,11 @@ class ModlistInstaller:
         # Show manual download instructions for Google Drive mods
         if len(all_gdrive_issues) > 0:
             self._propose_fix_google_drive_urls(all_gdrive_issues)
+    
+    def _show_installation_complete_message(self):
+        """Display the installation complete banner."""
+        self.log("\nINSTALLATION COMPLETE\n", success=True)
+        self.log("You can now start Starsector. All installed mods are already activated except those with incorrect game version, manage them via TriOS.")
 
     def _propose_fix_google_drive_urls(self, failed_mods):
         """Propose to fix Google Drive URLs after installation is complete.
@@ -1390,66 +1617,11 @@ class ModlistInstaller:
         Args:
             failed_mods: List of mod dictionaries that failed to download
         """
-        # Create custom dialog matching pre-installation check style
-        result = {'action': None}
-        
-        dialog = tk.Toplevel(self.root)
-        dialog.transient(self.root)
-        dialog.grab_set()
-        dialog.resizable(False, False)
-        dialog.configure(bg=TriOSTheme.SURFACE)
-        
-        # Main frame
-        main_frame = tk.Frame(dialog, bg=TriOSTheme.SURFACE)
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
-        
-        # Failed Google Drive mods section
-        gdrive_frame = tk.Frame(main_frame, bg=TriOSTheme.SURFACE)
-        gdrive_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        tk.Label(gdrive_frame, text=f"{len(failed_mods)} Google Drive mod(s) need confirmation to download:", 
-                font=("Arial", 10, "bold"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.ERROR).pack(anchor=tk.W, pady=(0, 8))
-        
-        # List Google Drive mods
-        gdrive_list_frame = tk.Frame(gdrive_frame, bg=TriOSTheme.GDRIVE_BG)
-        gdrive_list_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        gdrive_text = tk.Text(gdrive_list_frame, height=min(5, len(failed_mods)), width=60,
-                             font=("Courier", 9), wrap=tk.WORD, bg=TriOSTheme.GDRIVE_BG, fg=TriOSTheme.TEXT_PRIMARY, 
-                             relief=tk.FLAT, highlightthickness=0, borderwidth=0)
-        for mod in failed_mods:
-            gdrive_text.insert(tk.END, f"  • {mod.get('name', 'Unknown')}\n")
-        gdrive_text.config(state=tk.DISABLED)
-        gdrive_text.pack(padx=5, pady=5)
-        
-        # Warning message
-        warning_frame = tk.Frame(gdrive_frame, bg=TriOSTheme.SURFACE)
-        warning_frame.pack(fill=tk.X, pady=(0, 0))
-        
-        warning_text = tk.Label(warning_frame, 
-            text="⚠️  Google can't verify these files due to their size. Confirm only if from a trusted source.",
-            font=("Arial", 9), bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_SECONDARY, wraplength=500, justify=tk.LEFT)
-        warning_text.pack(anchor=tk.W)
-        
-        # Buttons frame
-        button_frame = tk.Frame(main_frame, bg=TriOSTheme.SURFACE)
-        button_frame.pack(fill=tk.X, pady=(20, 0))
-        
-        def on_confirm():
-            import re
-            # Fix Google Drive URLs
-            from .dialogs import fix_google_drive_url
-            mods_to_download = []
-            for mod in failed_mods:
-                mod_copy = mod.copy()
-                fixed_url = fix_google_drive_url(mod['download_url'])
-                mod_copy['download_url'] = fixed_url
-                mods_to_download.append(mod_copy)
-                if fixed_url != mod['download_url']:
+        def on_confirm(mods_to_download):
+            # Log fixed URLs
+            for mod, original_mod in zip(mods_to_download, failed_mods):
+                if mod['download_url'] != original_mod['download_url']:
                     self.log(f"🔧 Fixed Google Drive URL: {mod.get('name')}", info=True)
-            
-            result['action'] = 'confirm'
-            dialog.destroy()
             
             # Start download with fixed URLs
             self.install_specific_mods(
@@ -1459,43 +1631,23 @@ class ModlistInstaller:
             )
         
         def on_cancel():
-            result['action'] = 'cancel'
-            dialog.destroy()
+            # Show installation complete message when user cancels
+            self._show_installation_complete_message()
         
-        # Center the buttons
-        button_container = tk.Frame(button_frame, bg=TriOSTheme.SURFACE)
-        button_container.pack(anchor=tk.CENTER)
+        # Show the dialog in the main thread to avoid TclError
+        def show_dialog():
+            try:
+                show_google_drive_confirmation_dialog(
+                    self.root,
+                    failed_mods,
+                    on_confirm,
+                    on_cancel
+                )
+            except tk.TclError:
+                # Window was destroyed, just complete installation
+                self._show_installation_complete_message()
         
-        from .ui_builder import _create_button
-        _create_button(button_container, "Confirm Installation", on_confirm,
-                      width=18, button_type="success").pack(side=tk.LEFT, padx=5)
-        
-        _create_button(button_container, "Cancel", on_cancel,
-                      width=12, button_type="secondary").pack(side=tk.LEFT, padx=5)
-        
-        # Keyboard bindings
-        dialog.bind("<Escape>", lambda e: on_cancel())
-        dialog.bind("<Return>", lambda e: on_confirm())
-        
-        # Center on parent
-        dialog.update_idletasks()
-        x = self.root.winfo_x() + (self.root.winfo_width() - dialog.winfo_width()) // 2
-        y = self.root.winfo_y() + (self.root.winfo_height() - dialog.winfo_height()) // 2
-        dialog.geometry(f"+{x}+{y}")
-        
-        dialog.wait_window()
-        
-        if result['action'] != 'apply':
-            self.log("User declined Google Drive download confirmation", info=True)
-            return
-        
-        # Prepare mods for download (fix URLs if needed, or use usercontent as-is)
-        self.log("Preparing Google Drive mods for download...", info=True)
-        fixed_mods_list = self._prepare_gdrive_urls(failed_mods)
-        
-        if fixed_mods_list:
-            # Trigger installation directly (no "Retry Installation?" dialog)
-            self.install_specific_mods([m['name'] for m in fixed_mods_list], temp_mods=fixed_mods_list, skip_gdrive_check=True)
-        else:
-            self.log("No URLs could be prepared for download", error=True)
+        # Schedule dialog display in main thread
+        self.root.after(0, show_dialog)
+
 
