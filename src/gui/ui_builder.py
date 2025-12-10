@@ -239,14 +239,16 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
                               bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY)
     info_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 5))
     
-    # Single PanedWindow for both header and modlist
-    main_paned = tk.PanedWindow(info_frame, orient=tk.HORIZONTAL, sashwidth=5, sashrelief=tk.RAISED,
-                               bg=TriOSTheme.SURFACE)
-    main_paned.pack(fill=tk.BOTH, expand=True)
+    # Horizontal container for modlist and buttons
+    main_container = tk.Frame(info_frame, bg=TriOSTheme.SURFACE)
+    main_container.pack(fill=tk.BOTH, expand=True)
     
-    # Left side: Header and modlist
-    left_container = tk.Frame(main_paned, bg=TriOSTheme.SURFACE)
-    main_paned.add(left_container, stretch="always")
+    # NOTE: Right side (buttons) must be created first with pack(side=tk.RIGHT)
+    # Then left side (modlist) with pack(side=tk.LEFT, expand=True)
+    # This is done by caller: first create_modlist_section, then create_button_panel
+    
+    # Left side: Header and modlist (will be packed after buttons are created)
+    left_container = tk.Frame(main_container, bg=TriOSTheme.SURFACE)
     
     # Header text - uses system theme colors
     header_text = tk.Text(
@@ -315,22 +317,27 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
     scrollbar.config(command=mod_listbox.yview)
     
     mod_listbox.bind('<Button-1>', mod_click_callback)
-    main_paned.bind('<ButtonRelease-1>', pane_resize_callback)
     
-    return info_frame, main_paned, header_text, mod_listbox, search_var
+    # Return container and left_container so buttons can be added first
+    return info_frame, main_container, left_container, header_text, mod_listbox, search_var
 
 
-def create_button_panel(main_paned, callbacks):
+def create_button_panel(main_container, left_container, callbacks):
     """
     Create the right-side button panel.
     
     Args:
-        main_paned: The PanedWindow to add buttons to
+        main_container: The main container Frame
+        left_container: The left container Frame (will be packed after buttons)
         callbacks: Dictionary with callback functions for each button
     """
-    right_frame = tk.Frame(main_paned, width=100, bg=TriOSTheme.SURFACE)
+    # Create buttons on the right FIRST
+    right_frame = tk.Frame(main_container, width=100, bg=TriOSTheme.SURFACE)
+    right_frame.pack(side=tk.RIGHT, fill=tk.Y)
     right_frame.pack_propagate(False)
-    main_paned.add(right_frame, stretch="never", minsize=100)
+    
+    # NOW pack the left container to fill remaining space
+    left_container.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
     
     # Installation section
     install_section = tk.LabelFrame(right_frame, text="Installation", padx=5, pady=5,
@@ -391,7 +398,13 @@ def create_button_panel(main_paned, callbacks):
     import_btn.pack(pady=(0, 3), fill=tk.X)
 
     export_btn = _create_button(management_section, "Export CSV", callbacks['export_csv'], button_type="plain")
-    export_btn.pack(pady=(0, 0), fill=tk.X)
+    export_btn.pack(pady=(0, 3), fill=tk.X)
+    
+    restore_backup_btn = _create_button(management_section, "Restore Backup", callbacks.get('restore_backup', lambda: None), button_type="warning")
+    restore_backup_btn.pack(pady=(0, 3), fill=tk.X)
+    
+    enable_mods_btn = _create_button(management_section, "Enable All Mods", callbacks.get('enable_mods', lambda: None), button_type="success")
+    enable_mods_btn.pack(pady=(0, 0), fill=tk.X)
     
     return {
         'reset': reset_btn,
@@ -404,7 +417,9 @@ def create_button_panel(main_paned, callbacks):
         'remove': remove_btn,
         'import': import_btn,
         'export': export_btn,
-        'refresh': refresh_btn
+        'refresh': refresh_btn,
+        'enable_mods': enable_mods_btn,
+        'restore_backup': restore_backup_btn
     }
 
 

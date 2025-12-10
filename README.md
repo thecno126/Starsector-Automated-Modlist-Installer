@@ -5,34 +5,38 @@
 
 A professional tool to manage and install Starsector modlists with parallel downloads, intelligent caching, and an intuitive graphical interface.
 
-## ✨ Features
+## ✨ Key Features
 
-### Core Capabilities
-- 📦 **Automatic mod installation** from URLs with retry logic and exponential backoff
-- ⚡ **Parallel downloads** (3 workers by default) for faster installation
-- 🔒 **Security** - Zip-slip protection and archive integrity validation
-- 💾 **Reliable saves** - Atomic configuration writes and auto-save on exit
-- 🌐 **Google Drive support** - Automatic HTML detection and URL fixing
-- 📊 **Category management** - Organize mods with drag-and-drop reordering
-- 🎨 **TriOS-themed interface** - Modern dark UI matching TriOS mod manager with colored logs
+### Smart Installation
+- 🎯 **Intelligent Updates** - Automatically installs only missing or outdated mods
+- 🔍 **Auto-detection** - Finds Starsector installation automatically on startup
+- ⚡ **Parallel Downloads** - 3 concurrent workers for faster installation
+- ✅ **Status Indicators** - Visual markers (✓ installed, ○ not installed, ↑ update available)
+- 💾 **Automatic Backups** - Creates backup of enabled_mods.json before installation (keeps last 5)
+- 🔄 **Restore Backups** - One-click restore to previous mod configurations
+
+### Pre-Installation Checks
+- 💿 **Disk Space** - Verifies sufficient free space before downloading
+- 🌐 **Internet Connection** - Quick connectivity test
+- 📝 **Write Permissions** - Ensures mod folder is writable
+- 🔗 **Dependency Detection** - Warns about missing mod dependencies
+- 🔒 **Version Compatibility** - Checks target Starsector version
+
+### User Interface
+- 🎨 **TriOS Theme** - Modern dark UI matching TriOS mod manager with colored logs
+- 🖱️ **Drag & Drop** - Reorder mods by dragging them between categories
+- ⬆️⬇️ **Arrow Keys** - Quick reordering within and across categories
+- 📊 **Category Management** - Organize mods with custom categories
+- 🔍 **Search Filter** - Quickly find mods by name
 - 📋 **CSV Import/Export** - Share modlists easily
-- ✅ **36 unit tests** with pytest for reliability
 
-### Recent Improvements
-- 🎨 **TriOS Theme Integration** - Modern dark theme matching TriOS mod manager
-- 🖥️ **macOS UI Fixes** - Custom Canvas-based buttons for proper color rendering on macOS
-- ✨ **Enhanced Dialogs** - All popups now use consistent TriOS theme with centered buttons
-- 🔲 **Borderless Design** - Removed white borders from all text widgets for cleaner look
-- ⚡ **Non-blocking UI** - Async URL validation prevents UI freezing
-- 🚀 **Code refactoring** - ~280 lines eliminated through centralized utilities
-- 🎯 **URL validation cache** - Reduces redundant network requests (1-hour cache)
-- 🔁 **Automatic retry** - Up to 3 attempts with exponential backoff for network failures
-- 📝 **Silent saves** - No log spam from automatic configuration saves
-- 🛡️ **Error handling** - Specific exception handling instead of broad catches
-- 🍎 **macOS path validation** - Simplified validation for .app bundles
-- ↻ **Smart refresh** - Reloads both mod metadata and modlist configuration
-- 🔄 **Update indicators** - Visual markers (↑ orange) for outdated mods
-- 📥 **Google Drive fix** - Automatic confirmation dialog for large files requiring virus scan bypass
+### Advanced Features
+- 🌐 **Google Drive Support** - Automatic HTML detection and confirmation dialog for large files
+- 🔒 **Security** - Zip-slip protection and archive integrity validation
+- 🔁 **Retry Logic** - Automatic retry with exponential backoff on network failures
+- 🎯 **Enable All Mods** - One-click activation of all installed mods
+- ⏸️ **Pause/Resume** - Control installation flow
+- 🪵 **Colored Logs** - Easy-to-read installation progress with color-coded messages
 
 ## 🚀 Quick Start
 
@@ -44,10 +48,24 @@ pip install -r requirements.txt
 
 ### Usage
 
-**Install mods:**
 ```bash
 python src/modlist_installer.py
 ```
+
+**First Launch:**
+1. The app will auto-detect your Starsector installation (or prompt you to select it)
+2. Configure your modlist: add mods, organize categories, reorder as needed
+3. Click **"Install Modlist"** - only missing/outdated mods will be downloaded
+4. All installed mods are automatically activated in Starsector
+
+**Managing Mods:**
+- **Add Mod** - Add mods individually with URL validation
+- **Import CSV** - Bulk import from CSV files
+- **Categories** - Create and manage custom categories
+- **Reorder** - Use ↑↓ buttons or drag & drop to rearrange mods
+- **Enable All Mods** - Activate all installed mods in one click
+- **Restore Backup** - Rollback to a previous mod configuration
+- **Refresh** - Update mod metadata from installed mods
 
 ### 📦 Building Executables
 

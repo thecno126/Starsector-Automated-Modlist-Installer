@@ -53,6 +53,7 @@ from utils.mod_utils import (
     is_mod_name_match,
     scan_installed_mods
 )
+from utils.backup_manager import BackupManager
 from utils.path_validator import StarsectorPathValidator
 
 
@@ -115,6 +116,139 @@ class ModlistInstaller:
         # Bind Ctrl+S to save configuration
         self.root.bind('<Control-s>', lambda e: self.save_modlist_config(log_message=True))
         self.root.bind('<Control-a>', lambda e: self.open_add_mod_dialog())
+        
+        # Drag and drop state for mod list reordering
+        self.drag_start_line = None
+        self.drag_start_y = None
+        self._setup_drag_and_drop()
+    
+    def _setup_drag_and_drop(self):
+        """Set up drag and drop handlers for mod list reordering."""
+        self.mod_listbox.bind('<Button-1>', self._on_drag_start, add="+")
+        self.mod_listbox.bind('<B1-Motion>', self._on_drag_motion)
+        self.mod_listbox.bind('<ButtonRelease-1>', self._on_drag_end, add="+")
+    
+    def _on_drag_start(self, event):
+        """Handle start of drag operation."""
+        index = self.mod_listbox.index(f"@{event.x},{event.y}")
+        line_num = int(index.split('.')[0])
+        line_text = self.mod_listbox.get(f"{line_num}.0", f"{line_num}.end").strip()
+        
+        # Only allow dragging mod lines (not categories or empty lines)
+        if line_text and (line_text.startswith("✓") or line_text.startswith("○") or line_text.startswith("↑")):
+            self.drag_start_line = line_num
+            self.drag_start_y = event.y
+        else:
+            self.drag_start_line = None
+    
+    def _on_drag_motion(self, event):
+        """Handle drag motion."""
+        if self.drag_start_line is None:
+            return
+        
+        # Visual feedback could be added here (e.g., change cursor)
+        pass
+    
+    def _on_drag_end(self, event):
+        """Handle end of drag operation - reorder mod."""
+        if self.drag_start_line is None:
+            return
+        
+        try:
+            # Get target line
+            index = self.mod_listbox.index(f"@{event.x},{event.y}")
+            target_line = int(index.split('.')[0])
+            
+            # Only proceed if moved significantly
+            if abs(target_line - self.drag_start_line) < 1:
+                self.drag_start_line = None
+                return
+            
+            # Get source mod name
+            source_text = self.mod_listbox.get(f"{self.drag_start_line}.0", f"{self.drag_start_line}.end")
+            source_mod_name = self._extract_mod_name_from_line(source_text)
+            
+            if not source_mod_name:
+                self.drag_start_line = None
+                return
+            
+            # Find source mod in data
+            source_mod = self._find_mod_by_name(source_mod_name)
+            if not source_mod:
+                self.drag_start_line = None
+                return
+            
+            # Find target category
+            target_category = self._find_category_above(target_line)
+            if not target_category:
+                self.drag_start_line = None
+                return
+            
+            # Calculate position within target category
+            category_start_line = self._find_category_line(target_category)
+            if category_start_line is None:
+                self.drag_start_line = None
+                return
+            
+            # Count mods between category start and target
+            position = 0
+            for line_num in range(category_start_line + 1, target_line + 1):
+                line_text = self.mod_listbox.get(f"{line_num}.0", f"{line_num}.end").strip()
+                if line_text and (line_text.startswith("✓") or line_text.startswith("○") or line_text.startswith("↑")):
+                    position += 1
+            
+            # Move mod
+            self._move_mod_to_category_position(source_mod_name, source_mod, target_category, position)
+            
+        except Exception as e:
+            self.log(f"Drag and drop error: {e}", debug=True)
+        finally:
+            self.drag_start_line = None
+    
+    def _find_category_line(self, category_name):
+        """Find the line number of a category header."""
+        try:
+            max_line = int(self.mod_listbox.index('end-1c').split('.')[0])
+        except (tk.TclError, ValueError):
+            return None
+        
+        for line_num in range(1, max_line + 1):
+            line_text = self.mod_listbox.get(f"{line_num}.0", f"{line_num}.end").strip()
+            if line_text == category_name:
+                return line_num
+        return None
+    
+    def _move_mod_to_category_position(self, mod_name, mod, target_category, position):
+        """Move a mod to a specific position within a category."""
+        source_category = mod.get('category', 'Uncategorized')
+        
+        # Remove from source category
+        if source_category in self.modlist_data.get('mods_by_category', {}):
+            category_mods = self.modlist_data['mods_by_category'][source_category]
+            category_mods = [m for m in category_mods if m.get('name') != mod_name]
+            self.modlist_data['mods_by_category'][source_category] = category_mods
+        
+        # Update mod category
+        mod['category'] = target_category
+        
+        # Add to target category at position
+        if target_category not in self.modlist_data.get('mods_by_category', {}):
+            self.modlist_data['mods_by_category'][target_category] = []
+        
+        category_mods = self.modlist_data['mods_by_category'][target_category]
+        position = max(0, min(position, len(category_mods)))
+        category_mods.insert(position, mod)
+        
+        # Rebuild mods list
+        self.modlist_data['mods'] = []
+        for category in self.categories:
+            if category in self.modlist_data['mods_by_category']:
+                self.modlist_data['mods'].extend(self.modlist_data['mods_by_category'][category])
+        
+        # Save and refresh
+        self.save_modlist_config()
+        self.display_modlist_info()
+        self.log(f"✓ Moved '{mod_name}' to {target_category} (position {position})", debug=True)
     
     def create_ui(self):
         """Create the user interface using modular builders."""
@@ -139,10 +273,10 @@ class ModlistInstaller:
         self.update_path_status()
         
         # Modlist section
-        info_frame, main_paned, self.header_text, self.mod_listbox, self.search_var = create_modlist_section(
+        info_frame, modlist_container, left_container, self.header_text, self.mod_listbox, self.search_var = create_modlist_section(
             left_frame,
             self.on_mod_click,
-            lambda e: self.root.after(100, self.display_modlist_info),
+            lambda e: None,  # No resize callback needed anymore
             self.on_search_mods
         )
         
@@ -162,10 +296,12 @@ class ModlistInstaller:
             'remove': self.remove_selected_mod,
             'import_csv': self.open_import_csv_dialog,
             'export_csv': self.open_export_csv_dialog,
-            'refresh': self.refresh_mod_metadata
+            'refresh': self.refresh_mod_metadata,
+            'enable_mods': self.enable_all_installed_mods,
+            'restore_backup': self.restore_backup_dialog
         }
         
-        buttons = create_button_panel(main_paned, button_callbacks)
+        buttons = create_button_panel(modlist_container, left_container, button_callbacks)
         self.reset_btn = buttons['reset']
         self.pause_install_btn = buttons['pause']
         self.up_btn = buttons['up']
@@ -177,6 +313,7 @@ class ModlistInstaller:
         self.import_btn = buttons['import']
         self.export_btn = buttons['export']
         self.refresh_btn = buttons['refresh']
+        self.enable_mods_btn = buttons.get('enable_mods')
         
         # Bottom buttons (on left side)
         button_frame, self.install_modlist_btn, self.quit_btn = create_bottom_buttons(
@@ -459,8 +596,15 @@ class ModlistInstaller:
             self.highlight_selected_mod()
         else:
             # Move to adjacent category
-            find_category = self._find_category_above if direction == -1 else self._find_category_below
-            target_category = find_category(self.selected_mod_line, current_category if direction == -1 else None)
+            if direction == -1:
+                # Moving up - find category above (excluding current)
+                target_category = self._find_category_above(self.selected_mod_line, current_category)
+            else:
+                # Moving down - find category below (should be different from current)
+                target_category = self._find_category_below(self.selected_mod_line)
+                # Make sure it's different from current category
+                if target_category == current_category:
+                    target_category = None
             
             if target_category:
                 current_mod['category'] = target_category
@@ -507,7 +651,8 @@ class ModlistInstaller:
         check_line = line_num - 1
         while check_line >= 1:
             check_text = self.mod_listbox.get(f"{check_line}.0", f"{check_line}.end").strip()
-            if check_text and not check_text.startswith("•"):
+            # Category lines don't start with status icons
+            if check_text and not (check_text.startswith("✓") or check_text.startswith("○") or check_text.startswith("↑")):
                 if current_category is None or check_text != current_category:
                     return check_text
             check_line -= 1
@@ -523,7 +668,8 @@ class ModlistInstaller:
         check_line = line_num + 1
         while check_line <= max_line:
             check_text = self.mod_listbox.get(f"{check_line}.0", f"{check_line}.end").strip()
-            if check_text and not check_text.startswith("•"):
+            # Category lines don't start with status icons
+            if check_text and not (check_text.startswith("✓") or check_text.startswith("○") or check_text.startswith("↑")):
                 return check_text
             check_line += 1
         return None
@@ -610,11 +756,12 @@ class ModlistInstaller:
         starsector_path = self.starsector_path.get()
         mods_dir = Path(starsector_path) / "mods" if starsector_path else None
         
-        # Display categories (only those with mods after filtering)
+        # Display all categories (even empty ones)
         for cat in self.categories:
+            self.mod_listbox.insert(tk.END, f"{cat}\n", 'category')
+            
+            # Display mods in this category (if any)
             if cat in categories:
-                self.mod_listbox.insert(tk.END, f"{cat}\n", 'category')
-                
                 for mod in categories[cat]:
                     # Check if mod is installed
                     is_installed = False
@@ -795,12 +942,19 @@ class ModlistInstaller:
     
     def auto_detect_starsector(self):
         """Auto-detect Starsector installation using StarsectorPathValidator."""
+        # Only auto-detect if path is not already set
+        if self.starsector_path.get():
+            self._auto_detected = False
+            return
+        
         detected_path = StarsectorPathValidator.auto_detect()
         if detected_path:
             self.starsector_path.set(str(detected_path))
             self._auto_detected = True
+            self.log(f"✓ Auto-detected Starsector installation: {detected_path}", info=True)
         else:
             self._auto_detected = False
+            self.log("⚠ Could not auto-detect Starsector. Please set path manually.", warning=True)
     
     def validate_starsector_path(self, path_str):
         """Validate Starsector installation path."""
@@ -923,6 +1077,265 @@ class ModlistInstaller:
             if self.refresh_btn:
                 self.refresh_btn.config(state=tk.NORMAL, text="↻")
     
+    def enable_all_installed_mods(self):
+        """Enable all currently installed mods in Starsector by updating enabled_mods.json."""
+        starsector_dir = self.starsector_path.get()
+        
+        if not starsector_dir:
+            custom_dialogs.showerror("Error", "Starsector path not set. Please configure it in settings.")
+            return
+        
+        mods_dir = Path(starsector_dir) / "mods"
+        
+        if not mods_dir.exists():
+            custom_dialogs.showerror("Error", f"Mods directory not found: {mods_dir}")
+            return
+        
+        self.log("=" * 50)
+        self.log("Enabling all installed mods...")
+        
+        try:
+            # Scan all installed mods
+            all_installed_folders = []
+            for folder, metadata in scan_installed_mods(mods_dir):
+                all_installed_folders.append(folder.name)
+                self.log(f"  Found: {folder.name}", debug=True)
+            
+            if not all_installed_folders:
+                custom_dialogs.showwarning("No Mods Found", "No mods were found in the mods directory.")
+                return
+            
+            # Update enabled_mods.json with all installed mods
+            success = self.mod_installer.update_enabled_mods(mods_dir, all_installed_folders, merge=False)
+            
+            if success:
+                self.log(f"✓ Enabled {len(all_installed_folders)} mod(s) in enabled_mods.json")
+                custom_dialogs.showsuccess("Success", f"Successfully enabled {len(all_installed_folders)} mod(s).\n\nYour mods should now be active when you start Starsector.")
+            else:
+                custom_dialogs.showerror("Error", "Failed to update enabled_mods.json")
+        except Exception as e:
+            self.log(f"✗ Error enabling mods: {e}", error=True)
+            custom_dialogs.showerror("Error", f"Failed to enable mods: {e}")
+    
+    def restore_backup_dialog(self):
+        """Show dialog to restore a backup."""
+        starsector_dir = self.starsector_path.get()
+        if not starsector_dir:
+            custom_dialogs.showerror("Error", "Starsector path not set. Please configure it in settings.")
+            return
+        
+        try:
+            backup_manager = BackupManager(starsector_dir)
+            backups = backup_manager.list_backups()
+            
+            if not backups:
+                custom_dialogs.showinfo("No Backups", "No backups found. Backups are created automatically before installation.")
+                return
+            
+            # Create simple list dialog
+            dialog = tk.Toplevel(self.root)
+            dialog.title("Restore Backup")
+            dialog.geometry("500x400")
+            dialog.configure(bg=TriOSTheme.SURFACE)
+            dialog.transient(self.root)
+            dialog.grab_set()
+            
+            tk.Label(dialog, text="Select a backup to restore:", font=("Arial", 12), 
+                    bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY).pack(pady=10)
+            
+            # Listbox with scrollbar
+            frame = tk.Frame(dialog, bg=TriOSTheme.SURFACE)
+            frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+            
+            scrollbar = tk.Scrollbar(frame)
+            scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            
+            listbox = tk.Listbox(frame, yscrollcommand=scrollbar.set,
+                                bg=TriOSTheme.SURFACE_DARK, fg=TriOSTheme.TEXT_PRIMARY,
+                                selectbackground=TriOSTheme.PRIMARY, selectforeground=TriOSTheme.SURFACE_DARK,
+                                font=("Arial", 10))
+            listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            scrollbar.config(command=listbox.yview)
+            
+            # Populate list
+            for backup_path, metadata in backups:
+                timestamp = metadata.get('timestamp', 'Unknown')
+                # Format timestamp
+                try:
+                    dt = datetime.strptime(timestamp, "%Y%m%d_%H%M%S")
+                    formatted = dt.strftime("%Y-%m-%d %H:%M:%S")
+                except:
+                    formatted = timestamp
+                listbox.insert(tk.END, formatted)
+            
+            selected_backup = [None]
+            
+            def on_restore():
+                selection = listbox.curselection()
+                if not selection:
+                    custom_dialogs.showwarning("No Selection", "Please select a backup to restore.")
+                    return
+                
+                idx = selection[0]
+                backup_path, metadata = backups[idx]
+                
+                # Confirm restore
+                timestamp = metadata.get('timestamp', 'Unknown')
+                if not custom_dialogs.askyesno("Confirm Restore", f"Restore backup from {timestamp}?\n\nThis will replace your current enabled_mods.json file."):
+                    return
+                
+                # Perform restore
+                success, error = backup_manager.restore_backup(backup_path)
+                if success:
+                    self.log(f"✓ Backup restored from {timestamp}")
+                    custom_dialogs.showsuccess("Success", "Backup restored successfully!\n\nYour mod configuration has been restored.")
+                    dialog.destroy()
+                else:
+                    custom_dialogs.showerror("Restore Failed", f"Failed to restore backup:\n{error}")
+            
+            def on_delete():
+                selection = listbox.curselection()
+                if not selection:
+                    custom_dialogs.showwarning("No Selection", "Please select a backup to delete.")
+                    return
+                
+                idx = selection[0]
+                backup_path, metadata = backups[idx]
+                timestamp = metadata.get('timestamp', 'Unknown')
+                
+                if not custom_dialogs.askyesno("Confirm Delete", f"Delete backup from {timestamp}?"):
+                    return
+                
+                success, error = backup_manager.delete_backup(backup_path)
+                if success:
+                    self.log(f"✓ Deleted backup: {timestamp}")
+                    listbox.delete(idx)
+                    backups.pop(idx)
+                    if not backups:
+                        custom_dialogs.showinfo("No Backups", "All backups deleted.")
+                        dialog.destroy()
+                else:
+                    custom_dialogs.showerror("Delete Failed", f"Failed to delete backup:\n{error}")
+            
+            # Buttons
+            btn_frame = tk.Frame(dialog, bg=TriOSTheme.SURFACE)
+            btn_frame.pack(pady=10)
+            
+            from .ui_builder import _create_button
+            restore_btn = _create_button(btn_frame, "Restore", on_restore, button_type="success")
+            restore_btn.pack(side=tk.LEFT, padx=5)
+            
+            delete_btn = _create_button(btn_frame, "Delete", on_delete, button_type="danger")
+            delete_btn.pack(side=tk.LEFT, padx=5)
+            
+            cancel_btn = _create_button(btn_frame, "Cancel", dialog.destroy, button_type="plain")
+            cancel_btn.pack(side=tk.LEFT, padx=5)
+            
+        except Exception as e:
+            self.log(f"✗ Error accessing backups: {e}", error=True)
+            custom_dialogs.showerror("Error", f"Failed to access backups:\n{e}")
+    
+    def _run_pre_installation_checks(self, starsector_dir):
+        """Run comprehensive pre-installation checks.
+        
+        Returns:
+            tuple: (success: bool, error_message: str or None)
+        """
+        mods_dir = starsector_dir / "mods"
+        
+        # 1. Check disk space
+        has_space, space_msg = self.check_disk_space()
+        if not has_space:
+            self.log(space_msg, warning=True)
+            if not custom_dialogs.askyesno("Low Disk Space", f"{space_msg}\n\nContinue anyway?"):
+                return False, "Installation cancelled due to low disk space"
+        
+        # 2. Check write permissions
+        try:
+            test_file = mods_dir / ".write_test"
+            mods_dir.mkdir(exist_ok=True)
+            test_file.write_text("test")
+            test_file.unlink()
+            self.log("✓ Write permissions verified", debug=True)
+        except (PermissionError, OSError) as e:
+            return False, f"No write permission in mods directory:\n{mods_dir}\n\nError: {e}"
+        
+        # 3. Check internet connection (quick test)
+        try:
+            import socket
+            socket.create_connection(("www.google.com", 80), timeout=3)
+            self.log("✓ Internet connection verified", debug=True)
+        except (socket.error, socket.timeout):
+            self.log("⚠ Internet connection may be unavailable", warning=True)
+            if not custom_dialogs.askyesno("Connection Warning", "Could not verify internet connection.\n\nContinue anyway?"):
+                return False, "Installation cancelled due to connection issues"
+        
+        # 4. Check for potential version conflicts (basic check)
+        starsector_version = self.modlist_data.get('starsector_version', 'Unknown')
+        self.log(f"ℹ Target Starsector version: {starsector_version}", info=True)
+        
+        # 6. Check dependencies
+        self.log("Checking mod dependencies...")
+        dependency_issues = self._check_dependencies(mods_dir)
+        if dependency_issues:
+            issues_text = "\n".join([f"  • {mod_name}: missing {', '.join(deps)}" 
+                                     for mod_name, deps in dependency_issues.items()])
+            self.log(f"⚠ Dependency issues found:\n{issues_text}", warning=True)
+            
+            message = f"Some mods have missing dependencies:\n\n{issues_text}\n\nThese dependencies will be installed if they're in the modlist.\n\nContinue?"
+            if not custom_dialogs.askyesno("Missing Dependencies", message):
+                return False, "Installation cancelled due to missing dependencies"
+        else:
+            self.log("✓ No dependency issues found", debug=True)
+        
+        return True, None
+    
+    def _check_dependencies(self, mods_dir):
+        """Check for missing dependencies in the modlist.
+        
+        Args:
+            mods_dir: Path to mods directory
+            
+        Returns:
+            dict: {mod_name: [list of missing dependency IDs]}
+        """
+        from utils.mod_utils import extract_dependencies_from_text, check_missing_dependencies
+        
+        # First, extract dependencies from modlist mods
+        for mod in self.modlist_data.get('mods', []):
+            mod_id = mod.get('mod_id')
+            if not mod_id:
+                continue
+            
+            # If dependencies not already in mod data, we'll check installed mods later
+            if 'dependencies' not in mod:
+                mod['dependencies'] = []
+        
+        # Get installed mod IDs
+        installed_mod_ids = set()
+        for folder, metadata in scan_installed_mods(mods_dir):
+            mod_id = metadata.get('id')
+            if mod_id:
+                installed_mod_ids.add(mod_id)
+        
+        # Add modlist mod IDs (they will be installed)
+        modlist_mod_ids = {m.get('mod_id') for m in self.modlist_data.get('mods', []) if m.get('mod_id')}
+        all_available_ids = installed_mod_ids | modlist_mod_ids
+        
+        # Check for missing dependencies
+        missing_deps_by_id = check_missing_dependencies(self.modlist_data.get('mods', []), all_available_ids)
+        
+        # Convert to user-friendly format (mod name instead of ID)
+        dependency_issues = {}
+        for mod_id, missing_deps in missing_deps_by_id.items():
+            # Find mod name
+            mod = next((m for m in self.modlist_data.get('mods', []) if m.get('mod_id') == mod_id), None)
+            if mod:
+                mod_name = mod.get('name', mod_id)
+                dependency_issues[mod_name] = missing_deps
+        
+        return dependency_issues
+    
     def start_installation(self):
         """Start the installation process."""
         if self.is_installing:
@@ -956,16 +1369,18 @@ class ModlistInstaller:
             custom_dialogs.showerror("Invalid Path", message)
             return
         
-        has_space, space_msg = self.check_disk_space()
-        if not has_space:
-            self.log(space_msg, warning=True)
-            response = custom_dialogs.askyesno("Low Disk Space", f"{space_msg}\n\nContinue anyway?")
-            if not response:
-                return
-        
         if not self.modlist_data:
             custom_dialogs.showerror("Error", "No modlist configuration loaded")
             return
+        
+        # Run comprehensive pre-installation checks
+        self.log("\n" + "=" * 50)
+        self.log("Running pre-installation checks...")
+        check_success, check_error = self._run_pre_installation_checks(starsector_dir)
+        if not check_success:
+            custom_dialogs.showerror("Pre-Installation Check Failed", check_error)
+            return
+        self.log("✓ All pre-installation checks passed")
         
         # Validate URLs asynchronously
         self.log("Validating mod URLs (this may take a moment)...")
@@ -1243,9 +1658,25 @@ class ModlistInstaller:
 
         self.log(f"Starting installation of {total_mods} mod{'s' if total_mods > 1 else ''}...")
         self.log("=" * 50)
+        
+        # Create automatic backup before installation
+        self.log("Creating backup of enabled_mods.json...")
+        try:
+            backup_manager = BackupManager(self.starsector_path.get())
+            backup_path, success, error = backup_manager.create_backup(backup_mods=False)
+            if success:
+                self.log(f"✓ Backup created: {backup_path.name}", info=True)
+                # Cleanup old backups (keep last 5)
+                deleted = backup_manager.cleanup_old_backups(keep_count=5)
+                if deleted > 0:
+                    self.log(f"  Cleaned up {deleted} old backup(s)", debug=True)
+            else:
+                self.log(f"⚠ Backup failed: {error}", warning=True)
+        except Exception as e:
+            self.log(f"⚠ Could not create backup: {e}", warning=True)
 
         # Pre-filter: Check which mods are already installed with correct version
-        self.log("Checking for already installed mods...")
+        self.log("Checking for missing or outdated mods...")
         mods_to_download = []
         pre_skipped = 0
         
@@ -1255,16 +1686,25 @@ class ModlistInstaller:
             
             if self.mod_installer.is_mod_already_installed(mod, mods_dir):
                 version_str = f" v{mod_version}" if mod_version else ""
-                self.log(f"  ℹ Skipped: '{mod_name}'{version_str} already installed", info=True)
+                self.log(f"  ✓ Already up-to-date: '{mod_name}'{version_str}", info=True)
                 pre_skipped += 1
             else:
+                # Check if it's an update or new install
+                is_update = False
+                for folder, metadata in scan_installed_mods(mods_dir):
+                    if metadata.get('id') == mod.get('mod_id'):
+                        is_update = True
+                        break
+                
+                status = "update" if is_update else "install"
+                self.log(f"  → Will {status}: '{mod_name}'", info=True)
                 mods_to_download.append(mod)
         
         if pre_skipped > 0:
-            self.log(f"Pre-filtered {pre_skipped} already installed mod(s)")
+            self.log(f"Skipped {pre_skipped} up-to-date mod(s)")
         
         if not mods_to_download:
-            self.log("All mods are already installed!", info=True)
+            self.log("All mods are already up-to-date!", info=True)
             self.install_progress_bar['value'] = 100
             self._finalize_installation(mods_dir, [], 0, pre_skipped, [], [], total_mods)
             return
@@ -1427,18 +1867,19 @@ class ModlistInstaller:
         """
         successfully_installed_mods = []
         
-        for mod in download_results:
-            mod_obj, _, _ = mod
-            mod_name = mod_obj.get('name')
-            
-            # Use centralized scanner to find matching folders
-            for folder, metadata in scan_installed_mods(mods_dir):
-                content = metadata.get('content', '')
-                # Check if the mod name matches (case-insensitive partial match)
-                if mod_name.lower() in content.lower() or mod_name.lower() in folder.name.lower():
-                    if folder.name not in successfully_installed_mods:
-                        successfully_installed_mods.append(folder.name)
-                        break  # Found it, move to next mod
+        # Build a set of mod_ids that were just installed
+        installed_mod_ids = set()
+        for mod_obj, _, _ in download_results:
+            mod_id = mod_obj.get('mod_id')
+            if mod_id:
+                installed_mod_ids.add(mod_id)
+        
+        # Scan all installed mods and match by mod_id
+        for folder, metadata in scan_installed_mods(mods_dir):
+            mod_id = metadata.get('id')
+            if mod_id and mod_id in installed_mod_ids:
+                successfully_installed_mods.append(folder.name)
+                self.log(f"  ✓ Will enable: {folder.name} (ID: {mod_id})", debug=True)
         
         return successfully_installed_mods
     
@@ -1581,10 +2022,15 @@ class ModlistInstaller:
         # Collect successfully installed mod folder names
         successfully_installed_mods = self._collect_installed_mod_folders(download_results, mods_dir)
         
-        # Update enabled_mods.json
-        if successfully_installed_mods:
-            self.mod_installer.update_enabled_mods(mods_dir, successfully_installed_mods)
-            self.log(f"✓ Activated {len(successfully_installed_mods)} mod(s) in Starsector")
+        # Update enabled_mods.json - collect ALL installed mods, not just newly installed ones
+        all_installed_folders = []
+        for folder, metadata in scan_installed_mods(mods_dir):
+            all_installed_folders.append(folder.name)
+        
+        if all_installed_folders:
+            # Use merge=False to replace the list entirely with all installed mods
+            self.mod_installer.update_enabled_mods(mods_dir, all_installed_folders, merge=False)
+            self.log(f"✓ Activated {len(all_installed_folders)} mod(s) in Starsector (all installed mods)")
         
         # Auto-detect and update mod metadata (mod_id, name, versions) for all mods in config
         self.log("Updating mod metadata from installed mods...")

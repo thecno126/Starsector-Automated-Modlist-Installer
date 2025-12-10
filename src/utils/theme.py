@@ -145,7 +145,7 @@ class TriOSTheme:
                 "activeforeground": cls.BUTTON_PRIMARY_FG,
             },
             "plain": {
-                "bg": cls.SURFACE,
+                "bg": "#2F3A54",  # Bleu légèrement moins sombre que SURFACE_LIGHT
                 "fg": cls.TEXT_PRIMARY,
                 "activebackground": cls.SURFACE_LIGHT,
                 "activeforeground": cls.TEXT_PRIMARY,

@@ -313,3 +313,69 @@ def scan_installed_mods(mods_dir, filter_func=None):
             # Skip files we can't read
             continue
 
+
+def extract_dependencies_from_text(content):
+    """
+    Extract mod dependencies from mod_info.json content.
+    
+    Args:
+        content: Raw text content of mod_info.json
+        
+    Returns:
+        list: List of dependency mod IDs, or empty list if none found
+        
+    Examples:
+        >>> extract_dependencies_from_text('"dependencies": ["lw_lazylib", "MagicLib"]')
+        ['lw_lazylib', 'MagicLib']
+    """
+    dependencies = []
+    
+    # Look for "dependencies" array
+    # Pattern matches: "dependencies": ["id1", "id2", ...] or "dependencies":["id1","id2"]
+    pattern = r'"dependencies"\s*:\s*\[(.*?)\]'
+    match = re.search(pattern, content, re.DOTALL | re.IGNORECASE)
+    
+    if match:
+        deps_str = match.group(1)
+        # Extract all quoted strings
+        dep_pattern = r'["\']([^"\']+)["\']'
+        dependencies = re.findall(dep_pattern, deps_str)
+    
+    return dependencies
+
+
+def check_missing_dependencies(mod_list, installed_mod_ids):
+    """
+    Check which mods have missing dependencies.
+    
+    Args:
+        mod_list: List of mod dictionaries with 'mod_id' and optionally 'dependencies'
+        installed_mod_ids: Set or list of installed mod IDs
+        
+    Returns:
+        dict: {mod_id: [list of missing dependency IDs]}
+        
+    Example:
+        >>> mods = [{'mod_id': 'modA', 'dependencies': ['libB', 'libC']}]
+        >>> installed = {'modA', 'libB'}
+        >>> check_missing_dependencies(mods, installed)
+        {'modA': ['libC']}
+    """
+    installed_set = set(installed_mod_ids)
+    missing_deps = {}
+    
+    for mod in mod_list:
+        mod_id = mod.get('mod_id')
+        dependencies = mod.get('dependencies', [])
+        
+        if not mod_id or not dependencies:
+            continue
+        
+        # Find missing dependencies
+        missing = [dep for dep in dependencies if dep not in installed_set]
+        
+        if missing:
+            missing_deps[mod_id] = missing
+    
+    return missing_deps
+
