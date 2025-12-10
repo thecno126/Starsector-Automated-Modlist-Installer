@@ -1675,6 +1675,11 @@ class ModlistInstaller:
         except Exception as e:
             self.log(f"⚠ Could not create backup: {e}", warning=True)
 
+        # Update metadata from installed mods BEFORE filtering
+        # This ensures we have accurate mod_version for comparison
+        self.log("Scanning installed mods for metadata...")
+        self._update_mod_metadata_from_installed(mods_dir)
+
         # Pre-filter: Check which mods are already installed with correct version
         self.log("Checking for missing or outdated mods...")
         mods_to_download = []
@@ -1987,11 +1992,11 @@ class ModlistInstaller:
         self.install_progress_bar['value'] = 100
         self.current_mod_name.set("")  # Clear progress indicator
         
-        # Simple statistics
-        total_downloaded = len(download_results)
-        total_failed_download = len(gdrive_failed)  # Google Drive failures
-        total_network_failed = total_mods - total_downloaded - total_failed_download  # Other network errors
-        truly_skipped = skipped - len(gdrive_extraction_failures)  # Exclude extraction failures
+        # Calculate statistics correctly
+        # skipped = mods that were skipped because already up-to-date (from pre-check + extraction skips)
+        # extraction_failures = mods that failed during extraction (not including pre-skipped)
+        total_extraction_failures = len(extraction_failures) - len(gdrive_extraction_failures)
+        total_already_present = skipped - len(extraction_failures)  # Remove actual failures from skipped count
         
         self.log("\n" + "=" * 50)
         self.log("Installation complete!")
@@ -2000,10 +2005,10 @@ class ModlistInstaller:
         status_parts = []
         if extracted > 0:
             status_parts.append(f"{extracted} newly installed")
-        if truly_skipped > 0:
-            status_parts.append(f"{truly_skipped} already present")
-        if total_network_failed > 0:
-            status_parts.append(f"{total_network_failed} failed")
+        if total_already_present > 0:
+            status_parts.append(f"{total_already_present} already up-to-date")
+        if total_extraction_failures > 0:
+            status_parts.append(f"{total_extraction_failures} failed")
         if len(all_gdrive_issues) > 0:
             status_parts.append(f"{len(all_gdrive_issues)} Google Drive issues")
         
@@ -2032,11 +2037,7 @@ class ModlistInstaller:
             self.mod_installer.update_enabled_mods(mods_dir, all_installed_folders, merge=False)
             self.log(f"✓ Activated {len(all_installed_folders)} mod(s) in Starsector (all installed mods)")
         
-        # Auto-detect and update mod metadata (mod_id, name, versions) for all mods in config
-        self.log("Updating mod metadata from installed mods...")
-        self._update_mod_metadata_from_installed(mods_dir)
-        
-        # Save modlist to persist updated metadata and any auto-detected game_version values
+        # Save modlist to persist any auto-detected game_version values from extraction
         self.save_modlist_config(log_message=False)
         
         # Only show INSTALLED banner if there are no Google Drive issues to handle
