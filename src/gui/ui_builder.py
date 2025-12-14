@@ -444,7 +444,7 @@ def create_log_section(main_frame, current_mod_var=None):
     progress_bar = ttk.Progressbar(log_frame, mode='determinate')
     progress_bar.pack(fill=tk.X, pady=(0, 5))
     
-    log_text = scrolledtext.ScrolledText(log_frame, wrap=tk.WORD, state=tk.DISABLED, height=35,
+    log_text = scrolledtext.ScrolledText(log_frame, wrap=tk.WORD, state=tk.DISABLED, height=40,
                                          bg=TriOSTheme.SURFACE_DARK, fg=TriOSTheme.TEXT_PRIMARY,
                                          insertbackground=TriOSTheme.PRIMARY,
                                          relief=tk.FLAT, highlightthickness=0, borderwidth=0)
