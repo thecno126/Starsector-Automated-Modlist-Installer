@@ -62,7 +62,7 @@ class ModlistInstaller:
     
     def __init__(self, root):
         self.root = root
-        self.root.title("ASTRA Modlist Installer")
+        self.root.title("Starsector Automated Modlist Installer")
         self.root.geometry(f"{UI_DEFAULT_WINDOW_WIDTH}x{UI_DEFAULT_WINDOW_HEIGHT}")
         self.root.resizable(True, True)
         self.root.minsize(UI_MIN_WINDOW_WIDTH, UI_MIN_WINDOW_HEIGHT)

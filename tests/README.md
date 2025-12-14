@@ -1,6 +1,6 @@
 # Tests
 
-Comprehensive test suite for ASTRA Modlist Installer (25 tests total).
+Comprehensive test suite for Starsector Automated Modlist Installer (25 tests total).
 
 ## Running Tests
 

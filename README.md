@@ -1,7 +1,7 @@
-# ASTRA Modlist Installer
+# Starsector Automated Modlist Installer (SAMI)
 
-![Tests](https://github.com/thecno126/ASTRA-Modlist-Installer/workflows/Tests/badge.svg)
-![Build](https://github.com/thecno126/ASTRA-Modlist-Installer/workflows/Build%20and%20Release/badge.svg)
+![Tests](https://github.com/thecno126/Starsector-Automated-Modlist-Installer/workflows/Tests/badge.svg)
+![Build](https://github.com/thecno126/Starsector-Automated-Modlist-Installer/workflows/Build%20and%20Release/badge.svg)
 
 A professional tool to manage and install Starsector modlists with parallel downloads, intelligent caching, and an intuitive graphical interface.
 
@@ -101,7 +101,7 @@ For more details, see [build_scripts/BUILD.md](build_scripts/BUILD.md)
 ## 📁 Project Structure
 
 ```
-ASTRA-Modlist-Installer/
+Starsector-Automated-Modlist-Installer/
 ├── .github/
 │   └── workflows/            # Automated CI/CD
 │       ├── build-release.yml # Multi-platform builds
@@ -244,7 +244,7 @@ pip install -r requirements.txt
    - ZIP and 7z support with integrity validation
    - Duplicate and already-installed mod detection
 3. **Manage compatibility:** Use **TriOS** to manage mod versions and compatibility
-   - ASTRA Modlist Installer downloads and activates mods automatically
+   - Starsector Automated Modlist Installer downloads and activates mods automatically
    - Mods with incorrect game versions are installed but may need adjustment
    - Use TriOS mod manager to handle version conflicts and enable/disable mods
 ## 📝 Notes

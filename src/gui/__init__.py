@@ -1,4 +1,4 @@
-"""GUI components for ASTRA Modlist Installer."""
+"""GUI components for Starsector Automated Modlist Installer."""
 
 from .main_window import ModlistInstaller
 

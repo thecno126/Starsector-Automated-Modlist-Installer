@@ -1,5 +1,5 @@
 """
-TriOS-inspired theme for ASTRA Modlist Installer.
+TriOS-inspired theme for Starsector Automated Modlist Installer.
 Color palette and styling inspired by TriOS (https://github.com/wispborne/TriOS).
 """
 

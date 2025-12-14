@@ -1,5 +1,5 @@
 """
-ASTRA Modlist Installer - Entry point
+Starsector Automated Modlist Installer - Entry point
 Main executable script for the modlist installer application.
 """
 

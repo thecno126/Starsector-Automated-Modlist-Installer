@@ -1,5 +1,5 @@
 """
-Utility modules for the ASTRA Modlist Installer.
+Utility modules for the Starsector Automated Modlist Installer.
 """
 
 from .theme import TriOSTheme

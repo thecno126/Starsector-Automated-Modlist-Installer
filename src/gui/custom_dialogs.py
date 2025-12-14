@@ -1,5 +1,5 @@
-"""  
-Custom styled dialog boxes for ASTRA Modlist Installer.
+"""
+Custom styled dialog boxes for Starsector Automated Modlist Installer.
 Provides modern, themed alternatives to standard tkinter messageboxes.
 """
 import tkinter as tk

@@ -1,4 +1,4 @@
-"""Core modules for ASTRA Modlist Installer."""
+"""Core modules for Starsector Automated Modlist Installer."""
 
 from .constants import (
     BASE_DIR, CONFIG_FILE, CATEGORIES_FILE, LOG_FILE, PREFS_FILE, CACHE_DIR,
