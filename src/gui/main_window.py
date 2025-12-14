@@ -26,7 +26,7 @@ from core import (
     UI_DEFAULT_WINDOW_WIDTH, UI_DEFAULT_WINDOW_HEIGHT,
     ModInstaller, ConfigManager
 )
-from core.installer import validate_mod_urls
+from core.installer import validate_mod_urls, InstallationReport, is_mod_up_to_date, resolve_mod_dependencies
 from .dialogs import (
     open_add_mod_dialog,
     open_manage_categories_dialog,
@@ -1653,6 +1653,9 @@ class ModlistInstaller:
             mods_to_install: List of mod dictionaries to install
             skip_gdrive_check: If True, skip Google Drive verification (already confirmed by user)
         """
+        # Initialize installation report
+        report = InstallationReport()
+        
         mods_dir = Path(self.starsector_path.get()) / "mods"
         total_mods = len(mods_to_install)
 
@@ -1679,6 +1682,18 @@ class ModlistInstaller:
         # This ensures we have accurate mod_version for comparison
         self.log("Scanning installed mods for metadata...")
         self._update_mod_metadata_from_installed(mods_dir)
+        
+        # Scan currently installed mods for dependency resolution and version checking
+        installed_mods_dict = {}
+        for folder, metadata in scan_installed_mods(mods_dir):
+            mod_id = metadata.get('id')
+            if mod_id:
+                installed_mods_dict[mod_id] = metadata
+
+        # Resolve dependencies - reorder mods so dependencies are installed first
+        self.log("Resolving mod dependencies...")
+        mods_to_install = resolve_mod_dependencies(mods_to_install, installed_mods_dict)
+        self.log(f"  ✓ Dependencies resolved, installation order optimized", info=True)
 
         # Pre-filter: Check which mods are already installed with correct version
         self.log("Checking for missing or outdated mods...")
@@ -1689,19 +1704,25 @@ class ModlistInstaller:
             mod_name = mod.get('name', 'Unknown')
             mod_version = mod.get('mod_version')
             
-            if self.mod_installer.is_mod_already_installed(mod, mods_dir):
+            # Use new is_mod_up_to_date function
+            is_up_to_date, installed_version = is_mod_up_to_date(mod_name, mod_version, mods_dir)
+            
+            if is_up_to_date and self.mod_installer.is_mod_already_installed(mod, mods_dir):
                 version_str = f" v{mod_version}" if mod_version else ""
                 self.log(f"  ✓ Already up-to-date: '{mod_name}'{version_str}", info=True)
+                report.add_skipped(mod_name, "already up-to-date", installed_version)
                 pre_skipped += 1
             else:
                 # Check if it's an update or new install
-                is_update = False
-                for folder, metadata in scan_installed_mods(mods_dir):
-                    if metadata.get('id') == mod.get('mod_id'):
-                        is_update = True
-                        break
+                is_update = installed_version is not None
                 
-                status = "update" if is_update else "install"
+                if is_update:
+                    status = f"update ({installed_version} → {mod_version})" if mod_version else "update"
+                    if mod_version:
+                        report.add_updated(mod_name, installed_version, mod_version)
+                else:
+                    status = "install"
+                
                 self.log(f"  → Will {status}: '{mod_name}'", info=True)
                 mods_to_download.append(mod)
         
@@ -1711,7 +1732,7 @@ class ModlistInstaller:
         if not mods_to_download:
             self.log("All mods are already up-to-date!", info=True)
             self.install_progress_bar['value'] = 100
-            self._finalize_installation(mods_dir, [], 0, pre_skipped, [], [], total_mods)
+            self._finalize_installation_with_report(report, mods_dir, [], total_mods)
             return
 
         # Step 1: parallel downloads
@@ -1721,26 +1742,32 @@ class ModlistInstaller:
             skip_gdrive_check=skip_gdrive_check
         )
         
+        # Track download errors in report
+        for mod in gdrive_failed:
+            report.add_error(mod.get('name'), "Google Drive HTML response", mod.get('download_url'))
+        
         # Check if installation was canceled during downloads
         if not self.is_installing:
             self._finalize_installation_cancelled()
             return
         
         # Step 2: sequential extraction
-        extraction_results = self._extract_downloaded_mods(download_results, mods_dir)
+        extraction_results = self._extract_downloaded_mods_with_report(download_results, mods_dir, report)
         extracted, skipped, extraction_failures = extraction_results
         
-        # Add pre-skipped mods to total skipped count
-        total_skipped = skipped + pre_skipped
+        # Track extraction failures in report
+        for mod in extraction_failures:
+            if mod not in gdrive_failed:  # Don't double-count Google Drive failures
+                report.add_error(mod.get('name'), "Extraction failed", mod.get('download_url'))
         
         # Check if installation was canceled during extraction
         if not self.is_installing:
             return
         
-        # Step 3: Update statistics and finalize
-        self._finalize_installation(
-            mods_dir, download_results, extracted, total_skipped, 
-            gdrive_failed, extraction_failures, total_mods
+        # Step 3: Update statistics and finalize with report
+        self._finalize_installation_with_report(
+            report, mods_dir, download_results, total_mods,
+            gdrive_failed=gdrive_failed, extraction_failures=extraction_failures
         )
     
     def _finalize_installation_cancelled(self):
@@ -1755,6 +1782,21 @@ class ModlistInstaller:
         Args:
             download_results: List of (mod, temp_path, is_7z) tuples
             mods_dir: Path to Starsector mods directory
+            
+        Returns:
+            tuple: (extracted_count, skipped_count, extraction_failures_list)
+        """
+        # Create a dummy report for backward compatibility
+        report = InstallationReport()
+        return self._extract_downloaded_mods_with_report(download_results, mods_dir, report)
+    
+    def _extract_downloaded_mods_with_report(self, download_results, mods_dir, report):
+        """Extract all downloaded mods sequentially with installation reporting.
+        
+        Args:
+            download_results: List of (mod, temp_path, is_7z) tuples
+            mods_dir: Path to Starsector mods directory
+            report: InstallationReport instance for tracking
             
         Returns:
             tuple: (extracted_count, skipped_count, extraction_failures_list)
@@ -1790,7 +1832,7 @@ class ModlistInstaller:
             
             try:
                 # Auto-detect game_version BEFORE extraction
-                self._auto_detect_game_version(mod, temp_path, is_7z)
+                metadata = self._auto_detect_game_version(mod, temp_path, is_7z)
                 
                 # Pass mod_version to enable version comparison during extraction
                 expected_mod_version = mod.get('mod_version')
@@ -1804,9 +1846,18 @@ class ModlistInstaller:
                 
                 if success == 'skipped':
                     skipped += 1
+                    report.add_skipped(mod_name, "already installed", expected_mod_version)
                 elif success:
                     self.log(f"  ✓ {mod['name']} installed successfully", success=True)
                     extracted += 1
+                    
+                    # Update metadata in config with detected info
+                    if metadata:
+                        self.mod_installer.update_mod_metadata_in_config(mod_name, metadata, self.config_manager)
+                    
+                    # Track in report
+                    detected_version = metadata.get('version') if metadata else expected_mod_version
+                    report.add_installed(mod_name, detected_version)
                 else:
                     self.log(f"  ✗ Failed to install {mod['name']}", error=True)
                     extraction_failures.append(mod)
@@ -1843,6 +1894,9 @@ class ModlistInstaller:
             mod: Mod dictionary
             temp_path: Path to downloaded archive
             is_7z: Whether archive is 7z format
+            
+        Returns:
+            dict: Detected metadata or None
         """
         try:
             metadata = self.mod_installer.extract_mod_metadata(Path(temp_path), is_7z)
@@ -1857,8 +1911,10 @@ class ModlistInstaller:
                             m['mod_version'] = metadata['version']
                             self.log(f"  ℹ Auto-detected mod version: {metadata['version']}", info=True)
                         break
+                return metadata
         except Exception as e:
             self.log(f"  ⚠ Could not auto-detect metadata: {e}", debug=True)
+        return None
     
     def _collect_installed_mod_folders(self, download_results, mods_dir):
         """Collect folder names of successfully installed mods for enabled_mods.json.
@@ -1969,59 +2025,48 @@ class ModlistInstaller:
                                gdrive_failed, extraction_failures, total_mods):
         """Finalize installation: update stats, enabled_mods.json, and show summary.
         
+        DEPRECATED: Use _finalize_installation_with_report instead.
+        Kept for backward compatibility.
+        """
+        # Create a report from legacy parameters
+        report = InstallationReport()
+        
+        for mod in gdrive_failed:
+            report.add_error(mod.get('name'), "Google Drive HTML response", mod.get('download_url'))
+        
+        for mod in extraction_failures:
+            if mod not in gdrive_failed:
+                report.add_error(mod.get('name'), "Extraction failed", mod.get('download_url'))
+        
+        self._finalize_installation_with_report(
+            report, mods_dir, download_results, total_mods,
+            gdrive_failed=gdrive_failed, extraction_failures=extraction_failures
+        )
+    
+    def _finalize_installation_with_report(self, report, mods_dir, download_results, total_mods,
+                                           gdrive_failed=None, extraction_failures=None):
+        """Finalize installation with InstallationReport system.
+        
         Args:
+            report: InstallationReport instance with tracked stats
             mods_dir: Path to Starsector mods directory
             download_results: List of successfully downloaded mods
-            extracted: Number of successfully extracted mods
-            skipped: Number of skipped mods
-            gdrive_failed: List of Google Drive failures during download
-            extraction_failures: List of mods that failed extraction
             total_mods: Total number of mods attempted
+            gdrive_failed: Optional list of Google Drive failures (legacy)
+            extraction_failures: Optional list of extraction failures (legacy)
         """
-        # Identify Google Drive mods that failed extraction (likely HTML instead of ZIP)
-        gdrive_extraction_failures = [
-            mod for mod in extraction_failures
-            if 'drive.google.com' in mod.get('download_url', '') 
-            or 'drive.usercontent.google.com' in mod.get('download_url', '')
-        ]
-        
-        # Combine all Google Drive issues (download failures + extraction failures)
-        all_gdrive_issues = gdrive_failed + gdrive_extraction_failures
+        gdrive_failed = gdrive_failed or []
+        extraction_failures = extraction_failures or []
         
         # Final statistics
         self.install_progress_bar['value'] = 100
         self.current_mod_name.set("")  # Clear progress indicator
         
-        # Calculate statistics correctly
-        # skipped = mods that were skipped because already up-to-date (from pre-check + extraction skips)
-        # extraction_failures = mods that failed during extraction (not including pre-skipped)
-        total_extraction_failures = len(extraction_failures) - len(gdrive_extraction_failures)
-        total_already_present = skipped - len(extraction_failures)  # Remove actual failures from skipped count
-        
-        self.log("\n" + "=" * 50)
-        self.log("Installation complete!")
-        
-        # Build detailed status message
-        status_parts = []
-        if extracted > 0:
-            status_parts.append(f"{extracted} newly installed")
-        if total_already_present > 0:
-            status_parts.append(f"{total_already_present} already up-to-date")
-        if total_extraction_failures > 0:
-            status_parts.append(f"{total_extraction_failures} failed")
-        if len(all_gdrive_issues) > 0:
-            status_parts.append(f"{len(all_gdrive_issues)} Google Drive issues")
-        
-        if status_parts:
-            self.log(f"  {', '.join(status_parts)}")
-        
-        if len(all_gdrive_issues) > 0:
-            self.log("\nGoogle Drive mods not installed:")
-            for mod in all_gdrive_issues:
-                self.log(f"  - {mod.get('name')}", error=True)
+        # Display formatted report
+        self.log("\n" + report.generate_summary())
         
         # Update enabled_mods.json to activate only installed mods
-        self.log("\n" + "=" * 50)
+        self.log("\n" + "=" * 60)
         self.log("Updating mod activation...")
         
         # Collect successfully installed mod folder names
@@ -2040,10 +2085,10 @@ class ModlistInstaller:
         # Save modlist to persist any auto-detected game_version values from extraction
         self.save_modlist_config(log_message=False)
         
-        # Only show INSTALLED banner if there are no Google Drive issues to handle
-        if len(all_gdrive_issues) == 0:
+        # Show completion message if no errors
+        if not report.has_errors():
             self._show_installation_complete_message()
-
+        
         self.is_installing = False
         self.install_modlist_btn.config(state=tk.NORMAL, text="Install Modlist")
         self.pause_install_btn.config(state=tk.DISABLED)
@@ -2054,9 +2099,9 @@ class ModlistInstaller:
         # Refresh the UI to show updated game versions (after all installation is complete)
         self.root.after(0, self.display_modlist_info)
 
-        # Show manual download instructions for Google Drive mods
-        if len(all_gdrive_issues) > 0:
-            self._propose_fix_google_drive_urls(all_gdrive_issues)
+        # Show manual download instructions for Google Drive mods if any
+        if gdrive_failed:
+            self._propose_fix_google_drive_urls(gdrive_failed)
     
     def _show_installation_complete_message(self):
         """Display the installation complete banner."""

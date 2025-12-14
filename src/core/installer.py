@@ -12,6 +12,7 @@ import shutil
 import time
 import json
 from pathlib import Path
+from datetime import datetime
 
 try:
     import py7zr
@@ -34,6 +35,98 @@ from utils.mod_utils import (
     is_mod_name_match,
     scan_installed_mods
 )
+
+
+class InstallationReport:
+    """Tracks installation progress and results for detailed reporting."""
+    
+    def __init__(self):
+        self.errors = []
+        self.skipped = []
+        self.installed = []
+        self.updated = []
+        self.start_time = time.time()
+    
+    def add_error(self, mod_name, error_msg, url):
+        """Record an installation error."""
+        self.errors.append({
+            'mod': mod_name,
+            'error': error_msg,
+            'url': url,
+            'timestamp': datetime.now().strftime('%H:%M:%S')
+        })
+    
+    def add_skipped(self, mod_name, reason, version=None):
+        """Record a skipped mod (already installed and up-to-date)."""
+        self.skipped.append({
+            'mod': mod_name,
+            'reason': reason,
+            'version': version
+        })
+    
+    def add_installed(self, mod_name, version=None):
+        """Record a newly installed mod."""
+        self.installed.append({
+            'mod': mod_name,
+            'version': version
+        })
+    
+    def add_updated(self, mod_name, old_version, new_version):
+        """Record an updated mod."""
+        self.updated.append({
+            'mod': mod_name,
+            'old_version': old_version,
+            'new_version': new_version
+        })
+    
+    def get_duration(self):
+        """Get installation duration in seconds."""
+        return time.time() - self.start_time
+    
+    def generate_summary(self):
+        """Generate a formatted summary report."""
+        duration = self.get_duration()
+        minutes, seconds = divmod(int(duration), 60)
+        
+        summary = [
+            "=" * 60,
+            "Installation Complete",
+            "=" * 60,
+            f"Duration: {minutes}m {seconds}s",
+            "",
+            f"✓ Installed: {len(self.installed)} mod(s)",
+            f"↑ Updated: {len(self.updated)} mod(s)",
+            f"○ Skipped (up-to-date): {len(self.skipped)} mod(s)",
+            f"✗ Errors: {len(self.errors)} mod(s)",
+            "=" * 60
+        ]
+        
+        if self.installed:
+            summary.append("\nNewly Installed:")
+            for item in self.installed:
+                version = f" v{item['version']}" if item['version'] else ""
+                summary.append(f"  ✓ {item['mod']}{version}")
+        
+        if self.updated:
+            summary.append("\nUpdated:")
+            for item in self.updated:
+                summary.append(f"  ↑ {item['mod']}: {item['old_version']} → {item['new_version']}")
+        
+        if self.errors:
+            summary.append("\nErrors:")
+            for item in self.errors:
+                summary.append(f"  ✗ {item['mod']}: {item['error']}")
+                summary.append(f"    URL: {item['url']}")
+        
+        return "\n".join(summary)
+    
+    def has_errors(self):
+        """Check if any errors occurred."""
+        return len(self.errors) > 0
+    
+    def get_total_processed(self):
+        """Get total number of mods processed."""
+        return len(self.installed) + len(self.updated) + len(self.skipped) + len(self.errors)
 
 
 def retry_with_backoff(func, max_retries=MAX_RETRIES, delay=RETRY_DELAY, backoff=BACKOFF_MULTIPLIER, 
@@ -212,6 +305,116 @@ def validate_mod_urls(mods, progress_callback=None):
     return results
 
 
+def is_mod_up_to_date(mod_name, expected_version, mods_dir):
+    """
+    Check if an installed mod is up-to-date with the expected version.
+    
+    Args:
+        mod_name: Name of the mod to check
+        expected_version: Expected version string (from modlist config)
+        mods_dir: Path to mods directory
+        
+    Returns:
+        tuple: (is_up_to_date: bool, installed_version: str or None)
+    """
+    if not expected_version:
+        # No version specified in config, assume any installed version is ok
+        installed_mods = scan_installed_mods(mods_dir)
+        if mod_name in installed_mods:
+            return True, installed_mods[mod_name].get('version', 'unknown')
+        return False, None
+    
+    installed_mods = scan_installed_mods(mods_dir)
+    if mod_name not in installed_mods:
+        return False, None
+    
+    installed_version = installed_mods[mod_name].get('version', 'unknown')
+    
+    # If we can't determine installed version, be conservative and re-download
+    if installed_version == 'unknown':
+        return False, installed_version
+    
+    # Compare versions: >= 0 means installed is equal or newer
+    try:
+        comparison = compare_versions(installed_version, expected_version)
+        return comparison >= 0, installed_version
+    except Exception:
+        # If version comparison fails, be conservative
+        return False, installed_version
+
+
+def resolve_mod_dependencies(mods, installed_mods_dict):
+    """
+    Reorder mods list to ensure dependencies are installed first.
+    
+    Args:
+        mods: List of mod dictionaries
+        installed_mods_dict: Dictionary of already installed mods from scan_installed_mods()
+        
+    Returns:
+        list: Reordered list of mods with dependencies first
+    """
+    # Build dependency graph
+    mod_by_id = {}
+    mod_by_name = {}
+    
+    for mod in mods:
+        mod_id = mod.get('mod_id')
+        mod_name = mod.get('name')
+        if mod_id:
+            mod_by_id[mod_id] = mod
+        if mod_name:
+            mod_by_name[normalize_mod_name(mod_name)] = mod
+    
+    # Topological sort using Kahn's algorithm
+    in_degree = {mod['name']: 0 for mod in mods}
+    adj_list = {mod['name']: [] for mod in mods}
+    
+    for mod in mods:
+        dependencies = mod.get('dependencies', [])
+        if not dependencies:
+            continue
+            
+        for dep in dependencies:
+            dep_id = dep.get('id')
+            dep_name = dep.get('name')
+            
+            # Find if dependency is in our modlist
+            dep_mod = None
+            if dep_id and dep_id in mod_by_id:
+                dep_mod = mod_by_id[dep_id]
+            elif dep_name:
+                norm_dep_name = normalize_mod_name(dep_name)
+                if norm_dep_name in mod_by_name:
+                    dep_mod = mod_by_name[norm_dep_name]
+            
+            # If dependency is in our modlist and not already installed, add edge
+            if dep_mod and dep_mod['name'] not in installed_mods_dict:
+                adj_list[dep_mod['name']].append(mod['name'])
+                in_degree[mod['name']] += 1
+    
+    # Kahn's algorithm
+    queue = [mod['name'] for mod in mods if in_degree[mod['name']] == 0]
+    sorted_names = []
+    
+    while queue:
+        current = queue.pop(0)
+        sorted_names.append(current)
+        
+        for neighbor in adj_list[current]:
+            in_degree[neighbor] -= 1
+            if in_degree[neighbor] == 0:
+                queue.append(neighbor)
+    
+    # If cycle detected, return original order
+    if len(sorted_names) != len(mods):
+        return mods
+    
+    # Rebuild mods list in sorted order
+    name_to_mod = {mod['name']: mod for mod in mods}
+    return [name_to_mod[name] for name in sorted_names]
+
+
 class ModInstaller:
     """Handles the installation of mods from URLs."""
     
@@ -283,6 +486,54 @@ class ModInstaller:
         except Exception as e:
             self.log(f"  ⚠ Warning: Could not extract metadata: {e}", debug=True)
             return None
+    
+    def update_mod_metadata_in_config(self, mod_name, detected_metadata, config_manager):
+        """
+        Update mod metadata in modlist_config.json after successful installation.
+        
+        Args:
+            mod_name: Name of the installed mod
+            detected_metadata: Dictionary with 'version', 'id', 'gameVersion' from mod_info.json
+            config_manager: ConfigManager instance for saving config
+        
+        Returns:
+            bool: True if metadata was updated
+        """
+        if not detected_metadata:
+            return False
+        
+        try:
+            config = config_manager.load_modlist_config()
+            updated = False
+            
+            for mod in config.get('mods', []):
+                if mod.get('name') == mod_name:
+                    # Update mod_version if detected
+                    if detected_metadata.get('version'):
+                        mod['mod_version'] = detected_metadata['version']
+                        updated = True
+                    
+                    # Update mod_id if detected
+                    if detected_metadata.get('id'):
+                        mod['mod_id'] = detected_metadata['id']
+                        updated = True
+                    
+                    # Update gameVersion if detected
+                    if detected_metadata.get('gameVersion'):
+                        mod['gameVersion'] = detected_metadata['gameVersion']
+                        updated = True
+                    
+                    break
+            
+            if updated:
+                config_manager.save_modlist_config(config)
+                self.log(f"  ℹ Updated metadata for {mod_name}", debug=True)
+            
+            return updated
+            
+        except Exception as e:
+            self.log(f"  ⚠ Warning: Could not update metadata in config: {e}", debug=True)
+            return False
     
     def is_mod_already_installed(self, mod, mods_dir):
         """
