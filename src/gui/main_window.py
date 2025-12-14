@@ -23,9 +23,9 @@ from core import (
     MAX_DOWNLOAD_WORKERS, CACHE_TIMEOUT,
     UI_MIN_WINDOW_WIDTH, UI_MIN_WINDOW_HEIGHT,
     UI_DEFAULT_WINDOW_WIDTH, UI_DEFAULT_WINDOW_HEIGHT,
-    ModInstaller, ConfigManager
+    ModInstaller, ConfigManager, InstallationReport
 )
-from core.installer import validate_mod_urls, InstallationReport, is_mod_up_to_date, resolve_mod_dependencies
+from core.installer import validate_mod_urls, is_mod_up_to_date, resolve_mod_dependencies
 from .dialogs import (
     open_add_mod_dialog,
     open_manage_categories_dialog,

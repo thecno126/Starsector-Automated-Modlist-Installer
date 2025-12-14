@@ -8,11 +8,9 @@ import zipfile
 import tempfile
 import os
 import re
-import shutil
 import time
 import json
 from pathlib import Path
-from datetime import datetime
 
 try:
     import py7zr
@@ -24,13 +22,9 @@ from .constants import (
     REQUEST_TIMEOUT, CHUNK_SIZE, URL_VALIDATION_TIMEOUT_HEAD, 
     MAX_VALIDATION_WORKERS, MAX_RETRIES, RETRY_DELAY, BACKOFF_MULTIPLIER
 )
-from .installation_report import InstallationReport
 from .archive_extractor import ArchiveExtractor
 from utils.mod_utils import (
     normalize_mod_name,
-    extract_mod_id_from_text,
-    extract_mod_version_from_text,
-    extract_game_version_from_text,
     extract_all_metadata_from_text,
     compare_versions,
     is_mod_name_match,
