@@ -88,6 +88,9 @@ class ModlistInstaller:
         # Mod installer
         self.mod_installer = ModInstaller(self.log)
         
+        # Log level: 'INFO' (default) or 'DEBUG'
+        self.log_level = 'INFO'
+        
         # Load preferences and auto-detect
         self.load_preferences()
         self.auto_detect_starsector()
@@ -857,6 +860,10 @@ class ModlistInstaller:
             debug: If True, display in gray (for debug messages)
             success: If True, display in green (for success messages)
         """
+        # Filter debug messages if log level is not DEBUG
+        if debug and self.log_level != 'DEBUG':
+            return
+        
         if threading.current_thread() is not threading.main_thread():
             self.root.after(0, lambda: self.log(message, error=error, info=info, warning=warning, debug=debug, success=success))
             return
@@ -1939,7 +1946,6 @@ class ModlistInstaller:
             mod_id = metadata.get('id')
             if mod_id and mod_id in installed_mod_ids:
                 successfully_installed_mods.append(folder.name)
-                self.log(f"  ✓ Will enable: {folder.name} (ID: {mod_id})", debug=True)
         
         return successfully_installed_mods
     
