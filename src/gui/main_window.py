@@ -1704,26 +1704,27 @@ class ModlistInstaller:
             mod_name = mod.get('name', 'Unknown')
             mod_version = mod.get('mod_version')
             
-            # Use new is_mod_up_to_date function
+            # Use new is_mod_up_to_date function which checks both installation and version
             is_up_to_date, installed_version = is_mod_up_to_date(mod_name, mod_version, mods_dir)
             
-            if is_up_to_date and self.mod_installer.is_mod_already_installed(mod, mods_dir):
-                version_str = f" v{mod_version}" if mod_version else ""
+            if is_up_to_date:
+                # Mod is installed and up-to-date
+                version_str = f" (v{installed_version})" if installed_version else ""
                 self.log(f"  ✓ Already up-to-date: '{mod_name}'{version_str}", info=True)
                 report.add_skipped(mod_name, "already up-to-date", installed_version)
                 pre_skipped += 1
             else:
-                # Check if it's an update or new install
-                is_update = installed_version is not None
-                
-                if is_update:
+                # Mod needs to be downloaded (either not installed or outdated)
+                if installed_version is not None:
+                    # It's an update
                     status = f"update ({installed_version} → {mod_version})" if mod_version else "update"
                     if mod_version:
                         report.add_updated(mod_name, installed_version, mod_version)
+                    self.log(f"  → Will {status}: '{mod_name}'", info=True)
                 else:
-                    status = "install"
+                    # It's a new installation
+                    self.log(f"  → Will install: '{mod_name}'", info=True)
                 
-                self.log(f"  → Will {status}: '{mod_name}'", info=True)
                 mods_to_download.append(mod)
         
         if pre_skipped > 0:

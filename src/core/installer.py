@@ -317,18 +317,25 @@ def is_mod_up_to_date(mod_name, expected_version, mods_dir):
     Returns:
         tuple: (is_up_to_date: bool, installed_version: str or None)
     """
+    # Scan installed mods and find matching mod
+    installed_version = None
+    found_mod = False
+    
+    for folder, metadata in scan_installed_mods(mods_dir):
+        mod_display_name = metadata.get('name', '')
+        
+        # Match by name normalization
+        if is_mod_name_match(mod_name, folder.name, mod_display_name):
+            found_mod = True
+            installed_version = metadata.get('version', 'unknown')
+            break
+    
+    if not found_mod:
+        return False, None
+    
+    # If no expected version specified, any installed version is ok
     if not expected_version:
-        # No version specified in config, assume any installed version is ok
-        installed_mods = scan_installed_mods(mods_dir)
-        if mod_name in installed_mods:
-            return True, installed_mods[mod_name].get('version', 'unknown')
-        return False, None
-    
-    installed_mods = scan_installed_mods(mods_dir)
-    if mod_name not in installed_mods:
-        return False, None
-    
-    installed_version = installed_mods[mod_name].get('version', 'unknown')
+        return True, installed_version
     
     # If we can't determine installed version, be conservative and re-download
     if installed_version == 'unknown':
