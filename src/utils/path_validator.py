@@ -4,7 +4,6 @@ Extracted from main_window.py to reduce complexity.
 """
 
 from pathlib import Path
-import os
 import platform
 import shutil
 

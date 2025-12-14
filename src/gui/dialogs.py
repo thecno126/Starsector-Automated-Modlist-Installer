@@ -4,7 +4,7 @@ Contains all popup dialogs for adding, editing, importing, and exporting mods.
 """
 
 import tkinter as tk
-from tkinter import ttk, filedialog, simpledialog
+from tkinter import ttk, filedialog
 import csv
 import threading
 import re

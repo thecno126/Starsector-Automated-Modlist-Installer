@@ -5,13 +5,11 @@ Google Drive handling, and mod_info.json version extraction.
 """
 
 import json
-import os
 import sys
 import io
 import zipfile
 import tempfile
 import shutil
-import time
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 import concurrent.futures
@@ -22,7 +20,6 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from src.core.config_manager import ConfigManager
-from src.core.constants import CONFIG_FILE, CATEGORIES_FILE, PREFS_FILE
 from src.core.installer import ModInstaller, validate_mod_urls
 from src.gui.dialogs import fix_google_drive_url
 
@@ -452,8 +449,8 @@ class TestInstallationScenarios:
         for mod in mods_to_install:
             # Simulate archive structure (single root folder matching mod name)
             mock_members = [f"{mod['name']}/mod_info.json", f"{mod['name']}/data/config.json"]
-            # Use unified _check_if_installed with is_7z=True (simple check)
-            if installer._check_if_installed(None, mock_members, mods_dir, is_7z=True):
+            # Use ArchiveExtractor's _check_if_installed method
+            if installer.extractor._check_if_installed(None, mock_members, mods_dir, is_7z=True):
                 already_installed.append(mod['name'])
             else:
                 needs_download.append(mod)

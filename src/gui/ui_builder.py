@@ -9,10 +9,7 @@ import sys
 from utils.theme import TriOSTheme
 
 from core import (
-    UI_BOTTOM_BUTTON_HEIGHT,
-    UI_RIGHT_PANEL_WIDTH,
-    UI_RIGHT_PANEL_MINSIZE,
-    UI_LEFT_PANEL_MINSIZE
+    UI_BOTTOM_BUTTON_HEIGHT
 )
 
 # Detect macOS
@@ -444,7 +441,7 @@ def create_log_section(main_frame, current_mod_var=None):
     progress_bar = ttk.Progressbar(log_frame, mode='determinate')
     progress_bar.pack(fill=tk.X, pady=(0, 5))
     
-    log_text = scrolledtext.ScrolledText(log_frame, wrap=tk.WORD, state=tk.DISABLED, height=40,
+    log_text = scrolledtext.ScrolledText(log_frame, wrap=tk.WORD, state=tk.DISABLED, height=40, width=130,
                                          bg=TriOSTheme.SURFACE_DARK, fg=TriOSTheme.TEXT_PRIMARY,
                                          insertbackground=TriOSTheme.PRIMARY,
                                          relief=tk.FLAT, highlightthickness=0, borderwidth=0)

@@ -11,6 +11,8 @@ from .constants import (
 )
 from .config_manager import ConfigManager
 from .installer import ModInstaller
+from .installation_report import InstallationReport
+from .archive_extractor import ArchiveExtractor
 
 __all__ = [
     'BASE_DIR', 'CONFIG_FILE', 'CATEGORIES_FILE', 'LOG_FILE', 'PREFS_FILE', 'CACHE_DIR',
@@ -20,5 +22,5 @@ __all__ = [
     'UI_BOTTOM_BUTTON_HEIGHT', 'UI_MIN_WINDOW_WIDTH', 'UI_MIN_WINDOW_HEIGHT',
     'UI_DEFAULT_WINDOW_WIDTH', 'UI_DEFAULT_WINDOW_HEIGHT',
     'UI_RIGHT_PANEL_WIDTH', 'UI_RIGHT_PANEL_MINSIZE', 'UI_LEFT_PANEL_MINSIZE',
-    'ConfigManager', 'ModInstaller'
+    'ConfigManager', 'ModInstaller', 'InstallationReport', 'ArchiveExtractor'
 ]

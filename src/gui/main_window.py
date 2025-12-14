@@ -5,14 +5,13 @@ Simplified version using modular components.
 
 import tkinter as tk
 from tkinter import filedialog, ttk
-import requests
 import re
+import requests
 from . import custom_dialogs
 from pathlib import Path
 import threading
 import concurrent.futures
 from datetime import datetime
-import sys
 import os
 import shutil
 import time
@@ -32,7 +31,6 @@ from .dialogs import (
     open_manage_categories_dialog,
     open_import_csv_dialog,
     open_export_csv_dialog,
-    fix_google_drive_url,
     show_google_drive_confirmation_dialog
 )
 from .ui_builder import (
@@ -46,15 +44,12 @@ from .ui_builder import (
 from utils.theme import TriOSTheme
 from utils.mod_utils import (
     normalize_mod_name,
-    extract_mod_id_from_text,
-    extract_mod_name_from_text,
-    extract_mod_version_from_text,
-    extract_game_version_from_text,
     is_mod_name_match,
     scan_installed_mods
 )
 from utils.backup_manager import BackupManager
 from utils.path_validator import StarsectorPathValidator
+from utils.error_messages import get_user_friendly_error
 
 
 class ModlistInstaller:
@@ -324,7 +319,7 @@ class ModlistInstaller:
         
         # Right side: Log panel
         right_frame = tk.Frame(main_container, padx=10, pady=10, bg=TriOSTheme.SURFACE)
-        main_container.add(right_frame, minsize=400, stretch="always")
+        main_container.add(right_frame, minsize=700, stretch="always")
         
         log_frame, self.install_progress_bar, self.log_text = create_log_section(
             right_frame, 
@@ -965,7 +960,8 @@ class ModlistInstaller:
         if StarsectorPathValidator.validate(path):
             return True, "Valid"
         else:
-            return False, "Not a valid Starsector installation (missing required files)"
+            friendly_msg = get_user_friendly_error('invalid_path')
+            return False, friendly_msg
     
     def check_disk_space(self, required_gb=MIN_FREE_SPACE_GB):
         """Check if there's enough free disk space."""
@@ -977,7 +973,8 @@ class ModlistInstaller:
         )
         
         if not has_space:
-            return False, f"Low disk space: {free_gb:.1f}GB free (recommended: {required_gb}GB+)"
+            friendly_msg = get_user_friendly_error('disk_space')
+            return False, friendly_msg
         return True, f"{free_gb:.1f}GB free"
     
     def select_starsector_path(self):
@@ -1258,7 +1255,8 @@ class ModlistInstaller:
             test_file.unlink()
             self.log("✓ Write permissions verified", debug=True)
         except (PermissionError, OSError) as e:
-            return False, f"No write permission in mods directory:\n{mods_dir}\n\nError: {e}"
+            friendly_msg = get_user_friendly_error('permission_denied')
+            return False, f"{friendly_msg}\n\nTechnical: {e}"
         
         # 3. Check internet connection (quick test)
         try:

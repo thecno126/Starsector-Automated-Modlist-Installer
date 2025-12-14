@@ -24,10 +24,11 @@ from .constants import (
     REQUEST_TIMEOUT, CHUNK_SIZE, URL_VALIDATION_TIMEOUT_HEAD, 
     MAX_VALIDATION_WORKERS, MAX_RETRIES, RETRY_DELAY, BACKOFF_MULTIPLIER
 )
+from .installation_report import InstallationReport
+from .archive_extractor import ArchiveExtractor
 from utils.mod_utils import (
     normalize_mod_name,
     extract_mod_id_from_text,
-    extract_mod_name_from_text,
     extract_mod_version_from_text,
     extract_game_version_from_text,
     extract_all_metadata_from_text,
@@ -35,98 +36,7 @@ from utils.mod_utils import (
     is_mod_name_match,
     scan_installed_mods
 )
-
-
-class InstallationReport:
-    """Tracks installation progress and results for detailed reporting."""
-    
-    def __init__(self):
-        self.errors = []
-        self.skipped = []
-        self.installed = []
-        self.updated = []
-        self.start_time = time.time()
-    
-    def add_error(self, mod_name, error_msg, url):
-        """Record an installation error."""
-        self.errors.append({
-            'mod': mod_name,
-            'error': error_msg,
-            'url': url,
-            'timestamp': datetime.now().strftime('%H:%M:%S')
-        })
-    
-    def add_skipped(self, mod_name, reason, version=None):
-        """Record a skipped mod (already installed and up-to-date)."""
-        self.skipped.append({
-            'mod': mod_name,
-            'reason': reason,
-            'version': version
-        })
-    
-    def add_installed(self, mod_name, version=None):
-        """Record a newly installed mod."""
-        self.installed.append({
-            'mod': mod_name,
-            'version': version
-        })
-    
-    def add_updated(self, mod_name, old_version, new_version):
-        """Record an updated mod."""
-        self.updated.append({
-            'mod': mod_name,
-            'old_version': old_version,
-            'new_version': new_version
-        })
-    
-    def get_duration(self):
-        """Get installation duration in seconds."""
-        return time.time() - self.start_time
-    
-    def generate_summary(self):
-        """Generate a formatted summary report."""
-        duration = self.get_duration()
-        minutes, seconds = divmod(int(duration), 60)
-        
-        summary = [
-            "=" * 60,
-            "Installation Complete",
-            "=" * 60,
-            f"Duration: {minutes}m {seconds}s",
-            "",
-            f"✓ Installed: {len(self.installed)} mod(s)",
-            f"↑ Updated: {len(self.updated)} mod(s)",
-            f"○ Skipped (up-to-date): {len(self.skipped)} mod(s)",
-            f"✗ Errors: {len(self.errors)} mod(s)",
-            "=" * 60
-        ]
-        
-        if self.installed:
-            summary.append("\nNewly Installed:")
-            for item in self.installed:
-                version = f" v{item['version']}" if item['version'] else ""
-                summary.append(f"  ✓ {item['mod']}{version}")
-        
-        if self.updated:
-            summary.append("\nUpdated:")
-            for item in self.updated:
-                summary.append(f"  ↑ {item['mod']}: {item['old_version']} → {item['new_version']}")
-        
-        if self.errors:
-            summary.append("\nErrors:")
-            for item in self.errors:
-                summary.append(f"  ✗ {item['mod']}: {item['error']}")
-                summary.append(f"    URL: {item['url']}")
-        
-        return "\n".join(summary)
-    
-    def has_errors(self):
-        """Check if any errors occurred."""
-        return len(self.errors) > 0
-    
-    def get_total_processed(self):
-        """Get total number of mods processed."""
-        return len(self.installed) + len(self.updated) + len(self.skipped) + len(self.errors)
+from utils.error_messages import suggest_fix_for_error, get_user_friendly_error
 
 
 def retry_with_backoff(func, max_retries=MAX_RETRIES, delay=RETRY_DELAY, backoff=BACKOFF_MULTIPLIER, 
@@ -433,6 +343,7 @@ class ModInstaller:
             log_callback: Function to call for logging messages
         """
         self.log = log_callback
+        self.extractor = ArchiveExtractor(log_callback)  # Delegate extraction to ArchiveExtractor
     
     def extract_mod_metadata(self, archive_path, is_7z=False):
         """
@@ -545,6 +456,8 @@ class ModInstaller:
     def is_mod_already_installed(self, mod, mods_dir):
         """
         Check if a mod is already installed with the expected version.
+        
+        This is a wrapper around is_mod_up_to_date() for compatibility.
         Uses mod_id for precise matching, falls back to name normalization if mod_id unavailable.
         
         Args:
@@ -554,54 +467,20 @@ class ModInstaller:
         Returns:
             bool: True if mod is already installed with same/newer version, False otherwise
         """
-        mod_id = mod.get('mod_id', '')
         mod_name = mod.get('name', '')
         expected_version = mod.get('mod_version')
         
-        if not mod_id and not mod_name:
+        if not mod_name:
             return False
         
-        # Use centralized scanner to find matching mod
-        for folder, metadata in scan_installed_mods(mods_dir):
-            installed_mod_id = metadata.get('id')
-            installed_mod_name = metadata.get('name') or ''
-            
-            # Matching logic:
-            # 1. If config has mod_id AND installed mod has mod_id: match by mod_id
-            # 2. Otherwise: match by name normalization
-            is_match = False
-            
-            if mod_id and installed_mod_id:
-                # Both have mod_id: use precise ID matching
-                is_match = (mod_id == installed_mod_id)
-            else:
-                # At least one lacks mod_id: use name matching
-                is_match = is_mod_name_match(mod_name, folder.name, installed_mod_name)
-            
-            if not is_match:
-                continue  # Not the mod we're looking for
-            
-            # Mod found! Now check version if expected_version is provided
-            if expected_version:
-                installed_version = metadata.get('version')
-                if not installed_version or installed_version == 'unknown':
-                    # Mod found but can't determine version - consider it installed
-                    return True
-                
-                # Compare versions using centralized function
-                comparison = compare_versions(expected_version, installed_version)
-                
-                if comparison <= 0:
-                    # Expected version is same or older than installed
-                    return True
-                else:
-                    # Installed version is older - needs update
-                    return False
-            else:
-                # No expected version specified, just check if mod exists
-                return True
+        # Use the centralized is_mod_up_to_date function
+        is_up_to_date, installed_version = is_mod_up_to_date(mod_name, expected_version, mods_dir)
         
-        return False
+        # If no version specified, just check if mod exists
+        if not expected_version:
+            return installed_version is not None
+        
+        return is_up_to_date
     
     def install_mod(self, mod, mods_dir):
         """
@@ -696,7 +575,15 @@ class ModInstaller:
                 exceptions=(requests.exceptions.RequestException, ValueError)
             )
         except requests.exceptions.RequestException as e:
-            self.log(f"  ✗ Download failed after {MAX_RETRIES} attempts: {e}", error=True)
+            # Provide user-friendly error message
+            error_type = suggest_fix_for_error(e)
+            if error_type:
+                friendly_msg = get_user_friendly_error(error_type)
+                self.log(f"  ✗ Download failed: {type(e).__name__}", error=True)
+                self.log(f"\n{friendly_msg}", error=True)
+            else:
+                self.log(f"  ✗ Download failed after {MAX_RETRIES} attempts: {e}", error=True)
+            
             if temp_path and os.path.exists(temp_path):
                 try:
                     os.unlink(temp_path)
@@ -705,6 +592,9 @@ class ModInstaller:
             return None, False
         except ValueError as e:
             self.log(f"  ✗ {str(e)}", error=True)
+            if 'not a valid archive' in str(e):
+                friendly_msg = get_user_friendly_error('corrupted_archive')
+                self.log(f"\n{friendly_msg}", error=True)
             return None, False
         except Exception as e:
             self.log(f"  ✗ Unexpected error during download: {e}", error=True)
@@ -756,6 +646,7 @@ class ModInstaller:
     def extract_archive(self, temp_file, mods_dir, is_7z, expected_mod_version=None):
         """
         Extract an archive file to the mods directory.
+        Delegates to ArchiveExtractor for actual extraction logic.
         
         Args:
             temp_file: Path to the temporary archive file
@@ -766,176 +657,9 @@ class ModInstaller:
         Returns:
             bool or str: True if extraction succeeded, 'skipped' if skipped, False otherwise
         """
-        try:
-            if is_7z:
-                return self._extract_7z(temp_file, mods_dir, expected_mod_version)
-            else:
-                return self._extract_zip(temp_file, mods_dir, expected_mod_version)
-        except Exception as e:
-            self.log(f"  ✗ Extraction error: {e}", error=True)
-            return False
+        return self.extractor.extract_archive(temp_file, mods_dir, is_7z, expected_mod_version)
     
-    def _extract_7z(self, temp_file, mods_dir, expected_mod_version=None):
-        """Extract a 7z archive."""
-        if not HAS_7ZIP:
-            self.log("  ✗ Error: py7zr library not installed. Install with: pip install py7zr", error=True)
-            return False
-        
-        try:
-            with py7zr.SevenZipFile(temp_file, 'r') as archive:
-                all_names = archive.getnames()
-                members = [m for m in all_names if m and not m.endswith('/')]
-                
-                if not members:
-                    self.log("  ✗ Error: Archive is empty", error=True)
-                    return False
 
-                # Check if mod already installed
-                already_result = self._check_if_installed(None, members, mods_dir, is_7z=True, expected_mod_version=expected_mod_version)
-                if already_result:
-                    return already_result
-
-                # Validate all members for zip-slip protection
-                mods_dir_resolved = mods_dir.resolve()
-                for member in all_names:
-                    member_path = (mods_dir / member).resolve()
-                    try:
-                        member_path.relative_to(mods_dir_resolved)
-                    except ValueError:
-                        self.log(f"  ✗ Security: Attempted path traversal detected in archive (blocked)", error=True)
-                        return False
-
-                self.log("  Extracting...")
-                archive.extractall(path=mods_dir)
-                return True
-                
-        except py7zr.Bad7zFile:
-            self.log(f"  ✗ Error: Corrupted 7z file", error=True)
-            return False
-    
-    def _extract_zip(self, temp_file, mods_dir, expected_mod_version=None):
-        """Extract a ZIP archive with zip-slip protection."""
-        with zipfile.ZipFile(temp_file, 'r') as zip_ref:
-            members = [m for m in zip_ref.namelist() if m and not m.endswith('/')]
-            
-            if not members:
-                self.log("  ✗ Error: Archive is empty", error=True)
-                return False
-
-            # Check if mod already installed and get folder to delete if updating
-            already_result = self._check_if_installed(zip_ref, members, mods_dir, expected_mod_version=expected_mod_version)
-            
-            # If it's a tuple, it means we need to delete the old version first
-            if isinstance(already_result, tuple):
-                folder_to_delete, is_update = already_result
-                if is_update and folder_to_delete:
-                    self.log(f"  🗑 Removing old version: {folder_to_delete.name}", info=True)
-                    try:
-                        shutil.rmtree(folder_to_delete)
-                    except Exception as e:
-                        self.log(f"  ✗ Error removing old version: {e}", error=True)
-                        return False
-            elif already_result:
-                # String result means 'skipped'
-                return already_result
-
-            # Validate all members for zip-slip protection
-            mods_dir_resolved = mods_dir.resolve()
-            for member in zip_ref.namelist():
-                member_path = (mods_dir / member).resolve()
-                try:
-                    member_path.relative_to(mods_dir_resolved)
-                except ValueError:
-                    self.log(f"  ✗ Security: Attempted path traversal detected in archive (blocked)", error=True)
-                    return False
-
-            self.log("  Extracting...")
-            zip_ref.extractall(mods_dir)
-            return True
-    
-    def _check_if_installed(self, archive_ref, members, mods_dir, is_7z=False, expected_mod_version=None):
-        """
-        Check if a mod is already installed. For ZIP archives, compares versions.
-        For 7z archives, only checks existence.
-        
-        Args:
-            archive_ref: ZipFile object (or None for 7z)
-            members: List of file paths in the archive
-            mods_dir: Path to the Starsector mods directory
-            is_7z: True if this is a 7z archive
-            expected_mod_version: Expected mod version from modlist config (optional)
-            
-        Returns:
-            str: 'skipped' if same/older version or already exists
-            tuple: (folder_path, True) if update needed (newer version, ZIP only)
-            bool: False if not installed
-        """
-        top_level = set(Path(m).parts[0] for m in members if Path(m).parts)
-
-        if len(top_level) == 1:
-            # Archive has a single root folder
-            root_dir = next(iter(top_level))
-            mod_root = mods_dir / root_dir
-            
-            if not mod_root.exists():
-                return False
-            
-            # For 7z, only check existence (version comparison too complex)
-            if is_7z:
-                self.log(f"  ℹ Skipped: Mod '{root_dir}' already installed", info=True)
-                return 'skipped'
-            
-            # For ZIP, check version in mod_info.json
-            mod_info_path_in_archive = f"{root_dir}/mod_info.json"
-            installed_mod_info = mod_root / "mod_info.json"
-            
-            if mod_info_path_in_archive not in members or not installed_mod_info.exists():
-                # No mod_info.json, just check existence
-                self.log(f"  ℹ Skipped: Mod '{root_dir}' already installed", info=True)
-                return 'skipped'
-            
-            try:
-                # Read version info
-                with open(installed_mod_info, 'r', encoding='utf-8') as f:
-                    installed_content = f.read()
-                
-                with archive_ref.open(mod_info_path_in_archive) as archive_file:
-                    new_content = archive_file.read().decode('utf-8')
-                
-                installed_version = extract_mod_version_from_text(installed_content)
-                new_version = extract_mod_version_from_text(new_content)
-                mod_id = extract_mod_id_from_text(new_content) or root_dir
-                
-                # Use expected_mod_version from modlist config if provided, otherwise use archive version
-                version_to_install = expected_mod_version if expected_mod_version else new_version
-                
-                # Compare versions using centralized function
-                version_comparison = compare_versions(version_to_install, installed_version)
-                
-                if version_comparison > 0:
-                    # Newer version available
-                    self.log(f"  ⬆ Update available: '{mod_id}' {installed_version} → {version_to_install}", info=True)
-                    self.log(f"  Installing newer version...", info=True)
-                    return (mod_root, True)
-                
-                # Same or older version
-                status = "newer" if version_comparison < 0 else "already"
-                self.log(f"  ℹ Skipped: '{mod_id}' v{installed_version} {status} installed", info=True)
-                return 'skipped'
-                
-            except (IOError, UnicodeDecodeError) as e:
-                self.log(f"  ⚠ Warning: Error reading mod metadata - {type(e).__name__}", info=True)
-                self.log(f"  ℹ Skipped: Mod '{root_dir}' already installed (version comparison unavailable)", info=True)
-                return 'skipped'
-        else:
-            # Archive has multiple files at root level
-            for member in members:
-                if (mods_dir / Path(member)).exists():
-                    self.log("  ℹ Skipped: Installation would overlap existing files", info=True)
-                    return 'skipped'
-        
-        return False
-    
     def update_enabled_mods(self, mods_dir, installed_mod_names, merge=True):
         """
         Create or update enabled_mods.json to enable the specified mods.
