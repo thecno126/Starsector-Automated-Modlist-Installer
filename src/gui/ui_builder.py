@@ -507,16 +507,16 @@ def create_log_section(main_frame, current_mod_var=None, pause_callback=None, en
 
 def create_enable_mods_section(main_frame, enable_mods_callback):
     """Create the Enable All Mods button section between log and bottom buttons."""
+    # Use exact same structure as create_bottom_buttons for perfect alignment
     enable_frame = tk.Frame(main_frame, bg=TriOSTheme.SURFACE)
-    enable_frame.pack(fill=tk.X, pady=(10, 10))
+    enable_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=(10, 0))
     enable_frame.configure(height=UI_BOTTOM_BUTTON_HEIGHT)
     enable_frame.pack_propagate(False)
     
-    # Use same container structure as bottom buttons for perfect alignment
     button_container = tk.Frame(enable_frame, bg=TriOSTheme.SURFACE)
     button_container.pack(fill=tk.BOTH, expand=True, padx=50)
     
-    enable_mods_btn = _create_button(button_container, "Enable All Mods", enable_mods_callback, button_type="starsector_blue")
+    enable_mods_btn = _create_button(button_container, "Enable All Mods", enable_mods_callback, height=1, button_type="starsector_blue")
     enable_mods_btn.pack(fill=tk.BOTH, expand=True)
     ToolTip(enable_mods_btn, "Activate all installed mods in Starsector")
     
