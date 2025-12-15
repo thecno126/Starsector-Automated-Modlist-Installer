@@ -39,6 +39,7 @@ from .ui_builder import (
     create_path_section,
     create_modlist_section,
     create_log_section,
+    create_enable_mods_section,
     create_bottom_buttons
 )
 from utils.theme import TriOSTheme
@@ -331,10 +332,15 @@ class ModlistInstaller:
         right_frame = tk.Frame(main_container, padx=10, pady=10, bg=TriOSTheme.SURFACE)
         main_container.add(right_frame, minsize=700, stretch="always")
         
-        log_frame, self.install_progress_bar, self.log_text, self.pause_install_btn, self.enable_mods_btn = create_log_section(
+        log_frame, self.install_progress_bar, self.log_text, self.pause_install_btn = create_log_section(
             right_frame, 
             self.current_mod_name,
-            self.toggle_pause,
+            self.toggle_pause
+        )
+        
+        # Enable All Mods button (below log, above bottom buttons)
+        enable_frame, self.enable_mods_btn = create_enable_mods_section(
+            right_frame,
             self.enable_all_installed_mods
         )
         

@@ -275,7 +275,7 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
     """Create the modlist information section with optional search and action buttons."""
     # Container for the whole section
     section_container = tk.Frame(main_frame, bg=TriOSTheme.SURFACE)
-    section_container.pack(fill=tk.BOTH, expand=True, pady=(0, 5))
+    section_container.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
     
     # Top bar with action buttons (above LabelFrame)
     header_buttons = {}
@@ -491,22 +491,27 @@ def create_log_section(main_frame, current_mod_var=None, pause_callback=None, en
                                          bg=TriOSTheme.SURFACE_DARK, fg=TriOSTheme.TEXT_PRIMARY,
                                          insertbackground=TriOSTheme.PRIMARY,
                                          relief=tk.FLAT, highlightthickness=0, borderwidth=0)
-    log_text.pack(fill=tk.BOTH, expand=True, pady=(0, 3))
+    log_text.pack(fill=tk.BOTH, expand=True)
     
-    # Bottom button: Enable All Mods
-    enable_mods_btn = None
-    if enable_mods_callback:
-        enable_mods_btn = _create_button(log_frame, "Enable All Mods", enable_mods_callback, button_type="success")
-        enable_mods_btn.pack(fill=tk.X)
-        ToolTip(enable_mods_btn, "Activate all installed mods in Starsector")
+    return log_frame, progress_bar, log_text, pause_btn
+
+
+def create_enable_mods_section(main_frame, enable_mods_callback):
+    """Create the Enable All Mods button section between log and bottom buttons."""
+    enable_frame = tk.Frame(main_frame, bg=TriOSTheme.SURFACE)
+    enable_frame.pack(fill=tk.X, pady=(8, 10))
     
-    return log_frame, progress_bar, log_text, pause_btn, enable_mods_btn
+    enable_mods_btn = _create_button(enable_frame, "Enable All Mods", enable_mods_callback, button_type="success")
+    enable_mods_btn.pack(fill=tk.X)
+    ToolTip(enable_mods_btn, "Activate all installed mods in Starsector")
+    
+    return enable_frame, enable_mods_btn
 
 
 def create_bottom_buttons(main_frame, install_callback, quit_callback):
     """Create the bottom button panel with Install and Quit."""
     button_frame = tk.Frame(main_frame, bg=TriOSTheme.SURFACE)
-    button_frame.pack(side=tk.BOTTOM, fill=tk.X)
+    button_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=(10, 0))
     button_frame.configure(height=UI_BOTTOM_BUTTON_HEIGHT)
     button_frame.pack_propagate(False)
 
