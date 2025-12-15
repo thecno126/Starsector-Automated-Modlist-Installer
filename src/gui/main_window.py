@@ -1514,13 +1514,14 @@ class ModlistInstaller:
         
         return True
     
-    def install_specific_mods(self, mod_names, temp_mods=None, skip_gdrive_check=False):
+    def install_specific_mods(self, mod_names, temp_mods=None, skip_gdrive_check=False, skip_activation=False):
         """Install only specific mods by name.
         
         Args:
             mod_names: List of mod names to install
             temp_mods: Optional list of mod dictionaries with temporary URLs (e.g., fixed Google Drive)
             skip_gdrive_check: If True, skip Google Drive verification (already confirmed by user)
+            skip_activation: If True, skip activation confirmation prompt (used for Google Drive retry)
         """
         # Use temp_mods if provided, otherwise filter from main modlist
         if temp_mods:
@@ -1540,7 +1541,7 @@ class ModlistInstaller:
         
         # Run installation in thread with filtered mods
         def run_specific_installation():
-            self._install_mods_internal(mods_to_install, skip_gdrive_check=skip_gdrive_check)
+            self._install_mods_internal(mods_to_install, skip_gdrive_check=skip_gdrive_check, skip_activation=skip_activation)
         
         thread = threading.Thread(target=run_specific_installation, daemon=True)
         thread.start()
@@ -1649,12 +1650,13 @@ class ModlistInstaller:
         
         return download_results, gdrive_failed
 
-    def _install_mods_internal(self, mods_to_install, skip_gdrive_check=False):
+    def _install_mods_internal(self, mods_to_install, skip_gdrive_check=False, skip_activation=False):
         """Internal method to install a list of mods.
         
         Args:
             mods_to_install: List of mod dictionaries to install
             skip_gdrive_check: If True, skip Google Drive verification (already confirmed by user)
+            skip_activation: If True, skip activation confirmation prompt (used for Google Drive retry)
         """
         # Initialize installation report
         report = InstallationReport()
@@ -1736,7 +1738,7 @@ class ModlistInstaller:
         
         if not mods_to_download:
             self.install_progress_bar['value'] = 100
-            self._finalize_installation_with_report(report, mods_dir, [], total_mods)
+            self._finalize_installation_with_report(report, mods_dir, [], total_mods, skip_activation_prompt=skip_activation)
             return
 
         # Step 1: parallel downloads
@@ -1771,7 +1773,8 @@ class ModlistInstaller:
         # Step 3: Update statistics and finalize with report
         self._finalize_installation_with_report(
             report, mods_dir, download_results, total_mods,
-            gdrive_failed=gdrive_failed, extraction_failures=extraction_failures
+            gdrive_failed=gdrive_failed, extraction_failures=extraction_failures,
+            skip_activation_prompt=skip_activation
         )
     
     def _finalize_installation_cancelled(self):
@@ -2047,7 +2050,7 @@ class ModlistInstaller:
         )
     
     def _finalize_installation_with_report(self, report, mods_dir, download_results, total_mods,
-                                           gdrive_failed=None, extraction_failures=None):
+                                           gdrive_failed=None, extraction_failures=None, skip_activation_prompt=False):
         """Finalize installation with InstallationReport system.
         
         Args:
@@ -2057,6 +2060,7 @@ class ModlistInstaller:
             total_mods: Total number of mods attempted
             gdrive_failed: Optional list of Google Drive failures (legacy)
             extraction_failures: Optional list of extraction failures (legacy)
+            skip_activation_prompt: If True, skip asking user for mod activation (used for Google Drive retry)
         """
         gdrive_failed = gdrive_failed or []
         extraction_failures = extraction_failures or []
@@ -2073,7 +2077,7 @@ class ModlistInstaller:
         for folder, metadata in scan_installed_mods(mods_dir):
             all_installed_folders.append(folder.name)
         
-        if all_installed_folders:
+        if all_installed_folders and not skip_activation_prompt:
             # Ask for confirmation
             result = custom_dialogs.askyesno(
                 "Activate Mods",
@@ -2095,6 +2099,15 @@ class ModlistInstaller:
                     self.log("✓ Ready to play! Launch Starsector or manage mods via TriOS.", success=True)
             else:
                 self.log("\n⚠ Mod activation skipped by user. You can manage mods via TriOS.", info=True)
+        elif all_installed_folders and skip_activation_prompt:
+            # Auto-activate without prompt during Google Drive retry
+            self.log("\n" + "─" * 60)
+            self.mod_installer.update_enabled_mods(mods_dir, all_installed_folders, merge=False)
+            self.log(f"🎮 {len(all_installed_folders)} mod(s) activated in enabled_mods.json")
+            
+            # Show final completion message after Google Drive retry
+            if not report.has_errors():
+                self.log("✓ Ready to play! Launch Starsector or manage mods via TriOS.", success=True)
         
         # Save modlist to persist any auto-detected game_version values from extraction
         self.save_modlist_config(log_message=False)
@@ -2127,13 +2140,14 @@ class ModlistInstaller:
             # Log fixed URLs
             for mod, original_mod in zip(mods_to_download, failed_mods):
                 if mod['download_url'] != original_mod['download_url']:
-                    self.log(f"🔧 Fixed Google Drive URL: {mod.get('name')}", info=True)
+                    self.log(f"🔧 Fixed Google Drive URL: {mod.get('name')}")
             
-            # Start download with fixed URLs
+            # Start download with fixed URLs (skip activation prompt as it will be asked at the very end)
             self.install_specific_mods(
                 [mod['name'] for mod in mods_to_download],
                 temp_mods=mods_to_download,
-                skip_gdrive_check=True
+                skip_gdrive_check=True,
+                skip_activation=True
             )
         
         def on_cancel():
