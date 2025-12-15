@@ -336,16 +336,16 @@ class ModlistInstaller:
         right_frame.pack_configure(padx=10, pady=(10, 0))
         main_container.add(right_frame, minsize=700, stretch="always")
         
+        # Enable All Mods button (create first so it's at bottom)
+        enable_frame, self.enable_mods_btn = create_enable_mods_section(
+            right_frame,
+            self.enable_all_installed_mods
+        )
+        
         log_frame, self.install_progress_bar, self.log_text, self.pause_install_btn = create_log_section(
             right_frame, 
             self.current_mod_name,
             self.toggle_pause
-        )
-        
-        # Enable All Mods button (below log, above bottom buttons)
-        enable_frame, self.enable_mods_btn = create_enable_mods_section(
-            right_frame,
-            self.enable_all_installed_mods
         )
         
         # Set initial sash position (60% left, 40% right)
