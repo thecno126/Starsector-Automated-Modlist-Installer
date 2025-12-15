@@ -23,21 +23,21 @@
       "dependencies": []
     },
     {
-      "name": "Lunalib",
-      "download_url": "https://github.com/Lukas22041/LunaLib/releases/latest/download/LunaLib.zip",
-      "category": "Libs",
-      "game_version": "0.98a-RC5",
-      "mod_version": "2.0.5",
-      "mod_id": "lunalib",
-      "dependencies": []
-    },
-    {
       "name": "MagicLib",
       "download_url": "https://github.com/MagicLibStarsector/MagicLib/releases/latest/download/MagicLib.zip",
       "category": "Libs",
       "game_version": "0.98a-RC7",
       "mod_version": "1.5.6",
       "mod_id": "MagicLib",
+      "dependencies": []
+    },
+    {
+      "name": "Lunalib",
+      "download_url": "https://github.com/Lukas22041/LunaLib/releases/latest/download/LunaLib.zip",
+      "category": "Libs",
+      "game_version": "0.98a-RC5",
+      "mod_version": "2.0.5",
+      "mod_id": "lunalib",
       "dependencies": []
     },
     {

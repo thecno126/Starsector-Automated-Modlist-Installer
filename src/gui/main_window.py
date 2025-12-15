@@ -38,7 +38,6 @@ from .ui_builder import (
     create_header,
     create_path_section,
     create_modlist_section,
-    create_button_panel,
     create_log_section,
     create_bottom_buttons
 )
@@ -278,11 +277,16 @@ class ModlistInstaller:
         self.update_path_status()
         
         # Modlist section
-        info_frame, modlist_container, left_container, self.header_text, self.mod_listbox, self.search_var, mod_action_buttons = create_modlist_section(
+        info_frame, left_container, self.header_text, self.mod_listbox, self.search_var, mod_action_buttons, header_buttons = create_modlist_section(
             left_frame,
             self.on_mod_click,
             lambda e: None,  # No resize callback needed anymore
-            self.on_search_mods
+            self.on_search_mods,
+            self.open_import_csv_dialog,
+            self.open_export_csv_dialog,
+            self.refresh_mod_metadata,
+            self.restore_backup_dialog,
+            self.reset_modlist_config
         )
         
         # Track selected line and search filter
@@ -294,32 +298,27 @@ class ModlistInstaller:
             mod_action_buttons['add'].config(command=self.open_add_mod_dialog)
             mod_action_buttons['edit'].config(command=self.edit_selected_mod)
             mod_action_buttons['remove'].config(command=self.remove_selected_mod)
+            mod_action_buttons['categories'].config(command=self.open_manage_categories_dialog)
             self.add_btn = mod_action_buttons['add']
             self.edit_btn = mod_action_buttons['edit']
             self.remove_btn = mod_action_buttons['remove']
+            self.categories_btn = mod_action_buttons['categories']
         
-        # Button panel
-        button_callbacks = {
-            'reset': self.reset_modlist_config,
-            'move_up': self.move_mod_up,
-            'move_down': self.move_mod_down,
-            'categories': self.open_manage_categories_dialog,
-            'import_csv': self.open_import_csv_dialog,
-            'export_csv': self.open_export_csv_dialog,
-            'refresh': self.refresh_mod_metadata,
-            'enable_mods': self.enable_all_installed_mods,
-            'restore_backup': self.restore_backup_dialog
-        }
-        
-        buttons = create_button_panel(modlist_container, left_container, button_callbacks)
-        self.reset_btn = buttons['reset']
-        self.up_btn = buttons['up']
-        self.down_btn = buttons['down']
-        self.categories_btn = buttons['categories']
-        self.import_btn = buttons['import']
-        self.export_btn = buttons['export']
-        self.refresh_btn = buttons['refresh']
-        self.enable_mods_btn = buttons.get('enable_mods')
+        # Store header buttons
+        if header_buttons:
+            self.import_btn = header_buttons.get('import')
+            self.export_btn = header_buttons.get('export')
+            self.refresh_btn = header_buttons.get('refresh')
+            self.clear_all_btn = header_buttons.get('clear')
+            self.restore_backup_btn = header_buttons.get('restore')
+            self.up_btn = header_buttons.get('up')
+            self.down_btn = header_buttons.get('down')
+            
+            # Configure up/down buttons
+            if self.up_btn:
+                self.up_btn.config(command=self.move_mod_up)
+            if self.down_btn:
+                self.down_btn.config(command=self.move_mod_down)
         
         # Bottom buttons (on left side)
         button_frame, self.install_modlist_btn, self.quit_btn = create_bottom_buttons(
@@ -332,10 +331,11 @@ class ModlistInstaller:
         right_frame = tk.Frame(main_container, padx=10, pady=10, bg=TriOSTheme.SURFACE)
         main_container.add(right_frame, minsize=700, stretch="always")
         
-        log_frame, self.install_progress_bar, self.log_text, self.pause_install_btn = create_log_section(
+        log_frame, self.install_progress_bar, self.log_text, self.pause_install_btn, self.enable_mods_btn = create_log_section(
             right_frame, 
             self.current_mod_name,
-            self.toggle_pause
+            self.toggle_pause,
+            self.enable_all_installed_mods
         )
         
         # Set initial sash position (60% left, 40% right)
@@ -619,6 +619,10 @@ class ModlistInstaller:
                 self.save_modlist_config()
                 self.display_modlist_info()
                 self.find_and_select_mod(mod_name)
+    
+    def toggle_expand_categories(self):
+        """Toggle expand/collapse all categories (placeholder for future implementation)."""
+        self.log("Category expand/collapse not yet implemented", debug=True)
     
     def move_mod_up(self):
         """Move selected mod up."""

@@ -448,33 +448,11 @@ class InstallationController:
         # Display formatted report
         self.window.log("\n" + report.generate_summary())
         
-        # Ask user confirmation before updating enabled_mods.json
-        all_installed_folders = []
-        for folder, metadata in scan_installed_mods(mods_dir):
-            all_installed_folders.append(folder.name)
+        # Note: Mod activation is now manual via "Enable All Mods" button
+        # No longer prompting user during installation
         
-        if all_installed_folders:
-            # Ask for confirmation
-            result = custom_dialogs.askyesno(
-                "Activate Mods",
-                f"Do you want to activate all {len(all_installed_folders)} installed mods in Starsector? "
-                f"This will update enabled_mods.json to enable all mods. "
-                f"You can manage individual mods later via TriOS.",
-                parent=self.window.root
-            )
-            
-            if result:
-                self.window.log("\n" + "─" * 60)
-                
-                # Use merge=False to replace the list entirely with all installed mods
-                self.mod_installer.update_enabled_mods(mods_dir, all_installed_folders, merge=False)
-                self.window.log(f"{len(all_installed_folders)} mod(s) activated in enabled_mods.json")
-                
-                # Show final completion message if no errors
-                if not report.has_errors():
-                    self.window.log("✓ Ready to play! Launch Starsector or manage mods via TriOS.", success=True)
-            else:
-                self.window.log("\n⚠ Mod activation skipped by user. You can manage mods via TriOS.", info=True)
+        if not report.has_errors():
+            self.window.log("✓ Installation Complete! Use 'Enable All Mods' button to activate them.", success=True)
         
         # Save modlist to persist any auto-detected game_version values from extraction
         self.window.save_modlist_config(log_message=False)
