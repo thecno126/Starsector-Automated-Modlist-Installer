@@ -266,7 +266,8 @@ class ModlistInstaller:
         main_container.pack(fill=tk.BOTH, expand=True)
         
         # Left side: Main controls
-        left_frame = tk.Frame(main_container, padx=10, pady=(10, 0), bg=TriOSTheme.SURFACE)
+        left_frame = tk.Frame(main_container, bg=TriOSTheme.SURFACE)
+        left_frame.pack_configure(padx=10, pady=(10, 0))
         main_container.add(left_frame, minsize=550, stretch="always")
         
         # Path section
@@ -331,7 +332,8 @@ class ModlistInstaller:
         )
         
         # Right side: Log panel
-        right_frame = tk.Frame(main_container, padx=10, pady=(10, 0), bg=TriOSTheme.SURFACE)
+        right_frame = tk.Frame(main_container, bg=TriOSTheme.SURFACE)
+        right_frame.pack_configure(padx=10, pady=(10, 0))
         main_container.add(right_frame, minsize=700, stretch="always")
         
         log_frame, self.install_progress_bar, self.log_text, self.pause_install_btn = create_log_section(
