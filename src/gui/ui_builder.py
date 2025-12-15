@@ -467,7 +467,7 @@ def create_log_section(main_frame, current_mod_var=None, pause_callback=None, en
     """Create the log section with progress bar, pause/resume button, and optional current mod label."""
     log_frame = tk.LabelFrame(main_frame, text="Installation Log", padx=5, pady=5,
                              bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY)
-    log_frame.pack(fill=tk.BOTH, expand=True)
+    log_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 5))
     
     # Top bar with current mod label and pause button
     top_bar = tk.Frame(log_frame, bg=TriOSTheme.SURFACE)

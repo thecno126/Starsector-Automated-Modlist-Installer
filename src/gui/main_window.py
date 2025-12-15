@@ -267,7 +267,7 @@ class ModlistInstaller:
         
         # Left side: Main controls
         left_frame = tk.Frame(main_container, bg=TriOSTheme.SURFACE)
-        left_frame.pack_configure(padx=10, pady=(10, 0))
+        left_frame.pack_configure(padx=10, pady=10)
         main_container.add(left_frame, minsize=550, stretch="always")
         
         # Path section
@@ -333,7 +333,7 @@ class ModlistInstaller:
         
         # Right side: Log panel
         right_frame = tk.Frame(main_container, bg=TriOSTheme.SURFACE)
-        right_frame.pack_configure(padx=10, pady=(10, 0))
+        right_frame.pack_configure(padx=10, pady=10)
         main_container.add(right_frame, minsize=700, stretch="always")
         
         # Enable All Mods button (create first so it's at bottom)
