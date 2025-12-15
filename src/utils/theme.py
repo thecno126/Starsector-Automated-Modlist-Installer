@@ -149,6 +149,18 @@ class TriOSTheme:
                 "fg": cls.TEXT_PRIMARY,
                 "activebackground": cls.SURFACE_LIGHT,
                 "activeforeground": cls.TEXT_PRIMARY,
+            },
+            "pastel_warning": {
+                "bg": "#D4A574",  # Soft beige/sand
+                "fg": cls.SURFACE_DARK,
+                "activebackground": "#C89563",
+                "activeforeground": cls.SURFACE_DARK,
+            },
+            "pastel_danger": {
+                "bg": "#B85450",  # Bordeaux/dark red
+                "fg": "white",
+                "activebackground": "#A4433F",
+                "activeforeground": "white",
             }
         }
         return styles.get(button_type, styles["primary"])
