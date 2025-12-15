@@ -162,6 +162,12 @@ class TriOSTheme:
                 "activebackground": "#A4433F",
                 "activeforeground": "white",
             },
+            "pastel_purple": {
+                "bg": "#9B7EBD",  # Soft purple/lavender
+                "fg": "white",
+                "activebackground": "#8566A8",
+                "activeforeground": "white",
+            },
             "starsector_blue": {
                 "bg": cls.PRIMARY,  # Bright cyan Starsector blue
                 "fg": cls.BUTTON_PRIMARY_FG,

@@ -447,7 +447,7 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
         
         if clear_callback:
             # Unicode: U+2421 (␡) - delete character
-            clear_all_btn = _create_button(action_container, "␡", clear_callback, width=3, font_size=16, button_type="pastel_danger")
+            clear_all_btn = _create_button(action_container, "␡", clear_callback, width=3, font_size=16, button_type="pastel_purple")
             clear_all_btn.pack(side=tk.RIGHT, padx=(3, 0))
             ToolTip(clear_all_btn, "Clear all mods from the list")
             header_buttons['clear'] = clear_all_btn
@@ -508,7 +508,7 @@ def create_log_section(main_frame, current_mod_var=None, pause_callback=None, en
 def create_enable_mods_section(main_frame, enable_mods_callback):
     """Create the Enable All Mods button section between log and bottom buttons."""
     enable_frame = tk.Frame(main_frame, bg=TriOSTheme.SURFACE)
-    enable_frame.pack(fill=tk.X, pady=(10, 0))
+    enable_frame.pack(fill=tk.X, pady=(10, 10))
     enable_frame.configure(height=UI_BOTTOM_BUTTON_HEIGHT)
     enable_frame.pack_propagate(False)
     
