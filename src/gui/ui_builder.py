@@ -512,9 +512,12 @@ def create_enable_mods_section(main_frame, enable_mods_callback):
     enable_frame.configure(height=UI_BOTTOM_BUTTON_HEIGHT)
     enable_frame.pack_propagate(False)
     
-    # Add horizontal margins to make button more aerated (80% width, centered)
-    enable_mods_btn = _create_button(enable_frame, "Enable All Mods", enable_mods_callback, button_type="starsector_blue")
-    enable_mods_btn.pack(fill=tk.BOTH, expand=True, padx=60, pady=0)
+    # Use same container structure as bottom buttons for perfect alignment
+    button_container = tk.Frame(enable_frame, bg=TriOSTheme.SURFACE)
+    button_container.pack(fill=tk.BOTH, expand=True, padx=60)
+    
+    enable_mods_btn = _create_button(button_container, "Enable All Mods", enable_mods_callback, button_type="starsector_blue")
+    enable_mods_btn.pack(fill=tk.BOTH, expand=True)
     ToolTip(enable_mods_btn, "Activate all installed mods in Starsector")
     
     return enable_frame, enable_mods_btn
