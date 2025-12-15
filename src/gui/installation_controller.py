@@ -436,7 +436,7 @@ class InstallationController:
             gdrive_failed: Optional list of Google Drive failures (legacy)
             extraction_failures: Optional list of extraction failures (legacy)
         """
-        from . import custom_dialogs
+        from . import dialogs as custom_dialogs
         
         gdrive_failed = gdrive_failed or []
         extraction_failures = extraction_failures or []

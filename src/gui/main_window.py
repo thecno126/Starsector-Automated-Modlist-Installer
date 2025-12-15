@@ -7,7 +7,7 @@ import tkinter as tk
 from tkinter import filedialog, ttk
 import re
 import requests
-from . import custom_dialogs
+from . import dialogs as custom_dialogs
 from pathlib import Path
 import threading
 import concurrent.futures

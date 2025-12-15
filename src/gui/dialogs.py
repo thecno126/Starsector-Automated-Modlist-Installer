@@ -1,6 +1,7 @@
 """
 Dialog windows for the Modlist Installer application.
 Contains all popup dialogs for adding, editing, importing, and exporting mods.
+Includes custom styled dialog boxes (formerly custom_dialogs.py).
 """
 
 import tkinter as tk
@@ -9,9 +10,312 @@ import csv
 import threading
 import re
 from pathlib import Path
-from . import custom_dialogs
 from .ui_builder import _create_button
 from utils.theme import TriOSTheme
+
+
+# ============================================================================
+# Custom Styled Dialogs (formerly custom_dialogs.py)
+# ============================================================================
+
+class StyledDialog:
+    """Base class for custom styled dialogs."""
+    
+    def __init__(self, parent, title, message, dialog_type="info", buttons=None):
+        """
+        Create a styled dialog.
+        
+        Args:
+            parent: Parent window
+            title: Dialog title
+            message: Message to display
+            dialog_type: Type of dialog - "info", "success", "error", "warning", "question"
+            buttons: List of (label, value) tuples for buttons
+        """
+        self.result = None
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.transient(parent)
+        self.dialog.grab_set()
+        self.dialog.resizable(False, False)
+        self.dialog.configure(bg=TriOSTheme.SURFACE)
+        
+        # Main content frame
+        content_frame = tk.Frame(self.dialog, bg=TriOSTheme.SURFACE)
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # Icon and message
+        message_frame = tk.Frame(content_frame, bg=TriOSTheme.SURFACE)
+        message_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+        
+        # Icon
+        icons = {"info": "ℹ", "success": "✓", "warning": "⚠", "error": "✗", "question": "?"}
+        tk.Label(message_frame, text=icons.get(dialog_type, "ℹ"), 
+                font=("Arial", 36, "bold"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.PRIMARY).pack(side=tk.LEFT, padx=(0, 15))
+        
+        # Message
+        tk.Label(message_frame, text=message, font=("Arial", 11),
+                wraplength=350, justify=tk.LEFT, bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY).pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # Buttons
+        button_frame = tk.Frame(content_frame, bg=TriOSTheme.SURFACE)
+        button_frame.pack(fill=tk.X)
+        
+        # Default buttons
+        if buttons is None:
+            buttons = [("Yes", True), ("No", False)] if dialog_type == "question" else [("OK", True)]
+        
+        # Center button container
+        button_container = tk.Frame(button_frame, bg=TriOSTheme.SURFACE)
+        button_container.pack(expand=True)
+        
+        # Create buttons
+        for i, (label, value) in enumerate(buttons):
+            btn_type = "success" if label in ["Yes", "OK"] else "secondary"
+            btn = _create_button(button_container, label, lambda v=value: self._on_button_click(v),
+                                width=12, button_type=btn_type)
+            btn.pack(side=tk.LEFT, padx=5)
+        
+        # Keyboard bindings
+        self.dialog.bind("<Return>", lambda e: self._on_button_click(buttons[0][1]))
+        self.dialog.bind("<Escape>", lambda e: self._on_button_click(False if dialog_type == "question" else True))
+        
+        # Center on parent
+        self.dialog.update_idletasks()
+        x = parent.winfo_x() + (parent.winfo_width() - self.dialog.winfo_width()) // 2
+        y = parent.winfo_y() + (parent.winfo_height() - self.dialog.winfo_height()) // 2
+        self.dialog.geometry(f"+{x}+{y}")
+        
+    def _on_button_click(self, value):
+        """Handle button click."""
+        self.result = value
+        self.dialog.destroy()
+        
+    def show(self):
+        """Show dialog and wait for result."""
+        self.dialog.wait_window()
+        return self.result
+
+
+# Helper functions for styled dialogs
+def _show_dialog(dialog_type, title, message, parent=None, buttons=None):
+    """Internal helper to show any dialog type."""
+    if parent is None:
+        parent = tk._default_root
+    return StyledDialog(parent, title, message, dialog_type, buttons).show()
+
+
+def showinfo(title, message, parent=None):
+    """Show an info dialog."""
+    return _show_dialog("info", title, message, parent)
+
+
+def showsuccess(title, message, parent=None):
+    """Show a success dialog."""
+    return _show_dialog("success", title, message, parent)
+
+
+def showerror(title, message, parent=None):
+    """Show an error dialog."""
+    return _show_dialog("error", title, message, parent)
+
+
+def showwarning(title, message, parent=None):
+    """Show a warning dialog."""
+    return _show_dialog("warning", title, message, parent)
+
+
+def askyesno(title, message, parent=None):
+    """Show a yes/no question dialog."""
+    return _show_dialog("question", title, message, parent, [("Yes", True), ("No", False)])
+
+
+def askokcancel(title, message, parent=None):
+    """Show an OK/Cancel question dialog."""
+    return _show_dialog("question", title, message, parent, [("OK", True), ("Cancel", False)])
+
+
+def ask_version_action(title, message, parent=None):
+    """Show a dialog with Force Update / Continue / Cancel options.
+    
+    Returns:
+        str: 'force_update', 'continue', or 'cancel'
+    """
+    return _show_dialog("warning", title, message, parent, 
+                       [("Force Update", "force_update"), ("Continue", "continue"), ("Cancel", "cancel")])
+
+
+def show_validation_report(parent, github_mods, gdrive_mods, other_domains, failed_list):
+    """
+    Show URL validation report dialog with domain breakdown.
+    
+    Args:
+        parent: Parent window
+        github_mods: List of GitHub mods
+        gdrive_mods: List of Google Drive mods
+        other_domains: Dict of {domain: [mod, ...]}
+        failed_list: List of {'mod': mod, 'status': code, 'error': str}
+        
+    Returns:
+        str: 'continue' to proceed, 'cancel' to abort
+    """
+    result = {'action': 'cancel'}
+    
+    dialog = tk.Toplevel(parent)
+    dialog.transient(parent)
+    dialog.grab_set()
+    dialog.resizable(False, False)
+    dialog.configure(bg=TriOSTheme.SURFACE)
+    
+    # Main frame
+    main_frame = tk.Frame(dialog, bg=TriOSTheme.SURFACE)
+    main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+    
+    # Title
+    tk.Label(main_frame, text="Download Sources Analysis", 
+             font=("Arial", 14, "bold"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY).pack(pady=(0, 15))
+    
+    # Summary frame
+    summary_frame = tk.Frame(main_frame, bg=TriOSTheme.SURFACE)
+    summary_frame.pack(fill=tk.X, pady=(0, 15))
+    
+    # GitHub mods
+    if len(github_mods) > 0:
+        github_frame = tk.Frame(summary_frame, bg=TriOSTheme.SURFACE)
+        github_frame.pack(fill=tk.X, pady=(0, 8))
+        
+        tk.Label(github_frame, text=f"✓ {len(github_mods)} mod(s) from GitHub", 
+                font=("Arial", 11, "bold"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.GITHUB_FG).pack(anchor=tk.W)
+        
+        # List GitHub mods
+        github_list_frame = tk.Frame(github_frame, bg=TriOSTheme.GITHUB_BG)
+        github_list_frame.pack(fill=tk.X, padx=(20, 0), pady=(4, 0))
+        
+        github_text = tk.Text(github_list_frame, height=min(4, len(github_mods)), width=55,
+                             font=("Courier", 9), wrap=tk.WORD, bg=TriOSTheme.GITHUB_BG, fg=TriOSTheme.TEXT_PRIMARY, 
+                             relief=tk.FLAT, highlightthickness=0, borderwidth=0)
+        for mod in github_mods:
+            github_text.insert(tk.END, f"  • {mod.get('name', 'Unknown')}\n")
+        github_text.config(state=tk.DISABLED)
+        github_text.pack(padx=5, pady=5)
+    
+    # Google Drive mods with info
+    if len(gdrive_mods) > 0:
+        gdrive_frame = tk.Frame(summary_frame, bg=TriOSTheme.SURFACE)
+        gdrive_frame.pack(fill=tk.X, pady=(0, 8))
+        
+        tk.Label(gdrive_frame, text=f"✓ {len(gdrive_mods)} mod(s) from Google Drive", 
+                font=("Arial", 11, "bold"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.GDRIVE_FG).pack(anchor=tk.W)
+        
+        # Info about large files
+        info_text = tk.Label(gdrive_frame, 
+            text="Large files bypass Google's virus scan and may need a second confirmation to download.",
+            font=("Arial", 9, "italic"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_SECONDARY, wraplength=450, justify=tk.LEFT)
+        info_text.pack(anchor=tk.W, padx=(20, 0), pady=(2, 0))
+        
+        # List Google Drive mods
+        gdrive_list_frame = tk.Frame(gdrive_frame, bg=TriOSTheme.GDRIVE_BG)
+        gdrive_list_frame.pack(fill=tk.X, padx=(20, 0), pady=(4, 0))
+        
+        gdrive_text = tk.Text(gdrive_list_frame, height=min(4, len(gdrive_mods)), width=55,
+                             font=("Courier", 9), wrap=tk.WORD, bg=TriOSTheme.GDRIVE_BG, fg=TriOSTheme.TEXT_PRIMARY, 
+                             relief=tk.FLAT, highlightthickness=0, borderwidth=0)
+        for mod in gdrive_mods:
+            gdrive_text.insert(tk.END, f"  • {mod.get('name', 'Unknown')}\n")
+        gdrive_text.config(state=tk.DISABLED)
+        gdrive_text.pack(padx=5, pady=5)
+    
+    # Other domains
+    if other_domains:
+        other_frame = tk.Frame(summary_frame, bg=TriOSTheme.SURFACE)
+        other_frame.pack(fill=tk.X, pady=(0, 8))
+        
+        total_other = sum(len(mods) for mods in other_domains.values())
+        tk.Label(other_frame, text=f"⚠ {total_other} mod(s) from other sources", 
+                font=("Arial", 11, "bold"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.OTHER_FG).pack(anchor=tk.W)
+        
+        # List each domain with its mods
+        other_list_frame = tk.Frame(other_frame, bg=TriOSTheme.OTHER_BG)
+        other_list_frame.pack(fill=tk.X, padx=(20, 0), pady=(4, 0))
+        
+        other_text = tk.Text(other_list_frame, height=min(5, total_other), width=55,
+                            font=("Courier", 9), wrap=tk.WORD, bg=TriOSTheme.OTHER_BG, fg=TriOSTheme.TEXT_PRIMARY, 
+                            relief=tk.FLAT, highlightthickness=0, borderwidth=0)
+        
+        for domain, mods in sorted(other_domains.items()):
+            for mod in mods:
+                other_text.insert(tk.END, f"  • {mod.get('name', 'Unknown')} ({domain})\n")
+        
+        other_text.config(state=tk.DISABLED)
+        other_text.pack(padx=5, pady=5)
+    
+    # Failed mods
+    if failed_list:
+        failed_frame = tk.Frame(summary_frame, bg=TriOSTheme.SURFACE)
+        failed_frame.pack(fill=tk.X, pady=(0, 0))
+        
+        tk.Label(failed_frame, text=f"✗ {len(failed_list)} mod(s) inaccessible", 
+                font=("Arial", 11, "bold"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.FAILED_FG).pack(anchor=tk.W, pady=(0, 2))
+        
+        tk.Label(failed_frame, 
+            text="These mods cannot be downloaded. Check URLs or contact mod authors.",
+            font=("Arial", 9, "italic"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_SECONDARY, wraplength=450, justify=tk.LEFT).pack(anchor=tk.W, padx=(20, 0), pady=(2, 0))
+        
+        # Scrollable list of failed mods
+        failed_list_frame = tk.Frame(failed_frame, bg=TriOSTheme.FAILED_BG)
+        failed_list_frame.pack(fill=tk.X, padx=(20, 0), pady=(4, 0))
+        
+        failed_text = tk.Text(failed_list_frame, height=min(5, len(failed_list)), width=55, 
+                             font=("Courier", 9), wrap=tk.WORD, bg=TriOSTheme.FAILED_BG, fg=TriOSTheme.TEXT_PRIMARY, 
+                             relief=tk.FLAT, highlightthickness=0, borderwidth=0)
+        
+        for fail in failed_list:
+            mod_name = fail['mod'].get('name', 'Unknown')
+            error = fail['error']
+            failed_text.insert(tk.END, f"  • {mod_name}: {error}\n")
+        
+        failed_text.config(state=tk.DISABLED)
+        failed_text.pack(padx=5, pady=5)
+    
+    # Buttons frame
+    button_frame = tk.Frame(main_frame, bg=TriOSTheme.SURFACE)
+    button_frame.pack(fill=tk.X, pady=(15, 0))
+    
+    def on_continue():
+        result['action'] = 'continue'
+        dialog.destroy()
+    
+    def on_cancel():
+        result['action'] = 'cancel'
+        dialog.destroy()
+    
+    # Center the buttons
+    button_container = tk.Frame(button_frame, bg=TriOSTheme.SURFACE)
+    button_container.pack(anchor=tk.CENTER)
+    
+    if len(github_mods) > 0 or len(gdrive_mods) > 0 or other_domains:
+        _create_button(button_container, "Continue", on_continue,
+                      width=12, button_type="success").pack(side=tk.LEFT, padx=5)
+    
+    _create_button(button_container, "Cancel", on_cancel,
+                  width=12, button_type="secondary").pack(side=tk.LEFT, padx=5)
+    
+    # Keyboard bindings
+    dialog.bind("<Escape>", lambda e: on_cancel())
+    dialog.bind("<Return>", lambda e: on_continue() if len(github_mods) > 0 or len(gdrive_mods) > 0 or other_domains else None)
+    
+    # Center on parent
+    dialog.update_idletasks()
+    x = parent.winfo_x() + (parent.winfo_width() - dialog.winfo_width()) // 2
+    y = parent.winfo_y() + (parent.winfo_height() - dialog.winfo_height()) // 2
+    dialog.geometry(f"+{x}+{y}")
+    
+    dialog.wait_window()
+    return result['action']
+
+
+# ============================================================================
+# Mod Management Dialogs
+# ============================================================================
 
 
 def fix_google_drive_url(url):

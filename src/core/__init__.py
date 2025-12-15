@@ -7,11 +7,11 @@ from .constants import (
     MAX_RETRIES, RETRY_DELAY, BACKOFF_MULTIPLIER, CACHE_TIMEOUT,
     UI_BOTTOM_BUTTON_HEIGHT, UI_MIN_WINDOW_WIDTH, UI_MIN_WINDOW_HEIGHT,
     UI_DEFAULT_WINDOW_WIDTH, UI_DEFAULT_WINDOW_HEIGHT,
-    UI_RIGHT_PANEL_WIDTH, UI_RIGHT_PANEL_MINSIZE, UI_LEFT_PANEL_MINSIZE
+    UI_RIGHT_PANEL_WIDTH, UI_RIGHT_PANEL_MINSIZE, UI_LEFT_PANEL_MINSIZE,
+    InstallationReport
 )
 from .config_manager import ConfigManager
 from .installer import ModInstaller
-from .installation_report import InstallationReport
 from .archive_extractor import ArchiveExtractor
 
 __all__ = [
