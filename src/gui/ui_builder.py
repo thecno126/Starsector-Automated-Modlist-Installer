@@ -283,22 +283,18 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
         top_bar = tk.Frame(section_container, bg=TriOSTheme.SURFACE)
         top_bar.pack(fill=tk.X, pady=(0, 3))
         
-        # Left side: Edit Metadata button
-        if edit_metadata_callback:
-            left_container = tk.Frame(top_bar, bg=TriOSTheme.SURFACE)
-            left_container.pack(side=tk.LEFT)
-            
-            # Unicode: U+270F (✏) or U+1F4DD (📝) - edit icon
-            edit_metadata_btn = _create_button(left_container, "✏️", edit_metadata_callback, width=3, font_size=14, button_type="info")
-            edit_metadata_btn.pack(side=tk.LEFT)
-            ToolTip(edit_metadata_btn, "Edit modlist metadata (name, version, description)")
-            header_buttons['edit_metadata'] = edit_metadata_btn
-        else:
-            # Spacer to push buttons to the right
-            tk.Frame(top_bar, bg=TriOSTheme.SURFACE).pack(side=tk.LEFT, fill=tk.X, expand=True)
+        # Spacer to push buttons to the right
+        tk.Frame(top_bar, bg=TriOSTheme.SURFACE).pack(side=tk.LEFT, fill=tk.X, expand=True)
         
         button_container = tk.Frame(top_bar, bg=TriOSTheme.SURFACE)
         button_container.pack(side=tk.RIGHT)
+        
+        if edit_metadata_callback:
+            # Unicode: U+270F (✏️) - edit icon
+            edit_metadata_btn = _create_button(button_container, "✏️", edit_metadata_callback, width=3, font_size=14, button_type="secondary")
+            edit_metadata_btn.pack(side=tk.LEFT, padx=(0, 8))
+            ToolTip(edit_metadata_btn, "Edit modlist metadata (name, version, description)")
+            header_buttons['edit_metadata'] = edit_metadata_btn
         
         if refresh_callback:
             # Unicode: U+1F504 (🔄) - meilleur symbole de refresh
@@ -336,7 +332,7 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
         height=4, 
         wrap=tk.WORD, 
         state=tk.DISABLED,
-        bg=TriOSTheme.SURFACE_DARK,
+        bg=TriOSTheme.SURFACE,
         fg=TriOSTheme.TEXT_PRIMARY,
         insertbackground=TriOSTheme.PRIMARY,
         relief=tk.FLAT,
@@ -450,15 +446,15 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
         action_container.pack(side=tk.RIGHT)
         
         if clear_callback:
-            # Unicode: U+1F5D1 (🗑️) or U+2716 (✖) - trash/clear icon
-            clear_all_btn = _create_button(action_container, "🗑", clear_callback, width=3, font_size=16, button_type="pastel_danger")
+            # Unicode: U+2715 (✕) - multiplication X, more subtle than trash
+            clear_all_btn = _create_button(action_container, "✕", clear_callback, width=3, font_size=18, button_type="pastel_danger")
             clear_all_btn.pack(side=tk.RIGHT, padx=(3, 0))
             ToolTip(clear_all_btn, "Clear all mods from the list")
             header_buttons['clear'] = clear_all_btn
         
         if restore_callback:
-            # Unicode: U+23EA (⏪) or U+21BA (↺) - restore/rewind icon
-            restore_backup_btn = _create_button(action_container, "⏪", restore_callback, width=3, font_size=13, button_type="pastel_warning")
+            # Unicode: U+21BB (↻) - clockwise arrow, consistent with refresh theme
+            restore_backup_btn = _create_button(action_container, "↻", restore_callback, width=3, font_size=16, button_type="pastel_warning")
             restore_backup_btn.pack(side=tk.RIGHT)
             ToolTip(restore_backup_btn, "Restore enabled_mods.json from backup")
             header_buttons['restore'] = restore_backup_btn
@@ -519,7 +515,7 @@ def create_enable_mods_section(main_frame, enable_mods_callback):
     button_container = tk.Frame(enable_frame, bg=TriOSTheme.SURFACE)
     button_container.pack(fill=tk.BOTH, expand=True)
     
-    enable_mods_btn = _create_button(button_container, "Enable All Mods", enable_mods_callback, height=1, button_type="success")
+    enable_mods_btn = _create_button(button_container, "Enable All Mods", enable_mods_callback, height=1, button_type="starsector_blue")
     enable_mods_btn.pack(fill=tk.BOTH, expand=True)
     ToolTip(enable_mods_btn, "Activate all installed mods in Starsector")
     

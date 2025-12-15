@@ -161,6 +161,12 @@ class TriOSTheme:
                 "fg": "white",
                 "activebackground": "#A4433F",
                 "activeforeground": "white",
+            },
+            "starsector_blue": {
+                "bg": cls.PRIMARY,  # Bright cyan Starsector blue
+                "fg": cls.BUTTON_PRIMARY_FG,
+                "activebackground": cls.PRIMARY_DARK,
+                "activeforeground": cls.BUTTON_PRIMARY_FG,
             }
         }
         return styles.get(button_type, styles["primary"])
