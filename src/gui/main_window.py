@@ -2090,10 +2090,6 @@ class ModlistInstaller:
         # Save modlist to persist any auto-detected game_version values from extraction
         self.save_modlist_config(log_message=False)
         
-        # Show completion message if no errors
-        if not report.has_errors():
-            self._show_installation_complete_message()
-        
         self.is_installing = False
         self.install_modlist_btn.config(state=tk.NORMAL, text="Install Modlist")
         self.pause_install_btn.config(state=tk.DISABLED)
@@ -2109,9 +2105,8 @@ class ModlistInstaller:
             self._propose_fix_google_drive_urls(gdrive_failed)
     
     def _show_installation_complete_message(self):
-        """Display the installation complete banner."""
-        self.log("\nINSTALLATION COMPLETE\n", success=True)
-        self.log("You can now start Starsector. All installed mods are already activated except those with incorrect game version, manage them via TriOS.")
+        """Display the installation complete banner (used for Google Drive cancellation)."""
+        self.log("\n✓ Installation workflow complete.", success=True)
 
     def _propose_fix_google_drive_urls(self, failed_mods):
         """Propose to fix Google Drive URLs after installation is complete.

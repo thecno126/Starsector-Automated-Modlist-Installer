@@ -5,15 +5,6 @@
   "description": "A vanilla friendly Starsector modlist",
   "mods": [
     {
-      "name": "Lunalib",
-      "download_url": "https://github.com/Lukas22041/LunaLib/releases/latest/download/LunaLib.zip",
-      "category": "Libs",
-      "game_version": "0.98a-RC5",
-      "mod_version": "2.0.5",
-      "mod_id": "lunalib",
-      "dependencies": []
-    },
-    {
       "name": "GraphicsLib",
       "download_url": "https://bitbucket.org/DarkRevenant/graphicslib/downloads/GraphicsLib_1.12.1.7z",
       "category": "Libs",
@@ -23,21 +14,30 @@
       "dependencies": []
     },
     {
-      "name": "MagicLib",
-      "download_url": "https://github.com/MagicLibStarsector/MagicLib/releases/latest/download/MagicLib.zip",
-      "category": "Libs",
-      "game_version": "0.98a-RC7",
-      "mod_version": "1.5.6",
-      "mod_id": "MagicLib",
-      "dependencies": []
-    },
-    {
       "name": "LazyLib",
       "download_url": "https://github.com/LazyWizard/lazylib/releases/download/3.0/LazyLib.3.0.zip",
       "category": "Libs",
       "game_version": "0.98a-RC5",
       "mod_version": "3.0.0",
       "mod_id": "lw_lazylib",
+      "dependencies": []
+    },
+    {
+      "name": "Lunalib",
+      "download_url": "https://github.com/Lukas22041/LunaLib/releases/latest/download/LunaLib.zip",
+      "category": "Libs",
+      "game_version": "0.98a-RC5",
+      "mod_version": "2.0.5",
+      "mod_id": "lunalib",
+      "dependencies": []
+    },
+    {
+      "name": "MagicLib",
+      "download_url": "https://github.com/MagicLibStarsector/MagicLib/releases/latest/download/MagicLib.zip",
+      "category": "Libs",
+      "game_version": "0.98a-RC7",
+      "mod_version": "1.5.6",
+      "mod_id": "MagicLib",
       "dependencies": []
     },
     {
