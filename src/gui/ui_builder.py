@@ -271,7 +271,7 @@ def create_path_section(main_frame, path_var, browse_callback):
     return path_frame, path_entry, browse_btn, path_status_label
 
 
-def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback, search_callback=None, import_callback=None, export_callback=None, refresh_callback=None, restore_callback=None, clear_callback=None):
+def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback, search_callback=None, import_callback=None, export_callback=None, refresh_callback=None, restore_callback=None, clear_callback=None, edit_metadata_callback=None):
     """Create the modlist information section with optional search and action buttons."""
     # Container for the whole section
     section_container = tk.Frame(main_frame, bg=TriOSTheme.SURFACE)
@@ -279,12 +279,23 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
     
     # Top bar with action buttons (above LabelFrame)
     header_buttons = {}
-    if import_callback or export_callback or refresh_callback:
+    if import_callback or export_callback or refresh_callback or edit_metadata_callback:
         top_bar = tk.Frame(section_container, bg=TriOSTheme.SURFACE)
         top_bar.pack(fill=tk.X, pady=(0, 3))
         
-        # Spacer to push buttons to the right
-        tk.Frame(top_bar, bg=TriOSTheme.SURFACE).pack(side=tk.LEFT, fill=tk.X, expand=True)
+        # Left side: Edit Metadata button
+        if edit_metadata_callback:
+            left_container = tk.Frame(top_bar, bg=TriOSTheme.SURFACE)
+            left_container.pack(side=tk.LEFT)
+            
+            # Unicode: U+270F (✏) or U+1F4DD (📝) - edit icon
+            edit_metadata_btn = _create_button(left_container, "✏️", edit_metadata_callback, width=3, font_size=14, button_type="info")
+            edit_metadata_btn.pack(side=tk.LEFT)
+            ToolTip(edit_metadata_btn, "Edit modlist metadata (name, version, description)")
+            header_buttons['edit_metadata'] = edit_metadata_btn
+        else:
+            # Spacer to push buttons to the right
+            tk.Frame(top_bar, bg=TriOSTheme.SURFACE).pack(side=tk.LEFT, fill=tk.X, expand=True)
         
         button_container = tk.Frame(top_bar, bg=TriOSTheme.SURFACE)
         button_container.pack(side=tk.RIGHT)
@@ -433,19 +444,21 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
     ToolTip(down_btn, "Move selected mod down")
     header_buttons['down'] = down_btn
     
-    # Right side: Restore Backup + Clear All (smaller width, pastel colors)
+    # Right side: Restore Backup + Clear All (symbols, pastel colors)
     if restore_callback or clear_callback:
         action_container = tk.Frame(bottom_bar, bg=TriOSTheme.SURFACE)
         action_container.pack(side=tk.RIGHT)
         
         if clear_callback:
-            clear_all_btn = _create_button(action_container, "Clear All", clear_callback, width=10, button_type="pastel_danger")
+            # Unicode: U+1F5D1 (🗑️) or U+2716 (✖) - trash/clear icon
+            clear_all_btn = _create_button(action_container, "🗑", clear_callback, width=3, font_size=16, button_type="pastel_danger")
             clear_all_btn.pack(side=tk.RIGHT, padx=(3, 0))
             ToolTip(clear_all_btn, "Clear all mods from the list")
             header_buttons['clear'] = clear_all_btn
         
         if restore_callback:
-            restore_backup_btn = _create_button(action_container, "Restore Backup", restore_callback, width=14, button_type="pastel_warning")
+            # Unicode: U+23EA (⏪) or U+21BA (↺) - restore/rewind icon
+            restore_backup_btn = _create_button(action_container, "⏪", restore_callback, width=3, font_size=13, button_type="pastel_warning")
             restore_backup_btn.pack(side=tk.RIGHT)
             ToolTip(restore_backup_btn, "Restore enabled_mods.json from backup")
             header_buttons['restore'] = restore_backup_btn
@@ -499,10 +512,15 @@ def create_log_section(main_frame, current_mod_var=None, pause_callback=None, en
 def create_enable_mods_section(main_frame, enable_mods_callback):
     """Create the Enable All Mods button section between log and bottom buttons."""
     enable_frame = tk.Frame(main_frame, bg=TriOSTheme.SURFACE)
-    enable_frame.pack(fill=tk.X, pady=(8, 10))
+    enable_frame.pack(fill=tk.X, pady=(10, 0))
+    enable_frame.configure(height=UI_BOTTOM_BUTTON_HEIGHT)
+    enable_frame.pack_propagate(False)
     
-    enable_mods_btn = _create_button(enable_frame, "Enable All Mods", enable_mods_callback, button_type="success")
-    enable_mods_btn.pack(fill=tk.X)
+    button_container = tk.Frame(enable_frame, bg=TriOSTheme.SURFACE)
+    button_container.pack(fill=tk.BOTH, expand=True)
+    
+    enable_mods_btn = _create_button(button_container, "Enable All Mods", enable_mods_callback, height=1, button_type="success")
+    enable_mods_btn.pack(fill=tk.BOTH, expand=True)
     ToolTip(enable_mods_btn, "Activate all installed mods in Starsector")
     
     return enable_frame, enable_mods_btn

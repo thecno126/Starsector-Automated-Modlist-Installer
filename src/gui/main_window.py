@@ -287,7 +287,8 @@ class ModlistInstaller:
             self.open_export_csv_dialog,
             self.refresh_mod_metadata,
             self.restore_backup_dialog,
-            self.reset_modlist_config
+            self.reset_modlist_config,
+            self.edit_modlist_metadata
         )
         
         # Track selected line and search filter
@@ -312,6 +313,7 @@ class ModlistInstaller:
             self.refresh_btn = header_buttons.get('refresh')
             self.clear_all_btn = header_buttons.get('clear')
             self.restore_backup_btn = header_buttons.get('restore')
+            self.edit_metadata_btn = header_buttons.get('edit_metadata')
             self.up_btn = header_buttons.get('up')
             self.down_btn = header_buttons.get('down')
             
@@ -722,6 +724,94 @@ class ModlistInstaller:
         self.display_modlist_info()
         self.log("Configuration reset to default.")
         custom_dialogs.showsuccess("Reset Complete", "Modlist configuration has been reset to default.")
+    
+    def edit_modlist_metadata(self):
+        """Open dialog to edit modlist metadata (name, version, description, etc.)."""
+        if not self.modlist_data:
+            return
+        
+        # Create dialog
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Edit Modlist Metadata")
+        dialog.geometry("500x400")
+        dialog.configure(bg=TriOSTheme.SURFACE)
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        # Title
+        tk.Label(dialog, text="Modlist Metadata", font=("Arial", 14, "bold"),
+                bg=TriOSTheme.SURFACE, fg=TriOSTheme.PRIMARY).pack(pady=(15, 20))
+        
+        # Form frame
+        form_frame = tk.Frame(dialog, bg=TriOSTheme.SURFACE)
+        form_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 15))
+        
+        # Fields
+        fields = [
+            ("Modlist Name:", "modlist_name", self.modlist_data.get("modlist_name", "")),
+            ("Version:", "version", self.modlist_data.get("version", "")),
+            ("Starsector Version:", "starsector_version", self.modlist_data.get("starsector_version", "")),
+            ("Author:", "author", self.modlist_data.get("author", "")),
+        ]
+        
+        entries = {}
+        for i, (label_text, key, value) in enumerate(fields):
+            tk.Label(form_frame, text=label_text, font=("Arial", 10),
+                    bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY,
+                    anchor=tk.W).grid(row=i, column=0, sticky="w", pady=5)
+            
+            entry = tk.Entry(form_frame, font=("Arial", 10),
+                           bg=TriOSTheme.SURFACE_DARK, fg=TriOSTheme.TEXT_PRIMARY,
+                           insertbackground=TriOSTheme.PRIMARY)
+            entry.insert(0, value)
+            entry.grid(row=i, column=1, sticky="ew", pady=5, padx=(10, 0))
+            entries[key] = entry
+        
+        form_frame.columnconfigure(1, weight=1)
+        
+        # Description field (multi-line)
+        tk.Label(form_frame, text="Description:", font=("Arial", 10),
+                bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY,
+                anchor=tk.W).grid(row=len(fields), column=0, sticky="nw", pady=5)
+        
+        desc_text = tk.Text(form_frame, font=("Arial", 10), height=6,
+                          bg=TriOSTheme.SURFACE_DARK, fg=TriOSTheme.TEXT_PRIMARY,
+                          insertbackground=TriOSTheme.PRIMARY, wrap=tk.WORD)
+        desc_text.insert("1.0", self.modlist_data.get("description", ""))
+        desc_text.grid(row=len(fields), column=1, sticky="ew", pady=5, padx=(10, 0))
+        entries['description'] = desc_text
+        
+        # Buttons
+        button_frame = tk.Frame(dialog, bg=TriOSTheme.SURFACE)
+        button_frame.pack(fill=tk.X, padx=20, pady=(0, 15))
+        
+        def save_metadata():
+            """Save the edited metadata."""
+            self.modlist_data["modlist_name"] = entries["modlist_name"].get().strip()
+            self.modlist_data["version"] = entries["version"].get().strip()
+            self.modlist_data["starsector_version"] = entries["starsector_version"].get().strip()
+            self.modlist_data["author"] = entries["author"].get().strip()
+            self.modlist_data["description"] = desc_text.get("1.0", tk.END).strip()
+            
+            self.save_modlist_config()
+            self.display_modlist_info()
+            self.log("Modlist metadata updated")
+            dialog.destroy()
+            custom_dialogs.showsuccess("Success", "Modlist metadata has been updated.")
+        
+        from .ui_builder import _create_button
+        
+        save_btn = _create_button(button_frame, "Save", save_metadata, width=12, button_type="success")
+        save_btn.pack(side=tk.LEFT, padx=(0, 5))
+        
+        cancel_btn = _create_button(button_frame, "Cancel", dialog.destroy, width=12, button_type="secondary")
+        cancel_btn.pack(side=tk.LEFT)
+        
+        # Center dialog
+        dialog.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() - dialog.winfo_width()) // 2
+        y = self.root.winfo_y() + (self.root.winfo_height() - dialog.winfo_height()) // 2
+        dialog.geometry(f"+{x}+{y}")
     
     def display_modlist_info(self):
         """Display the modlist information."""
