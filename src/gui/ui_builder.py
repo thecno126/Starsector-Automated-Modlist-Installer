@@ -447,14 +447,14 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
         
         if clear_callback:
             # Unicode: U+2421 (␡) - delete character
-            clear_all_btn = _create_button(action_container, "␡", clear_callback, width=3, font_size=16, button_type="pastel_purple")
+            clear_all_btn = _create_button(action_container, "␡", clear_callback, width=3, font_size=16, button_type="danger")
             clear_all_btn.pack(side=tk.RIGHT, padx=(3, 0))
             ToolTip(clear_all_btn, "Clear all mods from the list")
             header_buttons['clear'] = clear_all_btn
         
         if restore_callback:
             # Unicode: U+21BB (↻) - clockwise arrow, consistent with refresh theme
-            restore_backup_btn = _create_button(action_container, "↻", restore_callback, width=3, font_size=16, button_type="pastel_warning")
+            restore_backup_btn = _create_button(action_container, "↻", restore_callback, width=3, font_size=16, button_type="warning")
             restore_backup_btn.pack(side=tk.RIGHT)
             ToolTip(restore_backup_btn, "Restore enabled_mods.json from backup")
             header_buttons['restore'] = restore_backup_btn
