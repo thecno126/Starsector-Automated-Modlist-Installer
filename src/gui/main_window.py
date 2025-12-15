@@ -1379,8 +1379,8 @@ class ModlistInstaller:
             return
         
         # Run comprehensive pre-installation checks
-        self.log("\n" + "=" * 50)
-        self.log("Running pre-installation checks...")
+        self.log("\n" + "─" * 60)
+        self.log("⚙️  Running pre-installation checks...")
         check_success, check_error = self._run_pre_installation_checks(starsector_dir)
         if not check_success:
             custom_dialogs.showerror("Pre-Installation Check Failed", check_error)
@@ -1664,16 +1664,16 @@ class ModlistInstaller:
         mods_dir = Path(self.starsector_path.get()) / "mods"
         total_mods = len(mods_to_install)
 
-        self.log(f"Starting installation of {total_mods} mod{'s' if total_mods > 1 else ''}...")
-        self.log("=" * 50)
+        self.log(f"\n🚀 Starting installation of {total_mods} mod{'s' if total_mods > 1 else ''}...")
+        self.log("─" * 60)
         
         # Create automatic backup before installation
-        self.log("Creating backup of enabled_mods.json...")
+        self.log("💾 Creating backup of enabled_mods.json...")
         try:
             backup_manager = BackupManager(self.starsector_path.get())
             backup_path, success, error = backup_manager.create_backup(backup_mods=False)
             if success:
-                self.log(f"✓ Backup created: {backup_path.name}", info=True)
+                self.log(f"✓ Backup created: {backup_path.name}")
                 # Cleanup old backups (keep last 5)
                 deleted = backup_manager.cleanup_old_backups(keep_count=5)
                 if deleted > 0:
@@ -1685,7 +1685,7 @@ class ModlistInstaller:
 
         # Update metadata from installed mods BEFORE filtering
         # This ensures we have accurate mod_version for comparison
-        self.log("Scanning installed mods for metadata...")
+        self.log("🔍 Scanning installed mods for metadata...")
         self._update_mod_metadata_from_installed(mods_dir)
         
         # Scan currently installed mods for dependency resolution and version checking
@@ -1696,7 +1696,7 @@ class ModlistInstaller:
                 installed_mods_dict[mod_id] = metadata
 
         # Resolve dependencies - reorder mods so dependencies are installed first
-        self.log("Resolving mod dependencies...")
+        self.log("🔗 Resolving mod dependencies...")
         mods_to_install = resolve_mod_dependencies(mods_to_install, installed_mods_dict)
         self.log(f"  ✓ Dependencies resolved, installation order optimized", info=True)
 
