@@ -509,7 +509,7 @@ def create_enable_mods_section(main_frame, enable_mods_callback):
     """Create the Enable All Mods button section between log and bottom buttons."""
     # Use exact same structure as create_bottom_buttons for perfect alignment
     enable_frame = tk.Frame(main_frame, bg=TriOSTheme.SURFACE)
-    enable_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=(10, 0))
+    enable_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=10)
     enable_frame.configure(height=UI_BOTTOM_BUTTON_HEIGHT)
     enable_frame.pack_propagate(False)
     
