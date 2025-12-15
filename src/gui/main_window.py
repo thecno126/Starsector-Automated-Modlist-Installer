@@ -2079,23 +2079,22 @@ class ModlistInstaller:
             # Ask for confirmation
             result = custom_dialogs.askyesno(
                 "Activate Mods",
-                f"Do you want to activate all {len(all_installed_folders)} installed mods in Starsector?\n\n"
-                f"This will update enabled_mods.json to enable all mods.\n"
+                f"Do you want to activate all {len(all_installed_folders)} installed mods in Starsector? "
+                f"This will update enabled_mods.json to enable all mods. "
                 f"You can manage individual mods later via TriOS.",
                 parent=self.root
             )
             
             if result:
-                self.log("\n" + "=" * 60)
-                self.log("Updating mod activation...")
+                self.log("\n" + "─" * 60)
                 
                 # Use merge=False to replace the list entirely with all installed mods
                 self.mod_installer.update_enabled_mods(mods_dir, all_installed_folders, merge=False)
-                self.log(f"✓ Activated {len(all_installed_folders)} mod(s) in Starsector (all installed mods)")
+                self.log(f"🎮 {len(all_installed_folders)} mod(s) activated in enabled_mods.json")
                 
                 # Show final completion message if no errors
                 if not report.has_errors():
-                    self.log("\n✓ You can now start Starsector. All installed mods are already activated except those with incorrect game version, manage them via TriOS.", success=True)
+                    self.log("✓ Ready to play! Launch Starsector or manage mods via TriOS.", success=True)
             else:
                 self.log("\n⚠ Mod activation skipped by user. You can manage mods via TriOS.", info=True)
         

@@ -59,16 +59,10 @@ class InstallationReport:
         minutes, seconds = divmod(int(duration), 60)
         
         summary = [
-            "=" * 60,
-            "Installation Complete",
-            "=" * 60,
-            f"Duration: {minutes}m {seconds}s",
-            "",
-            f"✓ Installed: {len(self.installed)} mod(s)",
-            f"↑ Updated: {len(self.updated)} mod(s)",
-            f"○ Skipped (up-to-date): {len(self.skipped)} mod(s)",
-            f"✗ Errors: {len(self.errors)} mod(s)",
-            "=" * 60
+            "\n" + "─" * 60,
+            f"✓ Installation Complete ({minutes}m {seconds}s)",
+            "─" * 60,
+            f"✓ {len(self.installed)} installed | ↑ {len(self.updated)} updated | ○ {len(self.skipped)} skipped | ✗ {len(self.errors)} errors"
         ]
         
         if self.installed:
