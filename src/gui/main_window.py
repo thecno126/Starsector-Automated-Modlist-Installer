@@ -278,7 +278,7 @@ class ModlistInstaller:
         self.update_path_status()
         
         # Modlist section
-        info_frame, modlist_container, left_container, self.header_text, self.mod_listbox, self.search_var = create_modlist_section(
+        info_frame, modlist_container, left_container, self.header_text, self.mod_listbox, self.search_var, mod_action_buttons = create_modlist_section(
             left_frame,
             self.on_mod_click,
             lambda e: None,  # No resize callback needed anymore
@@ -289,16 +289,21 @@ class ModlistInstaller:
         self.selected_mod_line = None
         self.search_filter = ""
         
+        # Configure action buttons from modlist section
+        if mod_action_buttons:
+            mod_action_buttons['add'].config(command=self.open_add_mod_dialog)
+            mod_action_buttons['edit'].config(command=self.edit_selected_mod)
+            mod_action_buttons['remove'].config(command=self.remove_selected_mod)
+            self.add_btn = mod_action_buttons['add']
+            self.edit_btn = mod_action_buttons['edit']
+            self.remove_btn = mod_action_buttons['remove']
+        
         # Button panel
         button_callbacks = {
             'reset': self.reset_modlist_config,
-            'pause': self.toggle_pause,
             'move_up': self.move_mod_up,
             'move_down': self.move_mod_down,
             'categories': self.open_manage_categories_dialog,
-            'add': self.open_add_mod_dialog,
-            'edit': self.edit_selected_mod,
-            'remove': self.remove_selected_mod,
             'import_csv': self.open_import_csv_dialog,
             'export_csv': self.open_export_csv_dialog,
             'refresh': self.refresh_mod_metadata,
@@ -308,13 +313,9 @@ class ModlistInstaller:
         
         buttons = create_button_panel(modlist_container, left_container, button_callbacks)
         self.reset_btn = buttons['reset']
-        self.pause_install_btn = buttons['pause']
         self.up_btn = buttons['up']
         self.down_btn = buttons['down']
         self.categories_btn = buttons['categories']
-        self.add_btn = buttons['add']
-        self.edit_btn = buttons['edit']
-        self.remove_btn = buttons['remove']
         self.import_btn = buttons['import']
         self.export_btn = buttons['export']
         self.refresh_btn = buttons['refresh']
@@ -331,9 +332,10 @@ class ModlistInstaller:
         right_frame = tk.Frame(main_container, padx=10, pady=10, bg=TriOSTheme.SURFACE)
         main_container.add(right_frame, minsize=700, stretch="always")
         
-        log_frame, self.install_progress_bar, self.log_text = create_log_section(
+        log_frame, self.install_progress_bar, self.log_text, self.pause_install_btn = create_log_section(
             right_frame, 
-            self.current_mod_name
+            self.current_mod_name,
+            self.toggle_pause
         )
         
         # Set initial sash position (60% left, 40% right)
@@ -1037,15 +1039,36 @@ class ModlistInstaller:
     # ============================================
     
     def toggle_pause(self):
-        """Toggle pause state."""
+        """Toggle pause/resume during installation."""
+        if not self.is_installing:
+            return
+        
         self.is_paused = not self.is_paused
+        
         if self.is_paused:
-            pause_style = TriOSTheme.get_button_style("warning")
-            self.pause_install_btn.config(text="Resume", **pause_style)
-            self.log("Installation paused")
+            self.log("Installation paused", warning=True)
+            self.pause_install_btn.config(text="▶")
+            # Update tooltip dynamically
+            from .ui_builder import ToolTip
+            # Clear existing tooltip bindings
+            try:
+                self.pause_install_btn.unbind("<Enter>")
+                self.pause_install_btn.unbind("<Leave>")
+            except:
+                pass
+            ToolTip(self.pause_install_btn, "Resume installation")
         else:
-            pause_style = TriOSTheme.get_button_style("warning")
-            self.pause_install_btn.config(text="Pause", **pause_style)
+            self.log("Installation resumed", info=True)
+            self.pause_install_btn.config(text="⏸")
+            # Update tooltip dynamically
+            from .ui_builder import ToolTip
+            # Clear existing tooltip bindings
+            try:
+                self.pause_install_btn.unbind("<Enter>")
+                self.pause_install_btn.unbind("<Leave>")
+            except:
+                pass
+            ToolTip(self.pause_install_btn, "Pause installation")
             self.log("Installation resumed")
     
     def refresh_mod_metadata(self):

@@ -7,10 +7,47 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext
 import sys
 from utils.theme import TriOSTheme
+from core import UI_BOTTOM_BUTTON_HEIGHT
+import platform
 
-from core import (
-    UI_BOTTOM_BUTTON_HEIGHT
-)
+
+# ============================================================================
+# Tooltip Widget
+# ============================================================================
+
+class ToolTip:
+    """Simple tooltip widget for hover help."""
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.tooltip_window = None
+        self.widget.bind("<Enter>", self.show_tooltip)
+        self.widget.bind("<Leave>", self.hide_tooltip)
+    
+    def show_tooltip(self, event=None):
+        if self.tooltip_window or not self.text:
+            return
+        # Get widget position
+        try:
+            x = self.widget.winfo_rootx() + 25
+            y = self.widget.winfo_rooty() + 25
+        except:
+            return
+        
+        self.tooltip_window = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+        
+        label = tk.Label(tw, text=self.text, justify=tk.LEFT,
+                        background=TriOSTheme.SURFACE_LIGHT, foreground=TriOSTheme.TEXT_PRIMARY,
+                        relief=tk.SOLID, borderwidth=1, font=("Arial", 9))
+        label.pack(ipadx=5, ipady=3)
+    
+    def hide_tooltip(self, event=None):
+        if self.tooltip_window:
+            self.tooltip_window.destroy()
+            self.tooltip_window = None
+
 
 # Detect macOS
 IS_MACOS = sys.platform == 'darwin'
@@ -108,6 +145,10 @@ class ThemedButton(tk.Canvas):
     
     def configure(self, **kwargs):
         """Allow configuration like normal widgets."""
+        if 'command' in kwargs:
+            # Handle command changes
+            self.command = kwargs.pop('command')
+        
         if 'text' in kwargs:
             # Handle text changes
             new_text = kwargs.pop('text')
@@ -262,8 +303,9 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
     )
     header_text.pack(fill=tk.X, pady=(0, 5))
     
-    # Search bar (if callback provided)
+    # Search bar with action buttons (if callback provided)
     search_var = None
+    mod_action_buttons = {}
     if search_callback:
         search_frame = tk.Frame(left_container, bg=TriOSTheme.SURFACE)
         search_frame.pack(fill=tk.X, pady=(0, 5))
@@ -281,7 +323,22 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
         
         clear_btn = _create_button(search_frame, "✕", lambda: search_var.set(""),
                                    width=3, font_size=10, button_type="secondary")
-        clear_btn.pack(side=tk.RIGHT)
+        clear_btn.pack(side=tk.RIGHT, padx=(0, 10))
+        
+        # Action buttons: Add, Edit, Remove (will get callbacks later)
+        add_btn = _create_button(search_frame, "+", None, width=3, font_size=14, button_type="success")
+        add_btn.pack(side=tk.RIGHT, padx=2)
+        ToolTip(add_btn, "Add new mod to the list")
+        
+        edit_btn = _create_button(search_frame, "✏", None, width=3, font_size=12, button_type="plain")
+        edit_btn.pack(side=tk.RIGHT, padx=2)
+        ToolTip(edit_btn, "Edit selected mod")
+        
+        remove_btn = _create_button(search_frame, "−", None, width=3, font_size=14, button_type="danger")
+        remove_btn.pack(side=tk.RIGHT, padx=2)
+        ToolTip(remove_btn, "Remove selected mod")
+        
+        mod_action_buttons = {'add': add_btn, 'edit': edit_btn, 'remove': remove_btn}
         
         # Bind search callback
         search_var.trace_add('write', lambda *args: search_callback(search_var.get()))
@@ -316,7 +373,7 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
     mod_listbox.bind('<Button-1>', mod_click_callback)
     
     # Return container and left_container so buttons can be added first
-    return info_frame, main_container, left_container, header_text, mod_listbox, search_var
+    return info_frame, main_container, left_container, header_text, mod_listbox, search_var, mod_action_buttons
 
 
 def create_button_panel(main_container, left_container, callbacks):
@@ -341,11 +398,9 @@ def create_button_panel(main_container, left_container, callbacks):
                                    bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY)
     install_section.pack(fill=tk.X, pady=(0, 5))
     
-    reset_btn = _create_button(install_section, "Reset", callbacks['reset'], button_type="danger")
-    reset_btn.pack(pady=(0, 3), fill=tk.X)
-    
-    pause_btn = _create_button(install_section, "Pause", callbacks['pause'], state=tk.DISABLED, button_type="warning")
-    pause_btn.pack(pady=(0, 0), fill=tk.X)
+    reset_btn = _create_button(install_section, "Clear All", callbacks['reset'], button_type="danger")
+    reset_btn.pack(pady=(0, 0), fill=tk.X)
+    ToolTip(reset_btn, "Clear all mods from the list")
     
     # Reorder section
     reorder_section = tk.LabelFrame(right_frame, text="Reorder", padx=5, pady=3,
@@ -354,9 +409,11 @@ def create_button_panel(main_container, left_container, callbacks):
     
     up_btn = _create_button(reorder_section, "↑", callbacks['move_up'], width=3, font_size=11, button_type="secondary")
     up_btn.pack(pady=(0, 3))
+    ToolTip(up_btn, "Move selected mod up")
     
     down_btn = _create_button(reorder_section, "↓", callbacks['move_down'], width=3, font_size=11, button_type="secondary")
     down_btn.pack(pady=(3, 0))
+    ToolTip(down_btn, "Move selected mod down")
     
     # Management section
     management_section = tk.LabelFrame(right_frame, text="Management", padx=5, pady=8,
@@ -378,40 +435,33 @@ def create_button_panel(main_container, left_container, callbacks):
                                activebackground=TriOSTheme.SURFACE_LIGHT, activeforeground=TriOSTheme.TEXT_PRIMARY,
                                relief=tk.FLAT, font=("Arial", 14), cursor="hand2")
     refresh_btn.pack(fill=tk.X)
+    ToolTip(refresh_btn, "Refresh mod metadata from installed mods")
     
     categories_btn = _create_button(management_section, "Categories", callbacks['categories'], button_type="plain")
     categories_btn.pack(pady=(0, 3), fill=tk.X)
-    
-    add_btn = _create_button(management_section, "Add Mod", callbacks['add'], button_type="plain")
-    add_btn.pack(pady=(0, 3), fill=tk.X)
-    
-    edit_btn = _create_button(management_section, "Edit Mod", callbacks['edit'], button_type="plain")
-    edit_btn.pack(pady=(0, 3), fill=tk.X)
-    
-    remove_btn = _create_button(management_section, "Remove Mod", callbacks['remove'], button_type="plain")
-    remove_btn.pack(pady=(0, 3), fill=tk.X)
+    ToolTip(categories_btn, "Manage mod categories")
 
     import_btn = _create_button(management_section, "Import CSV", callbacks['import_csv'], button_type="plain")
     import_btn.pack(pady=(0, 3), fill=tk.X)
+    ToolTip(import_btn, "Import mods from CSV file")
 
     export_btn = _create_button(management_section, "Export CSV", callbacks['export_csv'], button_type="plain")
     export_btn.pack(pady=(0, 3), fill=tk.X)
+    ToolTip(export_btn, "Export modlist to CSV file")
     
     restore_backup_btn = _create_button(management_section, "Restore Backup", callbacks.get('restore_backup', lambda: None), button_type="warning")
     restore_backup_btn.pack(pady=(0, 3), fill=tk.X)
+    ToolTip(restore_backup_btn, "Restore enabled_mods.json from backup")
     
     enable_mods_btn = _create_button(management_section, "Enable All Mods", callbacks.get('enable_mods', lambda: None), button_type="success")
     enable_mods_btn.pack(pady=(0, 0), fill=tk.X)
+    ToolTip(enable_mods_btn, "Activate all installed mods in Starsector")
     
     return {
         'reset': reset_btn,
-        'pause': pause_btn,
         'up': up_btn,
         'down': down_btn,
         'categories': categories_btn,
-        'add': add_btn,
-        'edit': edit_btn,
-        'remove': remove_btn,
         'import': import_btn,
         'export': export_btn,
         'refresh': refresh_btn,
@@ -420,23 +470,35 @@ def create_button_panel(main_container, left_container, callbacks):
     }
 
 
-def create_log_section(main_frame, current_mod_var=None):
-    """Create the log section with progress bar and optional current mod label."""
+def create_log_section(main_frame, current_mod_var=None, pause_callback=None):
+    """Create the log section with progress bar, pause/resume button, and optional current mod label."""
     log_frame = tk.LabelFrame(main_frame, text="Installation Log", padx=5, pady=5,
                              bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY)
     log_frame.pack(fill=tk.BOTH, expand=True)
     
+    # Top bar with current mod label and pause button
+    top_bar = tk.Frame(log_frame, bg=TriOSTheme.SURFACE)
+    top_bar.pack(fill=tk.X, pady=(0, 3))
+    
     # Current mod label (if variable provided)
     if current_mod_var:
         current_mod_label = tk.Label(
-            log_frame,
+            top_bar,
             textvariable=current_mod_var,
             font=("Arial", 9, "italic"),
             fg=TriOSTheme.PRIMARY,
             bg=TriOSTheme.SURFACE,
             anchor=tk.W
         )
-        current_mod_label.pack(fill=tk.X, pady=(0, 3))
+        current_mod_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    
+    # Pause/Resume button in top right
+    pause_btn = None
+    if pause_callback:
+        pause_btn = _create_button(top_bar, "⏸", pause_callback, width=4, font_size=14, 
+                                   state=tk.DISABLED, button_type="warning")
+        pause_btn.pack(side=tk.RIGHT)
+        ToolTip(pause_btn, "Pause installation")
     
     progress_bar = ttk.Progressbar(log_frame, mode='determinate')
     progress_bar.pack(fill=tk.X, pady=(0, 5))
@@ -447,7 +509,7 @@ def create_log_section(main_frame, current_mod_var=None):
                                          relief=tk.FLAT, highlightthickness=0, borderwidth=0)
     log_text.pack(fill=tk.BOTH, expand=True)
     
-    return log_frame, progress_bar, log_text
+    return log_frame, progress_bar, log_text, pause_btn
 
 
 def create_bottom_buttons(main_frame, install_callback, quit_callback):
@@ -464,8 +526,10 @@ def create_bottom_buttons(main_frame, install_callback, quit_callback):
 
     install_btn = _create_button(button_container, "Install Modlist", install_callback, height=1, button_type="success")
     install_btn.grid(row=0, column=0, sticky="we", padx=(0, 3))
+    ToolTip(install_btn, "Start downloading and installing all mods")
 
     quit_btn = _create_button(button_container, "Quit", quit_callback, height=1, button_type="danger")
     quit_btn.grid(row=0, column=1, sticky="we", padx=(3, 0))
+    ToolTip(quit_btn, "Exit the application")
     
     return button_frame, install_btn, quit_btn
