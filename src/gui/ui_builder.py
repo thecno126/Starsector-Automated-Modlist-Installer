@@ -290,8 +290,8 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
         button_container.pack(side=tk.RIGHT)
         
         if edit_metadata_callback:
-            # Unicode: U+270F (✏️) - edit icon
-            edit_metadata_btn = _create_button(button_container, "✏️", edit_metadata_callback, width=3, font_size=14, button_type="secondary")
+            # Unicode: U+1F4DD (📝) - memo icon
+            edit_metadata_btn = _create_button(button_container, "📝", edit_metadata_callback, width=3, font_size=14, button_type="secondary")
             edit_metadata_btn.pack(side=tk.LEFT, padx=(0, 8))
             ToolTip(edit_metadata_btn, "Edit modlist metadata (name, version, description)")
             header_buttons['edit_metadata'] = edit_metadata_btn
@@ -367,7 +367,7 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
         
         # Action buttons from right to left: Remove, Add, Categories, Edit
         # Final order displayed: Edit (✏) | Categories (⚙) | Add (+) | Remove (−)
-        # Using better Unicode symbols: Edit=📝, Categories=⚙️, Add=➕, Remove=✖
+        # Using better Unicode symbols: Edit=✏️, Categories=⚙️, Add=➕, Remove=✖
         remove_btn = _create_button(search_frame, "✖", None, width=3, font_size=13, button_type="danger")
         remove_btn.pack(side=tk.RIGHT, padx=(2, 0))
         ToolTip(remove_btn, "Remove selected mod")
@@ -380,7 +380,7 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
         gear_btn.pack(side=tk.RIGHT, padx=2)
         ToolTip(gear_btn, "Manage categories")
         
-        edit_btn = _create_button(search_frame, "📝", None, width=3, font_size=12, button_type="plain")
+        edit_btn = _create_button(search_frame, "✏️", None, width=3, font_size=12, button_type="plain")
         edit_btn.pack(side=tk.RIGHT, padx=2)
         ToolTip(edit_btn, "Edit selected mod")
         
