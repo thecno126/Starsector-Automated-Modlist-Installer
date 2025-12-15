@@ -1277,10 +1277,8 @@ class ModlistInstaller:
         
         # 4. Check for potential version conflicts (basic check)
         starsector_version = self.modlist_data.get('starsector_version', 'Unknown')
-        self.log(f"ℹ Target Starsector version: {starsector_version}", info=True)
         
         # 6. Check dependencies
-        self.log("Checking mod dependencies...")
         dependency_issues = self._check_dependencies(mods_dir)
         if dependency_issues:
             issues_text = "\n".join([f"  • {mod_name}: missing {', '.join(deps)}" 
@@ -1698,10 +1696,9 @@ class ModlistInstaller:
         # Resolve dependencies - reorder mods so dependencies are installed first
         self.log("🔗 Resolving mod dependencies...")
         mods_to_install = resolve_mod_dependencies(mods_to_install, installed_mods_dict)
-        self.log(f"  ✓ Dependencies resolved, installation order optimized", info=True)
+        self.log(f"  ✓ Dependencies resolved, installation order optimized")
 
         # Pre-filter: Check which mods are already installed with correct version
-        self.log("Checking for missing or outdated mods...")
         mods_to_download = []
         pre_skipped = 0
         
@@ -1715,7 +1712,6 @@ class ModlistInstaller:
             if is_up_to_date:
                 # Mod is installed and up-to-date
                 version_str = f" (v{installed_version})" if installed_version else ""
-                self.log(f"  ✓ Already up-to-date: '{mod_name}'{version_str}", info=True)
                 report.add_skipped(mod_name, "already up-to-date", installed_version)
                 pre_skipped += 1
             else:
@@ -1725,24 +1721,26 @@ class ModlistInstaller:
                     status = f"update ({installed_version} → {mod_version})" if mod_version else "update"
                     if mod_version:
                         report.add_updated(mod_name, installed_version, mod_version)
-                    self.log(f"  → Will {status}: '{mod_name}'", info=True)
+                    self.log(f"  → Will {status}: '{mod_name}'")
                 else:
                     # It's a new installation
-                    self.log(f"  → Will install: '{mod_name}'", info=True)
+                    self.log(f"  → Will install: '{mod_name}'")
                 
                 mods_to_download.append(mod)
         
         if pre_skipped > 0:
-            self.log(f"Skipped {pre_skipped} up-to-date mod(s)")
+            if pre_skipped == len(mods_to_install):
+                self.log(f"✓ All {pre_skipped} mods are already up-to-date!")
+            else:
+                self.log(f"○ Skipped {pre_skipped} up-to-date mod(s)")
         
         if not mods_to_download:
-            self.log("All mods are already up-to-date!", info=True)
             self.install_progress_bar['value'] = 100
             self._finalize_installation_with_report(report, mods_dir, [], total_mods)
             return
 
         # Step 1: parallel downloads
-        self.log(f"Starting parallel downloads (workers={MAX_DOWNLOAD_WORKERS})...")
+        self.log(f"\n⬇️  Starting parallel downloads (workers={MAX_DOWNLOAD_WORKERS})...")
         download_results, gdrive_failed = self._download_mods_parallel(
             mods_to_download, 
             skip_gdrive_check=skip_gdrive_check

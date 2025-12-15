@@ -726,10 +726,6 @@ class ModInstaller:
                 # Atomic rename
                 temp_file.replace(enabled_mods_file)
                 
-                if merge and len(existing_ids) > 0:
-                    self.log(f"\n✓ Updated enabled_mods.json: +{added_count} new, {len(enabled_ids)} total", info=True)
-                else:
-                    self.log(f"\n✓ Created enabled_mods.json with {len(enabled_ids)} mod(s)", info=True)
                 return True
                 
             except Exception as e:
