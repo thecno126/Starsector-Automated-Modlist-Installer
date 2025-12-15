@@ -1378,7 +1378,7 @@ class ModlistInstaller:
         
         # Run comprehensive pre-installation checks
         self.log("\n" + "─" * 60)
-        self.log("⚙️  Running pre-installation checks...")
+        self.log("Running pre-installation checks...")
         check_success, check_error = self._run_pre_installation_checks(starsector_dir)
         if not check_success:
             custom_dialogs.showerror("Pre-Installation Check Failed", check_error)
@@ -1514,14 +1514,13 @@ class ModlistInstaller:
         
         return True
     
-    def install_specific_mods(self, mod_names, temp_mods=None, skip_gdrive_check=False, skip_activation=False):
+    def install_specific_mods(self, mod_names, temp_mods=None, skip_gdrive_check=False):
         """Install only specific mods by name.
         
         Args:
             mod_names: List of mod names to install
             temp_mods: Optional list of mod dictionaries with temporary URLs (e.g., fixed Google Drive)
             skip_gdrive_check: If True, skip Google Drive verification (already confirmed by user)
-            skip_activation: If True, skip activation confirmation prompt (used for Google Drive retry)
         """
         # Use temp_mods if provided, otherwise filter from main modlist
         if temp_mods:
@@ -1541,7 +1540,7 @@ class ModlistInstaller:
         
         # Run installation in thread with filtered mods
         def run_specific_installation():
-            self._install_mods_internal(mods_to_install, skip_gdrive_check=skip_gdrive_check, skip_activation=skip_activation)
+            self._install_mods_internal(mods_to_install, skip_gdrive_check=skip_gdrive_check)
         
         thread = threading.Thread(target=run_specific_installation, daemon=True)
         thread.start()
@@ -1650,13 +1649,12 @@ class ModlistInstaller:
         
         return download_results, gdrive_failed
 
-    def _install_mods_internal(self, mods_to_install, skip_gdrive_check=False, skip_activation=False):
+    def _install_mods_internal(self, mods_to_install, skip_gdrive_check=False):
         """Internal method to install a list of mods.
         
         Args:
             mods_to_install: List of mod dictionaries to install
             skip_gdrive_check: If True, skip Google Drive verification (already confirmed by user)
-            skip_activation: If True, skip activation confirmation prompt (used for Google Drive retry)
         """
         # Initialize installation report
         report = InstallationReport()
@@ -1664,11 +1662,11 @@ class ModlistInstaller:
         mods_dir = Path(self.starsector_path.get()) / "mods"
         total_mods = len(mods_to_install)
 
-        self.log(f"\n🚀 Starting installation of {total_mods} mod{'s' if total_mods > 1 else ''}...")
+        self.log(f"\nStarting installation of {total_mods} mod{'s' if total_mods > 1 else ''}...")
         self.log("─" * 60)
         
         # Create automatic backup before installation
-        self.log("💾 Creating backup of enabled_mods.json...")
+        self.log("Creating backup of enabled_mods.json...")
         try:
             backup_manager = BackupManager(self.starsector_path.get())
             backup_path, success, error = backup_manager.create_backup(backup_mods=False)
@@ -1685,7 +1683,7 @@ class ModlistInstaller:
 
         # Update metadata from installed mods BEFORE filtering
         # This ensures we have accurate mod_version for comparison
-        self.log("🔍 Scanning installed mods for metadata...")
+        self.log("Scanning installed mods for metadata...")
         self._update_mod_metadata_from_installed(mods_dir)
         
         # Scan currently installed mods for dependency resolution and version checking
@@ -1696,7 +1694,7 @@ class ModlistInstaller:
                 installed_mods_dict[mod_id] = metadata
 
         # Resolve dependencies - reorder mods so dependencies are installed first
-        self.log("🔗 Resolving mod dependencies...")
+        self.log("Resolving mod dependencies...")
         mods_to_install = resolve_mod_dependencies(mods_to_install, installed_mods_dict)
         self.log(f"  ✓ Dependencies resolved, installation order optimized")
 
@@ -1738,11 +1736,11 @@ class ModlistInstaller:
         
         if not mods_to_download:
             self.install_progress_bar['value'] = 100
-            self._finalize_installation_with_report(report, mods_dir, [], total_mods, skip_activation_prompt=skip_activation)
+            self._finalize_installation_with_report(report, mods_dir, [], total_mods)
             return
 
         # Step 1: parallel downloads
-        self.log(f"\n⬇️  Starting parallel downloads (workers={MAX_DOWNLOAD_WORKERS})...")
+        self.log(f"\nStarting parallel downloads (workers={MAX_DOWNLOAD_WORKERS})...")
         download_results, gdrive_failed = self._download_mods_parallel(
             mods_to_download, 
             skip_gdrive_check=skip_gdrive_check
@@ -1773,8 +1771,7 @@ class ModlistInstaller:
         # Step 3: Update statistics and finalize with report
         self._finalize_installation_with_report(
             report, mods_dir, download_results, total_mods,
-            gdrive_failed=gdrive_failed, extraction_failures=extraction_failures,
-            skip_activation_prompt=skip_activation
+            gdrive_failed=gdrive_failed, extraction_failures=extraction_failures
         )
     
     def _finalize_installation_cancelled(self):
@@ -2050,7 +2047,7 @@ class ModlistInstaller:
         )
     
     def _finalize_installation_with_report(self, report, mods_dir, download_results, total_mods,
-                                           gdrive_failed=None, extraction_failures=None, skip_activation_prompt=False):
+                                           gdrive_failed=None, extraction_failures=None):
         """Finalize installation with InstallationReport system.
         
         Args:
@@ -2060,7 +2057,6 @@ class ModlistInstaller:
             total_mods: Total number of mods attempted
             gdrive_failed: Optional list of Google Drive failures (legacy)
             extraction_failures: Optional list of extraction failures (legacy)
-            skip_activation_prompt: If True, skip asking user for mod activation (used for Google Drive retry)
         """
         gdrive_failed = gdrive_failed or []
         extraction_failures = extraction_failures or []
@@ -2077,7 +2073,7 @@ class ModlistInstaller:
         for folder, metadata in scan_installed_mods(mods_dir):
             all_installed_folders.append(folder.name)
         
-        if all_installed_folders and not skip_activation_prompt:
+        if all_installed_folders:
             # Ask for confirmation
             result = custom_dialogs.askyesno(
                 "Activate Mods",
@@ -2092,22 +2088,13 @@ class ModlistInstaller:
                 
                 # Use merge=False to replace the list entirely with all installed mods
                 self.mod_installer.update_enabled_mods(mods_dir, all_installed_folders, merge=False)
-                self.log(f"🎮 {len(all_installed_folders)} mod(s) activated in enabled_mods.json")
+                self.log(f"{len(all_installed_folders)} mod(s) activated in enabled_mods.json")
                 
                 # Show final completion message if no errors
                 if not report.has_errors():
                     self.log("✓ Ready to play! Launch Starsector or manage mods via TriOS.", success=True)
             else:
                 self.log("\n⚠ Mod activation skipped by user. You can manage mods via TriOS.", info=True)
-        elif all_installed_folders and skip_activation_prompt:
-            # Auto-activate without prompt during Google Drive retry
-            self.log("\n" + "─" * 60)
-            self.mod_installer.update_enabled_mods(mods_dir, all_installed_folders, merge=False)
-            self.log(f"🎮 {len(all_installed_folders)} mod(s) activated in enabled_mods.json")
-            
-            # Show final completion message after Google Drive retry
-            if not report.has_errors():
-                self.log("✓ Ready to play! Launch Starsector or manage mods via TriOS.", success=True)
         
         # Save modlist to persist any auto-detected game_version values from extraction
         self.save_modlist_config(log_message=False)
@@ -2140,14 +2127,13 @@ class ModlistInstaller:
             # Log fixed URLs
             for mod, original_mod in zip(mods_to_download, failed_mods):
                 if mod['download_url'] != original_mod['download_url']:
-                    self.log(f"🔧 Fixed Google Drive URL: {mod.get('name')}")
+                    self.log(f"🔧 Fixed Google Drive URL: {mod.get('name')}", info=True)
             
-            # Start download with fixed URLs (skip activation prompt as it will be asked at the very end)
+            # Start download with fixed URLs
             self.install_specific_mods(
                 [mod['name'] for mod in mods_to_download],
                 temp_mods=mods_to_download,
-                skip_gdrive_check=True,
-                skip_activation=True
+                skip_gdrive_check=True
             )
         
         def on_cancel():
