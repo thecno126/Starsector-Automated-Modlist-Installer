@@ -2087,6 +2087,10 @@ class ModlistInstaller:
             self.mod_installer.update_enabled_mods(mods_dir, all_installed_folders, merge=False)
             self.log(f"✓ Activated {len(all_installed_folders)} mod(s) in Starsector (all installed mods)")
         
+        # Show final completion message if no errors
+        if not report.has_errors():
+            self.log("\n✓ You can now start Starsector. All installed mods are already activated except those with incorrect game version, manage them via TriOS.", success=True)
+        
         # Save modlist to persist any auto-detected game_version values from extraction
         self.save_modlist_config(log_message=False)
         

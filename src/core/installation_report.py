@@ -88,11 +88,6 @@ class InstallationReport:
                 summary.append(f"  ✗ {item['mod']}: {item['error']}")
                 summary.append(f"    URL: {item['url']}")
         
-        # Add final message
-        if not self.has_errors():
-            summary.append("")
-            summary.append("✓ You can now start Starsector. All installed mods are already activated except those with incorrect game version, manage them via TriOS.")
-        
         return "\n".join(summary)
     
     def has_errors(self):
