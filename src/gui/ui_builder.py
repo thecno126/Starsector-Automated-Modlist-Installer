@@ -514,7 +514,7 @@ def create_enable_mods_section(main_frame, enable_mods_callback):
     
     # Use same container structure as bottom buttons for perfect alignment
     button_container = tk.Frame(enable_frame, bg=TriOSTheme.SURFACE)
-    button_container.pack(fill=tk.BOTH, expand=True, padx=60)
+    button_container.pack(fill=tk.BOTH, expand=True, padx=50)
     
     enable_mods_btn = _create_button(button_container, "Enable All Mods", enable_mods_callback, button_type="starsector_blue")
     enable_mods_btn.pack(fill=tk.BOTH, expand=True)
@@ -531,7 +531,7 @@ def create_bottom_buttons(main_frame, install_callback, quit_callback):
     button_frame.pack_propagate(False)
 
     button_container = tk.Frame(button_frame, bg=TriOSTheme.SURFACE)
-    button_container.pack(fill=tk.BOTH, expand=True, padx=60)
+    button_container.pack(fill=tk.BOTH, expand=True, padx=50)
     button_container.columnconfigure(0, weight=1)
     button_container.columnconfigure(1, weight=1)
 

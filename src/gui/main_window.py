@@ -261,7 +261,7 @@ class ModlistInstaller:
         create_header(self.root)
         
         # Main container with horizontal split
-        main_container = tk.PanedWindow(self.root, orient=tk.HORIZONTAL, sashwidth=12, sashpad=4, sashrelief=tk.RAISED,
+        main_container = tk.PanedWindow(self.root, orient=tk.HORIZONTAL, sashwidth=12, sashpad=8, sashrelief=tk.RAISED,
                                        bg=TriOSTheme.SURFACE)
         main_container.pack(fill=tk.BOTH, expand=True)
         
