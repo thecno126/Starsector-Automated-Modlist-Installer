@@ -2070,26 +2070,34 @@ class ModlistInstaller:
         # Display formatted report
         self.log("\n" + report.generate_summary())
         
-        # Update enabled_mods.json to activate only installed mods
-        self.log("\n" + "=" * 60)
-        self.log("Updating mod activation...")
-        
-        # Collect successfully installed mod folder names
-        successfully_installed_mods = self._collect_installed_mod_folders(download_results, mods_dir)
-        
-        # Update enabled_mods.json - collect ALL installed mods, not just newly installed ones
+        # Ask user confirmation before updating enabled_mods.json
         all_installed_folders = []
         for folder, metadata in scan_installed_mods(mods_dir):
             all_installed_folders.append(folder.name)
         
         if all_installed_folders:
-            # Use merge=False to replace the list entirely with all installed mods
-            self.mod_installer.update_enabled_mods(mods_dir, all_installed_folders, merge=False)
-            self.log(f"✓ Activated {len(all_installed_folders)} mod(s) in Starsector (all installed mods)")
-        
-        # Show final completion message if no errors
-        if not report.has_errors():
-            self.log("\n✓ You can now start Starsector. All installed mods are already activated except those with incorrect game version, manage them via TriOS.", success=True)
+            # Ask for confirmation
+            result = custom_dialogs.askyesno(
+                "Activate Mods",
+                f"Do you want to activate all {len(all_installed_folders)} installed mods in Starsector?\n\n"
+                f"This will update enabled_mods.json to enable all mods.\n"
+                f"You can manage individual mods later via TriOS.",
+                parent=self.root
+            )
+            
+            if result:
+                self.log("\n" + "=" * 60)
+                self.log("Updating mod activation...")
+                
+                # Use merge=False to replace the list entirely with all installed mods
+                self.mod_installer.update_enabled_mods(mods_dir, all_installed_folders, merge=False)
+                self.log(f"✓ Activated {len(all_installed_folders)} mod(s) in Starsector (all installed mods)")
+                
+                # Show final completion message if no errors
+                if not report.has_errors():
+                    self.log("\n✓ You can now start Starsector. All installed mods are already activated except those with incorrect game version, manage them via TriOS.", success=True)
+            else:
+                self.log("\n⚠ Mod activation skipped by user. You can manage mods via TriOS.", info=True)
         
         # Save modlist to persist any auto-detected game_version values from extraction
         self.save_modlist_config(log_message=False)
