@@ -275,7 +275,7 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
     """Create the modlist information section with optional search and action buttons."""
     # Container for the whole section
     section_container = tk.Frame(main_frame, bg=TriOSTheme.SURFACE)
-    section_container.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+    section_container.pack(fill=tk.BOTH, expand=True)
     
     # Top bar with action buttons (above LabelFrame)
     header_buttons = {}
@@ -447,7 +447,7 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
         
         if clear_callback:
             # Unicode: U+2421 (␡) - delete character
-            clear_all_btn = _create_button(action_container, "␡", clear_callback, width=3, font_size=18, button_type="pastel_danger")
+            clear_all_btn = _create_button(action_container, "␡", clear_callback, width=3, font_size=16, button_type="pastel_danger")
             clear_all_btn.pack(side=tk.RIGHT, padx=(3, 0))
             ToolTip(clear_all_btn, "Clear all mods from the list")
             header_buttons['clear'] = clear_all_btn
