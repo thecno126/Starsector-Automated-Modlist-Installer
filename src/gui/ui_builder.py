@@ -467,7 +467,7 @@ def create_log_section(main_frame, current_mod_var=None, pause_callback=None, en
     """Create the log section with progress bar, pause/resume button, and optional current mod label."""
     log_frame = tk.LabelFrame(main_frame, text="Installation Log", padx=5, pady=5,
                              bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY)
-    log_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 5))
+    log_frame.pack(fill=tk.BOTH, expand=True)
     
     # Top bar with current mod label and pause button
     top_bar = tk.Frame(log_frame, bg=TriOSTheme.SURFACE)
@@ -512,11 +512,8 @@ def create_enable_mods_section(main_frame, enable_mods_callback):
     enable_frame.configure(height=UI_BOTTOM_BUTTON_HEIGHT)
     enable_frame.pack_propagate(False)
     
-    button_container = tk.Frame(enable_frame, bg=TriOSTheme.SURFACE)
-    button_container.pack(fill=tk.BOTH, expand=True)
-    
-    enable_mods_btn = _create_button(button_container, "Enable All Mods", enable_mods_callback, height=1, button_type="starsector_blue")
-    enable_mods_btn.pack(fill=tk.BOTH, expand=True)
+    enable_mods_btn = _create_button(enable_frame, "Enable All Mods", enable_mods_callback, button_type="starsector_blue")
+    enable_mods_btn.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
     ToolTip(enable_mods_btn, "Activate all installed mods in Starsector")
     
     return enable_frame, enable_mods_btn
