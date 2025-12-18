@@ -3,7 +3,7 @@
 ![Tests](https://github.com/thecno126/Starsector-Automated-Modlist-Installer/workflows/Tests/badge.svg)
 ![Build](https://github.com/thecno126/Starsector-Automated-Modlist-Installer/workflows/Build%20and%20Release/badge.svg)
 
-A professional tool to manage and install Starsector modlists with parallel downloads, intelligent caching, and an intuitive graphical interface.
+An amateur tool to manage and install Starsector modlists with parallel downloads, intelligent caching, and an intuitive graphical interface.
 
 ## ✨ Key Features
 
@@ -140,7 +140,7 @@ Starsector-Automated-Modlist-Installer/
 
 ## ✨ Detailed Features
 
-**Modlist Installer** - Professional mod management for Starsector
+**Modlist Installer** - Amateur mod management tool for Starsector
 
 **Core Features:**
 - 🔍 **Auto-detect** Starsector installation path (Windows/macOS/Linux)
