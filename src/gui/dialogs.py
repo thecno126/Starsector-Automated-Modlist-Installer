@@ -35,11 +35,15 @@ def _create_dialog(parent, title, width=None, height=None, resizable=False):
 def _center_dialog(dialog, parent):
     """Center dialog on parent window."""
     try:
+        # Skip centering if parent is None or doesn't have winfo methods
+        if parent is None or not hasattr(parent, 'winfo_x'):
+            return
+            
         dialog.update_idletasks()
         x = parent.winfo_x() + (parent.winfo_width() - dialog.winfo_width()) // 2
         y = parent.winfo_y() + (parent.winfo_height() - dialog.winfo_height()) // 2
         dialog.geometry(f"+{x}+{y}")
-    except tk.TclError:
+    except (tk.TclError, AttributeError):
         pass
 
 

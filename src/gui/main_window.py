@@ -206,22 +206,40 @@ class ModlistInstaller:
         return self.category_navigator.find_category_line(category_name)
     
     def _move_mod_to_category_position(self, mod_name, mod, target_category, position):
+        """Move mod to specific position in target category with safety checks."""
+        if not mod or not mod_name:
+            self.log(f"✗ Cannot move mod: invalid mod data", debug=True)
+            return
+        
+        if target_category not in self.categories:
+            self.log(f"✗ Cannot move mod to non-existent category: {target_category}", debug=True)
+            return
+        
         source_category = mod.get('category', 'Uncategorized')
         
-        if source_category in self.modlist_data.get('mods_by_category', {}):
+        # Initialize mods_by_category if it doesn't exist
+        if 'mods_by_category' not in self.modlist_data:
+            self.modlist_data['mods_by_category'] = {}
+        
+        # Remove from source category
+        if source_category in self.modlist_data['mods_by_category']:
             category_mods = self.modlist_data['mods_by_category'][source_category]
             category_mods = [m for m in category_mods if m.get('name') != mod_name]
             self.modlist_data['mods_by_category'][source_category] = category_mods
         
+        # Update mod category
         mod['category'] = target_category
         
-        if target_category not in self.modlist_data.get('mods_by_category', {}):
+        # Initialize target category if it doesn't exist
+        if target_category not in self.modlist_data['mods_by_category']:
             self.modlist_data['mods_by_category'][target_category] = []
         
+        # Add to target category at specified position
         category_mods = self.modlist_data['mods_by_category'][target_category]
         position = max(0, min(position, len(category_mods)))
         category_mods.insert(position, mod)
         
+        # Rebuild global mods list
         self.modlist_data['mods'] = []
         for category in self.categories:
             if category in self.modlist_data['mods_by_category']:

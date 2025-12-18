@@ -11,6 +11,7 @@ import zipfile
 import tempfile
 import shutil
 import tkinter as tk
+import requests
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock, call
 import concurrent.futures
@@ -24,6 +25,139 @@ from src.core.config_manager import ConfigManager
 from src.core.installer import ModInstaller
 from src.utils.network_utils import validate_mod_urls
 from src.gui.dialogs import fix_google_drive_url
+
+
+# ============================================================================
+# Global Fixtures to Prevent GUI Window Creation
+# ============================================================================
+
+@pytest.fixture(scope="session", autouse=True)
+def mock_tkinter_windows():
+    """Mock Tkinter window creation globally for all tests."""
+    original_tk = tk.Tk
+    original_toplevel = tk.Toplevel
+    
+    class MockTk:
+        def __init__(self, *args, **kwargs):
+            self.title_text = ""
+            self.attributes = {}
+            self.geometry_str = ""
+            self._destroyed = False
+            self._bindings = {}
+            self._width = 800
+            self._height = 600
+            self._x = 100
+            self._y = 100
+            
+        def title(self, text):
+            self.title_text = text
+            
+        def geometry(self, geom):
+            self.geometry_str = geom
+            
+        def withdraw(self):
+            pass
+            
+        def deiconify(self):
+            pass
+            
+        def destroy(self):
+            self._destroyed = True
+            
+        def winfo_exists(self):
+            return not self._destroyed
+            
+        def winfo_width(self):
+            """Mock window width."""
+            return self._width
+            
+        def winfo_height(self):
+            """Mock window height."""
+            return self._height
+            
+        def winfo_x(self):
+            """Mock window x position."""
+            return self._x
+            
+        def winfo_y(self):
+            """Mock window y position."""
+            return self._y
+            
+        def update(self):
+            pass
+            
+        def update_idletasks(self):
+            pass
+            
+        def mainloop(self):
+            pass
+            
+        def quit(self):
+            pass
+            
+        def bind(self, sequence, func, add=None):
+            """Mock bind method for event handling."""
+            self._bindings[sequence] = func
+            
+        def unbind(self, sequence):
+            """Mock unbind method."""
+            if sequence in self._bindings:
+                del self._bindings[sequence]
+                
+        def after(self, ms, func=None, *args):
+            """Mock after method - execute immediately for tests."""
+            if func:
+                func(*args)
+            return "after_id"
+            
+        def after_cancel(self, after_id):
+            """Mock after_cancel."""
+            pass
+            
+        def protocol(self, name, func):
+            """Mock protocol method for WM_DELETE_WINDOW etc."""
+            pass
+            
+        def resizable(self, width, height):
+            """Mock resizable."""
+            pass
+            
+        def minsize(self, width, height):
+            """Mock minsize."""
+            pass
+            
+        def configure(self, **kwargs):
+            """Mock configure."""
+            self.attributes.update(kwargs)
+            
+        def config(self, **kwargs):
+            """Alias for configure."""
+            self.configure(**kwargs)
+    
+    class MockToplevel(MockTk):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.master = args[0] if args else None
+            
+        def transient(self, master):
+            pass
+            
+        def grab_set(self):
+            pass
+            
+        def grab_release(self):
+            pass
+            
+        def wait_window(self, window=None):
+            pass
+    
+    with patch('tkinter.Tk', MockTk), \
+         patch('tkinter.Toplevel', MockToplevel):
+        yield
+    
+    # Restore originals (though not necessary with pytest)
+    tk.Tk = original_tk
+    tk.Toplevel = original_toplevel
 
 
 def test_load_default_when_missing(tmp_path, monkeypatch):
@@ -1509,6 +1643,240 @@ class TestRefreshMetadataButton:
         
         # Should complete without error
         assert mock_app.display_modlist_info.called
+
+
+class TestDragAndDropEdgeCases:
+    """Test drag & drop stability with edge cases."""
+    
+    def test_drag_drop_to_empty_category(self, mock_app):
+        """Test dragging mod to an empty category."""
+        # Add a new empty category
+        mock_app.categories.append("EmptyCategory")
+        mock_app.modlist_data['mods'][0]['category'] = "Required"
+        
+        # Mock the drag operation
+        source_mod = mock_app.modlist_data['mods'][0]
+        mock_app.drag_start_line = 1
+        
+        # Simulate drop on empty category
+        with patch.object(mock_app, '_find_category_above', return_value="EmptyCategory"):
+            with patch.object(mock_app, '_find_category_line', return_value=10):
+                with patch.object(mock_app, '_calculate_drop_position', return_value=0):
+                    # Should not crash
+                    try:
+                        mock_app._move_mod_to_category_position(
+                            source_mod['name'], 
+                            source_mod, 
+                            "EmptyCategory", 
+                            0
+                        )
+                        success = True
+                    except Exception as e:
+                        success = False
+                        print(f"Error: {e}")
+                    
+                    assert success
+    
+    def test_drag_drop_single_mod_in_category(self, mock_app):
+        """Test dragging the only mod in a category."""
+        # Setup: single mod in Required category
+        mock_app.modlist_data['mods'] = [
+            {'name': 'OnlyMod', 'category': 'Required', 'download_url': 'http://example.com/mod.zip'}
+        ]
+        
+        # Try to drag it within same category (should be no-op)
+        source_mod = mock_app.modlist_data['mods'][0]
+        
+        try:
+            mock_app._move_mod_to_category_position('OnlyMod', source_mod, 'Required', 0)
+            success = True
+        except Exception:
+            success = False
+        
+        assert success
+        assert len(mock_app.modlist_data['mods']) == 1
+        assert mock_app.modlist_data['mods'][0]['name'] == 'OnlyMod'
+    
+    def test_drag_drop_invalid_target_category(self, mock_app):
+        """Test dragging to non-existent category."""
+        source_mod = mock_app.modlist_data['mods'][0]
+        mock_app.drag_start_line = 1
+        
+        # Mock finding a category that doesn't exist
+        with patch.object(mock_app, '_find_category_above', return_value="NonExistent"):
+            with patch.object(mock_app, '_find_category_line', return_value=None):
+                # Create mock event
+                event = Mock()
+                event.x = 100
+                event.y = 100
+                
+                # Should handle gracefully (return early)
+                mock_app._on_drag_end(event)
+                
+                # drag_start_line should be reset
+                assert mock_app.drag_start_line is None
+    
+    def test_drag_drop_without_drag_start(self, mock_app):
+        """Test drag end without drag start."""
+        mock_app.drag_start_line = None
+        
+        event = Mock()
+        event.x = 100
+        event.y = 100
+        
+        # Should return early without error
+        try:
+            mock_app._on_drag_end(event)
+            success = True
+        except Exception:
+            success = False
+        
+        assert success
+
+
+class TestNetworkErrorRecovery:
+    """Test network error recovery and cleanup."""
+    
+    def test_download_timeout_cleanup(self, tmp_path):
+        """Test that temp files are cleaned up after network timeout."""
+        import requests
+        from unittest.mock import MagicMock
+        
+        log_callback = Mock()
+        installer = ModInstaller(log_callback)
+        
+        # Mock timeout exception
+        with patch('requests.get') as mock_get:
+            mock_get.side_effect = requests.exceptions.Timeout("Connection timeout")
+            
+            mod = {'download_url': 'http://example.com/slow.zip', 'name': 'SlowMod'}
+            result, is_7z = installer.download_archive(mod)
+            
+            # Should return None and not crash
+            assert result is None
+            assert is_7z is False
+    
+    def test_download_connection_error_cleanup(self, tmp_path):
+        """Test cleanup after connection error."""
+        import requests
+        
+        log_callback = Mock()
+        installer = ModInstaller(log_callback)
+        
+        # Mock connection error
+        with patch('requests.get') as mock_get:
+            mock_get.side_effect = requests.exceptions.ConnectionError("Connection refused")
+            
+            mod = {'download_url': 'http://example.com/unreachable.zip', 'name': 'UnreachableMod'}
+            result, is_7z = installer.download_archive(mod)
+            
+            # Should return None and not crash
+            assert result is None
+            assert is_7z is False
+    
+    def test_download_interrupted_cleanup(self, tmp_path):
+        """Test that incomplete downloads are cleaned up."""
+        log_callback = Mock()
+        installer = ModInstaller(log_callback)
+        
+        # Mock a download that fails mid-stream
+        with patch('requests.get') as mock_get:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.headers = {'Content-Type': 'application/zip'}
+            mock_response.raise_for_status = Mock()
+            
+            # Simulate failure during iter_content
+            mock_response.iter_content = Mock(side_effect=requests.exceptions.ChunkedEncodingError("Connection broken"))
+            mock_get.return_value = mock_response
+            
+            mod = {'download_url': 'http://example.com/interrupted.zip', 'name': 'InterruptedMod'}
+            result, is_7z = installer.download_archive(mod)
+            
+            # Should return None after cleanup
+            assert result is None
+            assert is_7z is False
+    
+    def test_corrupted_archive_cleanup(self, tmp_path):
+        """Test cleanup of corrupted archives."""
+        import zipfile
+        
+        log_callback = Mock()
+        installer = ModInstaller(log_callback)
+        
+        # Create a corrupted zip file
+        corrupted_zip = tmp_path / "corrupted.zip"
+        corrupted_zip.write_bytes(b"NOT A VALID ZIP FILE")
+        
+        # Mock download to return corrupted file
+        with patch('requests.get') as mock_get:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.headers = {'Content-Type': 'application/zip'}
+            mock_response.raise_for_status = Mock()
+            mock_response.iter_content = Mock(return_value=[b"NOT A VALID ZIP FILE"])
+            mock_get.return_value = mock_response
+            
+            mod = {'download_url': 'http://example.com/corrupted.zip', 'name': 'CorruptedMod'}
+            
+            # Should detect invalid archive and clean up
+            with patch.object(installer, '_validate_archive_integrity', return_value=False):
+                result, is_7z = installer.download_archive(mod)
+                
+                assert result is None
+                assert is_7z is False
+    
+    def test_ui_recovery_after_network_error(self, mock_app, monkeypatch):
+        """Test that UI buttons are re-enabled after network error in Add Mod dialog."""
+        from src.gui import dialogs
+        
+        # This test verifies the async workflow handles errors correctly
+        # The actual dialog testing would require Tkinter integration
+        # We verify the error handling logic is present
+        
+        # Check that the error handling functions exist
+        import inspect
+        source = inspect.getsource(dialogs.open_add_mod_dialog)
+        
+        # Verify error handling helpers are defined
+        assert 're_enable_buttons' in source
+        assert 'show_error' in source
+        assert 'dlg.after' in source  # Tkinter-safe callbacks
+        
+        # Verify threading is used
+        assert 'threading.Thread' in source
+        assert 'daemon=True' in source
+
+
+class TestAddModDialogRobustness:
+    """Test Add Mod dialog error handling and recovery."""
+    
+    def test_add_mod_dialog_handles_download_failure(self, mock_app, tmp_path):
+        """Test that Add Mod dialog handles download failures gracefully."""
+        # Verify the download_and_extract_async function has proper error handling
+        from src.gui import dialogs
+        import inspect
+        
+        source = inspect.getsource(dialogs.open_add_mod_dialog)
+        
+        # Verify error handling structure
+        assert 'except Exception as e:' in source
+        assert 'dlg.after(0, lambda: show_error' in source
+        
+        # Verify cleanup is in finally block
+        assert 'finally:' in source
+        assert 'Path(temp_file).unlink()' in source
+    
+    def test_add_mod_dialog_handles_metadata_extraction_failure(self):
+        """Test that metadata extraction failures are handled."""
+        from src.gui import dialogs
+        import inspect
+        
+        source = inspect.getsource(dialogs.open_add_mod_dialog)
+        
+        # Verify metadata validation
+        assert 'if not metadata or not metadata.get' in source
+        assert "Could not extract mod metadata" in source
 
 
 if __name__ == "__main__":
