@@ -41,12 +41,12 @@
       "dependencies": []
     },
     {
-      "name": "Market Retrofits",
-      "download_url": "https://github.com/Alaricdragon/MarketRetrofits/archive/refs/heads/master.zip",
+      "name": "LazyLib",
+      "download_url": "https://github.com/LazyWizard/lazylib/releases/download/3.0/LazyLib.3.0.zip",
       "category": "Libs",
       "game_version": "0.98a-RC5",
-      "mod_version": "0.2.5",
-      "mod_id": "aaamarketRetrofits",
+      "mod_version": "3.0.0",
+      "mod_id": "lw_lazylib",
       "dependencies": []
     },
     {
@@ -59,12 +59,12 @@
       "dependencies": []
     },
     {
-      "name": "LazyLib",
-      "download_url": "https://github.com/LazyWizard/lazylib/releases/download/3.0/LazyLib.3.0.zip",
+      "name": "Market Retrofits",
+      "download_url": "https://github.com/Alaricdragon/MarketRetrofits/archive/refs/heads/master.zip",
       "category": "Libs",
       "game_version": "0.98a-RC5",
-      "mod_version": "3.0.0",
-      "mod_id": "lw_lazylib",
+      "mod_version": "0.2.5",
+      "mod_id": "aaamarketRetrofits",
       "dependencies": []
     },
     {

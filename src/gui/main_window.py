@@ -47,6 +47,7 @@ from utils.mod_utils import (
 from utils.backup_manager import BackupManager
 from utils.path_validator import StarsectorPathValidator
 from utils.error_messages import get_user_friendly_error
+from utils.url_validator import URLValidator
 
 
 class ModlistInstaller:
@@ -73,7 +74,7 @@ class ModlistInstaller:
         self.current_executor = None
         self.downloaded_temp_files = []
         self.current_mod_name = tk.StringVar(value="")
-        self.url_validation_cache = {}  # {url: (is_valid, timestamp)}
+        self.url_validator = URLValidator()
         
         self.mod_installer = ModInstaller(self.log)
         self.installation_controller = None
@@ -402,35 +403,17 @@ class ModlistInstaller:
     def open_export_csv_dialog(self):
         open_export_csv_dialog(self.root, self)
     
-    def _is_url_cached(self, url):
-        if url in self.url_validation_cache:
-            is_valid, timestamp = self.url_validation_cache[url]
-            if time.time() - timestamp < CACHE_TIMEOUT:
-                return (True, is_valid)
-        return (False, None)
-    
-    def _cache_url_result(self, url, is_valid):
-        self.url_validation_cache[url] = (is_valid, time.time())
-    
     def validate_url(self, url: str, use_cache: bool = True) -> bool:
-        if use_cache:
-            is_cached, is_valid = self._is_url_cached(url)
-            if is_cached:
-                return is_valid
+        """Validate URL using URLValidator.
         
-        try:
-            resp = requests.head(url, timeout=URL_VALIDATION_TIMEOUT_HEAD, allow_redirects=True)
-            if 200 <= resp.status_code < 400:
-                result = True
-            else:
-                resp = requests.get(url, stream=True, timeout=URL_VALIDATION_TIMEOUT_HEAD, allow_redirects=True)
-                result = 200 <= resp.status_code < 400
+        Args:
+            url: URL to validate
+            use_cache: If True, use cached results (default: True)
             
-            self._cache_url_result(url, result)
-            return result
-        except Exception:
-            self._cache_url_result(url, False)
-            return False
+        Returns:
+            bool: True if URL is valid, False otherwise
+        """
+        return self.url_validator.validate(url, use_cache=use_cache)
 
     def add_mod_to_config(self, mod: dict) -> None:
         if not self.modlist_data:
