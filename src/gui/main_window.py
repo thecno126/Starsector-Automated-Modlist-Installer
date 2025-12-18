@@ -231,6 +231,48 @@ class ModlistInstaller:
         self.display_modlist_info()
         self.log(f"✓ Moved '{mod_name}' to {target_category} (position {position})", debug=True)
     
+    def _configure_mod_action_buttons(self, mod_action_buttons):
+        """Configure mod action buttons (add, edit, remove, categories).
+        
+        Args:
+            mod_action_buttons: Dictionary of button widgets
+        """
+        if not mod_action_buttons:
+            return
+        
+        mod_action_buttons['add'].config(command=self.open_add_mod_dialog)
+        mod_action_buttons['edit'].config(command=self.edit_selected_mod)
+        mod_action_buttons['remove'].config(command=self.remove_selected_mod)
+        mod_action_buttons['categories'].config(command=self.open_manage_categories_dialog)
+        
+        self.add_btn = mod_action_buttons['add']
+        self.edit_btn = mod_action_buttons['edit']
+        self.remove_btn = mod_action_buttons['remove']
+        self.categories_btn = mod_action_buttons['categories']
+    
+    def _configure_header_buttons(self, header_buttons):
+        """Configure header buttons (import, export, refresh, etc.).
+        
+        Args:
+            header_buttons: Dictionary of button widgets
+        """
+        if not header_buttons:
+            return
+        
+        self.import_btn = header_buttons.get('import')
+        self.export_btn = header_buttons.get('export')
+        self.refresh_btn = header_buttons.get('refresh')
+        self.clear_all_btn = header_buttons.get('clear')
+        self.restore_backup_btn = header_buttons.get('restore')
+        self.edit_metadata_btn = header_buttons.get('edit_metadata')
+        self.up_btn = header_buttons.get('up')
+        self.down_btn = header_buttons.get('down')
+        
+        if self.up_btn:
+            self.up_btn.config(command=self.move_mod_up)
+        if self.down_btn:
+            self.down_btn.config(command=self.move_mod_down)
+    
     def create_ui(self):
         create_header(self.root)
         
@@ -265,30 +307,8 @@ class ModlistInstaller:
         self.selected_mod_line = None
         self.search_filter = ""
         
-        if mod_action_buttons:
-            mod_action_buttons['add'].config(command=self.open_add_mod_dialog)
-            mod_action_buttons['edit'].config(command=self.edit_selected_mod)
-            mod_action_buttons['remove'].config(command=self.remove_selected_mod)
-            mod_action_buttons['categories'].config(command=self.open_manage_categories_dialog)
-            self.add_btn = mod_action_buttons['add']
-            self.edit_btn = mod_action_buttons['edit']
-            self.remove_btn = mod_action_buttons['remove']
-            self.categories_btn = mod_action_buttons['categories']
-        
-        if header_buttons:
-            self.import_btn = header_buttons.get('import')
-            self.export_btn = header_buttons.get('export')
-            self.refresh_btn = header_buttons.get('refresh')
-            self.clear_all_btn = header_buttons.get('clear')
-            self.restore_backup_btn = header_buttons.get('restore')
-            self.edit_metadata_btn = header_buttons.get('edit_metadata')
-            self.up_btn = header_buttons.get('up')
-            self.down_btn = header_buttons.get('down')
-            
-            if self.up_btn:
-                self.up_btn.config(command=self.move_mod_up)
-            if self.down_btn:
-                self.down_btn.config(command=self.move_mod_down)
+        self._configure_mod_action_buttons(mod_action_buttons)
+        self._configure_header_buttons(header_buttons)
         
         button_frame, self.install_modlist_btn, self.quit_btn = create_bottom_buttons(
             left_frame,
@@ -497,6 +517,49 @@ class ModlistInstaller:
         from .dialogs import open_edit_mod_dialog
         open_edit_mod_dialog(self.root, self, current_mod)
     
+    def _swap_adjacent_mods(self, current_mod, category_mods, pos_in_category, direction):
+        """Swap mod with adjacent mod in same category.
+        
+        Args:
+            current_mod: Mod dictionary
+            category_mods: List of mods in current category
+            pos_in_category: Position of current mod in category
+            direction: 1 for down, -1 for up
+        """
+        mods = self.modlist_data.get('mods', [])
+        adjacent_mod = category_mods[pos_in_category + direction]
+        idx_current = mods.index(current_mod)
+        idx_adjacent = mods.index(adjacent_mod)
+        mods[idx_current], mods[idx_adjacent] = mods[idx_adjacent], mods[idx_current]
+        
+        self.save_modlist_config()
+        self.display_modlist_info()
+        self.selected_mod_line = max(1, self.selected_mod_line + direction)
+        self.highlight_selected_mod()
+    
+    def _move_to_adjacent_category(self, mod_name, current_mod, current_category, direction):
+        """Move mod to adjacent category.
+        
+        Args:
+            mod_name: Name of the mod
+            current_mod: Mod dictionary
+            current_category: Current category name
+            direction: 1 for down, -1 for up
+        """
+        if direction == -1:
+            target_category = self._find_category_above(self.selected_mod_line, current_category)
+        else:
+            target_category = self._find_category_below(self.selected_mod_line)
+            if target_category == current_category:
+                target_category = None
+        
+        if target_category:
+            current_mod['category'] = target_category
+            self.log(f"Moved '{mod_name}' to category '{target_category}'")
+            self.save_modlist_config()
+            self.display_modlist_info()
+            self.find_and_select_mod(mod_name)
+    
     def _move_mod_in_category(self, mod_name, current_mod, direction):
         """Move mod up or down within category or to adjacent category.
         
@@ -514,41 +577,15 @@ class ModlistInstaller:
         except ValueError:
             return
         
-        # Check if we can move within category
         can_move_in_category = (
             (direction == -1 and pos_in_category > 0) or
             (direction == 1 and pos_in_category < len(category_mods) - 1)
         )
         
         if can_move_in_category:
-            # Swap with adjacent mod in same category
-            adjacent_mod = category_mods[pos_in_category + direction]
-            idx_current = mods.index(current_mod)
-            idx_adjacent = mods.index(adjacent_mod)
-            mods[idx_current], mods[idx_adjacent] = mods[idx_adjacent], mods[idx_current]
-            
-            self.save_modlist_config()
-            self.display_modlist_info()
-            self.selected_mod_line = max(1, self.selected_mod_line + direction)
-            self.highlight_selected_mod()
+            self._swap_adjacent_mods(current_mod, category_mods, pos_in_category, direction)
         else:
-            # Move to adjacent category
-            if direction == -1:
-                # Moving up - find category above (excluding current)
-                target_category = self._find_category_above(self.selected_mod_line, current_category)
-            else:
-                # Moving down - find category below (should be different from current)
-                target_category = self._find_category_below(self.selected_mod_line)
-                # Make sure it's different from current category
-                if target_category == current_category:
-                    target_category = None
-            
-            if target_category:
-                current_mod['category'] = target_category
-                self.log(f"Moved '{mod_name}' to category '{target_category}'")
-                self.save_modlist_config()
-                self.display_modlist_info()
-                self.find_and_select_mod(mod_name)
+            self._move_to_adjacent_category(mod_name, current_mod, current_category, direction)
     
     def toggle_expand_categories(self):
         """Toggle expand/collapse all categories (placeholder for future implementation)."""
