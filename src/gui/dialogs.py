@@ -406,13 +406,13 @@ def open_add_mod_dialog(parent, app):
         
         def show_error(message):
             """Show error dialog and re-enable buttons."""
-            custom_dialogs.showerror("Error", message)
+            showerror("Error", message)
             re_enable_buttons()
         
         def on_success(mod):
             """Handle successful mod addition."""
             app.add_mod_to_config(mod)
-            custom_dialogs.showsuccess("Success", f"Mod '{mod['name']}' (v{mod['mod_version']}) has been added")
+            showsuccess("Success", f"Mod '{mod['name']}' (v{mod['mod_version']}) has been added")
             dlg.destroy()
         
         def download_retry_async(retry_url):
