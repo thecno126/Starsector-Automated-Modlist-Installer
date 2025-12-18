@@ -1084,3 +1084,207 @@ def show_google_drive_confirmation_dialog(parent, failed_mods, on_confirm_callba
     
     _center_dialog(dialog, parent)
     dialog.wait_window()
+
+
+def open_restore_backup_dialog(parent, app):
+    """Show dialog to restore a backup.
+    
+    Args:
+        parent: Parent window
+        app: Main application instance
+    """
+    from datetime import datetime
+    from utils.backup_manager import BackupManager
+    
+    starsector_dir = app.starsector_path.get()
+    if not starsector_dir:
+        showerror("Error", "Starsector path not set. Please configure it in settings.", parent)
+        return
+    
+    try:
+        backup_manager = BackupManager(starsector_dir)
+        backups = backup_manager.list_backups()
+        
+        if not backups:
+            showinfo("No Backups", "No backups found. Backups are created automatically before installation.", parent)
+            return
+        
+        # Create dialog
+        dialog = _create_dialog(parent, "Restore Backup", width=500, height=400)
+        
+        tk.Label(dialog, text="Select a backup to restore:", font=("Arial", 12), 
+                bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY).pack(pady=10)
+        
+        # Listbox with scrollbar
+        frame = tk.Frame(dialog, bg=TriOSTheme.SURFACE)
+        frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        scrollbar = tk.Scrollbar(frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        listbox = tk.Listbox(frame, yscrollcommand=scrollbar.set,
+                            bg=TriOSTheme.SURFACE_DARK, fg=TriOSTheme.TEXT_PRIMARY,
+                            selectbackground=TriOSTheme.PRIMARY, selectforeground=TriOSTheme.SURFACE_DARK,
+                            font=("Arial", 10))
+        listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=listbox.yview)
+        
+        # Populate list
+        for backup_path, metadata in backups:
+            timestamp = metadata.get('timestamp', 'Unknown')
+            # Format timestamp
+            try:
+                dt = datetime.strptime(timestamp, "%Y%m%d_%H%M%S")
+                formatted = dt.strftime("%Y-%m-%d %H:%M:%S")
+            except:
+                formatted = timestamp
+            listbox.insert(tk.END, formatted)
+        
+        def on_restore():
+            selection = listbox.curselection()
+            if not selection:
+                showwarning("No Selection", "Please select a backup to restore.", parent)
+                return
+            
+            idx = selection[0]
+            backup_path, metadata = backups[idx]
+            
+            # Confirm restore
+            timestamp = metadata.get('timestamp', 'Unknown')
+            if not askyesno("Confirm Restore", f"Restore backup from {timestamp}?\n\nThis will replace your current enabled_mods.json file.", parent):
+                return
+            
+            # Perform restore
+            success, error = backup_manager.restore_backup(backup_path)
+            if success:
+                app.log(f"✓ Backup restored from {timestamp}")
+                showsuccess("Success", "Backup restored successfully!\n\nYour mod configuration has been restored.", parent)
+                dialog.destroy()
+            else:
+                showerror("Restore Failed", f"Failed to restore backup:\n{error}", parent)
+        
+        def on_delete():
+            selection = listbox.curselection()
+            if not selection:
+                showwarning("No Selection", "Please select a backup to delete.", parent)
+                return
+            
+            idx = selection[0]
+            backup_path, metadata = backups[idx]
+            timestamp = metadata.get('timestamp', 'Unknown')
+            
+            if not askyesno("Confirm Delete", f"Delete backup from {timestamp}?", parent):
+                return
+            
+            success, error = backup_manager.delete_backup(backup_path)
+            if success:
+                app.log(f"✓ Deleted backup: {timestamp}")
+                listbox.delete(idx)
+                backups.pop(idx)
+                if not backups:
+                    showinfo("No Backups", "All backups deleted.", parent)
+                    dialog.destroy()
+            else:
+                showerror("Delete Failed", f"Failed to delete backup:\n{error}", parent)
+        
+        # Buttons
+        btn_frame = tk.Frame(dialog, bg=TriOSTheme.SURFACE)
+        btn_frame.pack(pady=10)
+        
+        restore_btn = _create_button(btn_frame, "Restore", on_restore, button_type="success")
+        restore_btn.pack(side=tk.LEFT, padx=5)
+        
+        delete_btn = _create_button(btn_frame, "Delete", on_delete, button_type="danger")
+        delete_btn.pack(side=tk.LEFT, padx=5)
+        
+        cancel_btn = _create_button(btn_frame, "Cancel", dialog.destroy, button_type="plain")
+        cancel_btn.pack(side=tk.LEFT, padx=5)
+        
+        _center_dialog(dialog, parent)
+        
+    except Exception as e:
+        app.log(f"✗ Error accessing backups: {e}", error=True)
+        showerror("Error", f"Failed to access backups:\n{e}", parent)
+
+
+def open_edit_modlist_metadata_dialog(parent, app):
+    """Open dialog to edit modlist metadata (name, version, description, etc.).
+    
+    Args:
+        parent: Parent window
+        app: Main application instance
+    """
+    if not app.modlist_data:
+        return
+    
+    # Create dialog
+    dialog = _create_dialog(parent, "Edit Modlist Metadata", width=500, height=400)
+    
+    # Title
+    tk.Label(dialog, text="Modlist Metadata", font=("Arial", 14, "bold"),
+            bg=TriOSTheme.SURFACE, fg=TriOSTheme.PRIMARY).pack(pady=(15, 20))
+    
+    # Form frame
+    form_frame = tk.Frame(dialog, bg=TriOSTheme.SURFACE)
+    form_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 15))
+    
+    # Fields
+    fields = [
+        ("Modlist Name:", "modlist_name", app.modlist_data.get("modlist_name", "")),
+        ("Version:", "version", app.modlist_data.get("version", "")),
+        ("Starsector Version:", "starsector_version", app.modlist_data.get("starsector_version", "")),
+        ("Author:", "author", app.modlist_data.get("author", "")),
+    ]
+    
+    entries = {}
+    for i, (label_text, key, value) in enumerate(fields):
+        tk.Label(form_frame, text=label_text, font=("Arial", 10),
+                bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY,
+                anchor=tk.W).grid(row=i, column=0, sticky="w", pady=5)
+        
+        entry = tk.Entry(form_frame, font=("Arial", 10),
+                       bg=TriOSTheme.SURFACE_DARK, fg=TriOSTheme.TEXT_PRIMARY,
+                       insertbackground=TriOSTheme.PRIMARY)
+        entry.insert(0, value)
+        entry.grid(row=i, column=1, sticky="ew", pady=5, padx=(10, 0))
+        entries[key] = entry
+    
+    form_frame.columnconfigure(1, weight=1)
+    
+    # Description field (multi-line)
+    tk.Label(form_frame, text="Description:", font=("Arial", 10),
+            bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY,
+            anchor=tk.W).grid(row=len(fields), column=0, sticky="nw", pady=5)
+    
+    desc_text = tk.Text(form_frame, font=("Arial", 10), height=6,
+                      bg=TriOSTheme.SURFACE_DARK, fg=TriOSTheme.TEXT_PRIMARY,
+                      insertbackground=TriOSTheme.PRIMARY, wrap=tk.WORD)
+    desc_text.insert("1.0", app.modlist_data.get("description", ""))
+    desc_text.grid(row=len(fields), column=1, sticky="ew", pady=5, padx=(10, 0))
+    entries['description'] = desc_text
+    
+    # Buttons
+    button_frame = tk.Frame(dialog, bg=TriOSTheme.SURFACE)
+    button_frame.pack(fill=tk.X, padx=20, pady=(0, 15))
+    
+    def save_metadata():
+        """Save the edited metadata."""
+        app.modlist_data["modlist_name"] = entries["modlist_name"].get().strip()
+        app.modlist_data["version"] = entries["version"].get().strip()
+        app.modlist_data["starsector_version"] = entries["starsector_version"].get().strip()
+        app.modlist_data["author"] = entries["author"].get().strip()
+        app.modlist_data["description"] = desc_text.get("1.0", tk.END).strip()
+        
+        app.save_modlist_config()
+        app.display_modlist_info()
+        app.log("Modlist metadata updated")
+        dialog.destroy()
+        showsuccess("Success", "Modlist metadata has been updated.", parent)
+    
+    save_btn = _create_button(button_frame, "Save", save_metadata, width=12, button_type="success")
+    save_btn.pack(side=tk.LEFT, padx=(0, 5))
+    
+    cancel_btn = _create_button(button_frame, "Cancel", dialog.destroy, width=12, button_type="secondary")
+    cancel_btn.pack(side=tk.LEFT)
+    
+    _center_dialog(dialog, parent)
