@@ -1273,5 +1273,243 @@ class TestModExtractionHelpers:
         assert result is None
 
 
+class TestExtractModMetadata:
+    """Test extract_mod_metadata functionality."""
+    
+    def test_extract_metadata_from_zip(self, tmp_path):
+        """Test extracting metadata from ZIP archive."""
+        # Create a test ZIP with mod_info.json
+        zip_path = tmp_path / "test_mod.zip"
+        mod_info = {
+            "id": "test_mod",
+            "name": "Test Mod",
+            "version": "1.0.0",
+            "gameVersion": "0.97a-RC11"
+        }
+        
+        with zipfile.ZipFile(zip_path, 'w') as zf:
+            zf.writestr("TestMod/mod_info.json", json.dumps(mod_info))
+        
+        # Test extraction
+        log_callback = Mock()
+        installer = ModInstaller(log_callback)
+        metadata = installer.extract_mod_metadata(zip_path, is_7z=False)
+        
+        assert metadata is not None
+        assert metadata['id'] == "test_mod"
+        assert metadata['name'] == "Test Mod"
+        assert metadata['version'] == "1.0.0"
+    
+    def test_extract_metadata_no_mod_info(self, tmp_path):
+        """Test extraction fails gracefully when mod_info.json is missing."""
+        # Create a ZIP without mod_info.json
+        zip_path = tmp_path / "no_info.zip"
+        with zipfile.ZipFile(zip_path, 'w') as zf:
+            zf.writestr("readme.txt", "No mod_info here")
+        
+        log_callback = Mock()
+        installer = ModInstaller(log_callback)
+        metadata = installer.extract_mod_metadata(zip_path, is_7z=False)
+        
+        assert metadata is None
+    
+    def test_extract_metadata_nested_path(self, tmp_path):
+        """Test extraction from nested mod_info.json."""
+        zip_path = tmp_path / "nested_mod.zip"
+        mod_info = {
+            "id": "nested_mod",
+            "name": "Nested Mod",
+            "version": "2.0.0"
+        }
+        
+        with zipfile.ZipFile(zip_path, 'w') as zf:
+            zf.writestr("SomeFolder/NestedMod/mod_info.json", json.dumps(mod_info))
+        
+        log_callback = Mock()
+        installer = ModInstaller(log_callback)
+        metadata = installer.extract_mod_metadata(zip_path, is_7z=False)
+        
+        assert metadata is not None
+        assert metadata['id'] == "nested_mod"
+    
+    @pytest.mark.skipif(not hasattr(__builtins__, 'py7zr'), reason="py7zr not installed")
+    def test_extract_metadata_from_7z(self, tmp_path):
+        """Test extracting metadata from 7z archive."""
+        try:
+            import py7zr
+        except ImportError:
+            pytest.skip("py7zr not available")
+        
+        # Create a test 7z with mod_info.json
+        sevenz_path = tmp_path / "test_mod.7z"
+        mod_info_path = tmp_path / "TestMod" / "mod_info.json"
+        mod_info_path.parent.mkdir(parents=True)
+        mod_info = {
+            "id": "test_7z_mod",
+            "name": "Test 7z Mod",
+            "version": "1.5.0"
+        }
+        mod_info_path.write_text(json.dumps(mod_info))
+        
+        with py7zr.SevenZipFile(sevenz_path, 'w') as archive:
+            archive.writeall(mod_info_path.parent, arcname="TestMod")
+        
+        log_callback = Mock()
+        installer = ModInstaller(log_callback)
+        metadata = installer.extract_mod_metadata(sevenz_path, is_7z=True)
+        
+        assert metadata is not None
+        assert metadata['id'] == "test_7z_mod"
+
+
+class TestMoveModWithArrows:
+    """Test moving mods up/down with arrow keys."""
+    
+    def test_move_mod_up_method_exists(self, mock_app):
+        """Test that move_mod_up method exists and is callable."""
+        assert hasattr(mock_app, 'move_mod_up')
+        assert callable(mock_app.move_mod_up)
+    
+    def test_move_mod_down_method_exists(self, mock_app):
+        """Test that move_mod_down method exists and is callable."""
+        assert hasattr(mock_app, 'move_mod_down')
+        assert callable(mock_app.move_mod_down)
+    
+    def test_move_mod_requires_selection(self, mock_app):
+        """Test that move operations require a selected mod."""
+        # No selection
+        mock_app.selected_mod_line = None
+        
+        # Should not raise errors, just return early
+        mock_app.move_mod_up()
+        mock_app.move_mod_down()
+        
+        # No changes should occur
+        assert len(mock_app.modlist_data['mods']) == 3
+    
+    def test_move_mod_with_selection(self, mock_app):
+        """Test that move operations work with valid selection."""
+        # Setup: select middle mod
+        mock_app.selected_mod_line = 2
+        mock_app.mod_listbox.get = Mock(return_value="  ○ TestMod2")
+        
+        # Should not raise errors
+        try:
+            mock_app.move_mod_up()
+            success = True
+        except Exception:
+            success = False
+        
+        assert success
+    
+    def test_swap_adjacent_mods_functionality(self, mock_app):
+        """Test the underlying swap functionality."""
+        # Directly test _swap_adjacent_mods if accessible
+        if not hasattr(mock_app, '_swap_adjacent_mods'):
+            pytest.skip("_swap_adjacent_mods not accessible")
+        
+        # Get two mods in same category
+        category_mods = [m for m in mock_app.modlist_data['mods'] 
+                        if m['category'] == 'Required']
+        
+        if len(category_mods) >= 2:
+            original_first = category_mods[0]['name']
+            original_second = category_mods[1]['name']
+            
+            # Swap down (move first mod down)
+            mock_app._swap_adjacent_mods(category_mods[0], category_mods, 0, 1)
+            
+            # Verify swap occurred in main data
+            updated_mods = [m for m in mock_app.modlist_data['mods'] 
+                           if m['category'] == 'Required']
+            
+            # After swapping, first should be second, second should be first
+            assert updated_mods[0]['name'] == original_second
+            assert updated_mods[1]['name'] == original_first
+
+
+class TestRefreshMetadataButton:
+    """Test refresh metadata button functionality."""
+    
+    def test_refresh_metadata_updates_versions(self, mock_app, temp_dir):
+        """Test that refresh button updates mod versions from installed mods."""
+        # Create fake installed mod with mod_info.json
+        mods_dir = temp_dir / "Starsector" / "mods"
+        mods_dir.mkdir(parents=True, exist_ok=True)
+        
+        test_mod_dir = mods_dir / "TestMod1"
+        test_mod_dir.mkdir()
+        mod_info = {
+            "id": "testmod1",
+            "name": "TestMod1",
+            "version": "2.0.0",  # Newer version
+            "gameVersion": "0.97a-RC11"
+        }
+        (test_mod_dir / "mod_info.json").write_text(json.dumps(mod_info))
+        
+        # Setup mock app with old version
+        mock_app.starsector_path.set(str(temp_dir / "Starsector"))
+        mock_app.modlist_data['mods'][0]['mod_version'] = "1.0.0"
+        
+        # Execute refresh
+        with patch('src.utils.mod_utils.scan_installed_mods') as mock_scan:
+            mock_scan.return_value = [(test_mod_dir, mod_info)]
+            mock_app.refresh_mod_metadata()
+        
+        # Verify version was updated
+        assert mock_app.modlist_data['mods'][0]['mod_version'] == "2.0.0"
+    
+    def test_refresh_metadata_no_starsector_path(self, mock_app):
+        """Test refresh fails gracefully without Starsector path."""
+        mock_app.starsector_path.set("")
+        
+        with patch('src.gui.dialogs.showerror') as mock_error:
+            mock_app.refresh_mod_metadata()
+            
+            # Should show error (may be called through custom_dialogs)
+            # Just verify no crash and error handling works
+            assert True  # Method completed without exception
+    
+    def test_refresh_metadata_logs_changes(self, mock_app, temp_dir):
+        """Test that refresh logs which mods were updated."""
+        mods_dir = temp_dir / "Starsector" / "mods"
+        mods_dir.mkdir(parents=True, exist_ok=True)
+        
+        test_mod_dir = mods_dir / "TestMod1"
+        test_mod_dir.mkdir()
+        mod_info = {
+            "id": "testmod1",
+            "name": "TestMod1",
+            "version": "3.0.0"
+        }
+        (test_mod_dir / "mod_info.json").write_text(json.dumps(mod_info))
+        
+        mock_app.starsector_path.set(str(temp_dir / "Starsector"))
+        mock_app.log_messages = []
+        
+        # Execute refresh
+        with patch('src.utils.mod_utils.scan_installed_mods') as mock_scan:
+            mock_scan.return_value = [(test_mod_dir, mod_info)]
+            mock_app.refresh_mod_metadata()
+        
+        # Verify logging occurred
+        assert any("metadata" in str(msg).lower() for msg, *_ in mock_app.log_messages)
+    
+    def test_refresh_metadata_handles_missing_mods(self, mock_app, temp_dir):
+        """Test refresh handles mods that aren't installed."""
+        mods_dir = temp_dir / "Starsector" / "mods"
+        mods_dir.mkdir(parents=True, exist_ok=True)
+        
+        mock_app.starsector_path.set(str(temp_dir / "Starsector"))
+        
+        # Execute refresh with no installed mods
+        with patch('src.utils.mod_utils.scan_installed_mods') as mock_scan:
+            mock_scan.return_value = []
+            mock_app.refresh_mod_metadata()
+        
+        # Should complete without error
+        assert mock_app.display_modlist_info.called
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

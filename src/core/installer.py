@@ -4,7 +4,7 @@ import tempfile
 import os
 import json
 from pathlib import Path
-from typing import Optional, Tuple, List, Dict, Any
+from typing import Optional, Tuple, List, Dict, Any, Union
 
 try:
     import py7zr
@@ -173,6 +173,20 @@ class ModInstaller:
     
     def extract_archive(self, temp_file: str, mods_dir: Path, is_7z: bool, expected_mod_version: Optional[str] = None):
         return self.extractor.extract_archive(temp_file, mods_dir, is_7z, expected_mod_version)
+
+    def extract_mod_metadata(self, archive_path: Union[str, Path], is_7z: bool = False) -> Optional[Dict[str, Any]]:
+        """Extract metadata from mod_info.json in archive without full extraction.
+        
+        Args:
+            archive_path: Path to archive file (str or Path object)
+            is_7z: Whether archive is 7z format
+            
+        Returns:
+            Dict with metadata or None if extraction fails
+        """
+        if isinstance(archive_path, str):
+            archive_path = Path(archive_path)
+        return read_mod_info_from_archive(archive_path, is_7z)
 
     def update_enabled_mods(self, mods_dir: Path, installed_mod_names: List[str], merge: bool = True) -> bool:
         try:

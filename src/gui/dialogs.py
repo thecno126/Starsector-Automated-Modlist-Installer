@@ -393,109 +393,138 @@ def open_add_mod_dialog(parent, app):
         status_var.set("⬇ Downloading and extracting metadata...")
         dlg.update()
 
-        try:
-            import tempfile
-            from pathlib import Path
-            
-            # Download the archive
-            status_var.set("⬇ Downloading archive...")
+        # Helper functions for Tkinter-safe callbacks
+        def re_enable_buttons():
+            """Re-enable buttons in case of error or cancellation."""
+            add_button.config(state=tk.NORMAL)
+            cancel_button.config(state=tk.NORMAL)
+            status_var.set("")
+        
+        def show_error(message):
+            """Show error dialog and re-enable buttons."""
+            custom_dialogs.showerror("Error", message)
+            re_enable_buttons()
+        
+        def on_success(mod):
+            """Handle successful mod addition."""
+            app.add_mod_to_config(mod)
+            custom_dialogs.showsuccess("Success", f"Mod '{mod['name']}' (v{mod['mod_version']}) has been added")
+            dlg.destroy()
+        
+        def download_retry_async(retry_url):
+            """Retry download with fixed Google Drive URL."""
+            status_var.set("⬇ Retrying download with fixed URL...")
             dlg.update()
-            temp_file, is_7z = app.mod_installer.download_archive({'download_url': url, 'name': 'temp'})
             
-            # Handle Google Drive HTML response (virus scan warning)
-            if temp_file == 'GDRIVE_HTML':
-                status_var.set("")
-                # Show confirmation dialog
-                result = custom_dialogs.askyesno(
-                    "Google Drive Confirmation Required",
-                    "This file is too large for Google's virus scan.\n\n"
-                    "Google Drive requires manual confirmation to download large files.\n"
-                    "The download URL will be automatically fixed to bypass this warning.\n\n"
-                    "Do you want to continue?"
-                )
-                
-                if result:
-                    # Fix the URL to bypass virus scan and retry
-                    fixed_url = fix_google_drive_url(url)
-                    status_var.set("⬇ Retrying download with fixed URL...")
-                    dlg.update()
+            def retry_download():
+                try:
                     temp_file, is_7z = app.mod_installer.download_archive(
-                        {'download_url': fixed_url, 'name': 'temp'}, 
+                        {'download_url': retry_url, 'name': 'temp'}, 
                         skip_gdrive_check=True
                     )
                     
                     if not temp_file or temp_file == 'GDRIVE_HTML':
-                        custom_dialogs.showerror("Error", "Failed to download archive even with fixed URL")
-                        add_button.config(state=tk.NORMAL)
-                        cancel_button.config(state=tk.NORMAL)
-                        status_var.set("")
+                        dlg.after(0, lambda: show_error("Failed to download archive even with fixed URL"))
                         return
                     
-                    # Update the URL to use the fixed one
-                    url = fixed_url
-                else:
-                    add_button.config(state=tk.NORMAL)
-                    cancel_button.config(state=tk.NORMAL)
-                    status_var.set("")
-                    return
+                    # Continue with metadata extraction
+                    dlg.after(0, lambda: process_metadata(temp_file, is_7z, retry_url))
+                    
+                except Exception as e:
+                    dlg.after(0, lambda: show_error(f"Failed to process mod: {e}"))
             
-            if not temp_file:
-                custom_dialogs.showerror("Error", "Failed to download archive from URL")
-                add_button.config(state=tk.NORMAL)
-                cancel_button.config(state=tk.NORMAL)
-                status_var.set("")
-                return
+            thread = threading.Thread(target=retry_download, daemon=True)
+            thread.start()
+        
+        def process_metadata(temp_file, is_7z, final_url):
+            """Process metadata extraction (must be called from main thread via after)."""
+            import tempfile
+            from pathlib import Path
             
-            try:
-                # Extract metadata
-                status_var.set("📦 Extracting metadata...")
-                dlg.update()
-                metadata = app.mod_installer.extract_mod_metadata(temp_file, is_7z)
-                
-                if not metadata or not metadata.get('id'):
-                    custom_dialogs.showerror("Error", "Could not extract mod metadata (mod_info.json not found or missing 'id' field)")
-                    add_button.config(state=tk.NORMAL)
-                    cancel_button.config(state=tk.NORMAL)
-                    status_var.set("")
-                    return
-                
-                # Build mod object with extracted metadata
-                mod = {
-                    "mod_id": metadata.get('id'),
-                    "name": metadata.get('name', metadata.get('id')),
-                    "download_url": url,
-                    "mod_version": metadata.get('version', ''),
-                    "game_version": metadata.get('gameVersion', ''),
-                    "category": category_var.get().strip() or "Uncategorized"
-                }
-                
-                # Check if mod already exists (by mod_id)
-                existing_mods = app.modlist_data.get('mods', [])
-                for existing_mod in existing_mods:
-                    if existing_mod.get('mod_id') == mod['mod_id']:
-                        custom_dialogs.showerror("Error", f"Mod '{mod['name']}' (ID: {mod['mod_id']}) already exists in modlist")
-                        add_button.config(state=tk.NORMAL)
-                        cancel_button.config(state=tk.NORMAL)
-                        status_var.set("")
-                        return
-                
-                app.add_mod_to_config(mod)
-                custom_dialogs.showsuccess("Success", f"Mod '{mod['name']}' (v{mod['mod_version']}) has been added")
-                dlg.destroy()
-                
-            finally:
-                # Cleanup temp file
+            def extract_metadata():
                 try:
-                    if temp_file and Path(temp_file).exists():
-                        Path(temp_file).unlink()
-                except Exception:
-                    pass
+                    # Extract metadata
+                    metadata = app.mod_installer.extract_mod_metadata(temp_file, is_7z)
                     
-        except Exception as e:
-            custom_dialogs.showerror("Error", f"Failed to process mod: {e}")
-            add_button.config(state=tk.NORMAL)
-            cancel_button.config(state=tk.NORMAL)
-            status_var.set("")
+                    if not metadata or not metadata.get('id'):
+                        dlg.after(0, lambda: show_error("Could not extract mod metadata (mod_info.json not found or missing 'id' field)"))
+                        return
+                    
+                    # Build mod object with extracted metadata
+                    mod = {
+                        "mod_id": metadata.get('id'),
+                        "name": metadata.get('name', metadata.get('id')),
+                        "download_url": final_url,
+                        "mod_version": metadata.get('version', ''),
+                        "game_version": metadata.get('gameVersion', ''),
+                        "category": category_var.get().strip() or "Uncategorized"
+                    }
+                    
+                    # Check if mod already exists (by mod_id)
+                    existing_mods = app.modlist_data.get('mods', [])
+                    for existing_mod in existing_mods:
+                        if existing_mod.get('mod_id') == mod['mod_id']:
+                            dlg.after(0, lambda: show_error(f"Mod '{mod['name']}' (ID: {mod['mod_id']}) already exists in modlist"))
+                            return
+                    
+                    # Success callback
+                    dlg.after(0, lambda: on_success(mod))
+                    
+                finally:
+                    # Cleanup temp file
+                    try:
+                        if temp_file and Path(temp_file).exists():
+                            Path(temp_file).unlink()
+                    except Exception:
+                        pass
+            
+            thread = threading.Thread(target=extract_metadata, daemon=True)
+            thread.start()
+        
+        def download_and_extract_async():
+            """Download and extract metadata in background thread."""
+            try:
+                import tempfile
+                from pathlib import Path
+                
+                # Download the archive
+                temp_file, is_7z = app.mod_installer.download_archive({'download_url': url, 'name': 'temp'})
+                
+                # Handle Google Drive HTML response (virus scan warning)
+                if temp_file == 'GDRIVE_HTML':
+                    def show_gdrive_dialog():
+                        status_var.set("")
+                        result = custom_dialogs.askyesno(
+                            "Google Drive Confirmation Required",
+                            "This file is too large for Google's virus scan.\n\n"
+                            "Google Drive requires manual confirmation to download large files.\n"
+                            "The download URL will be automatically fixed to bypass this warning.\n\n"
+                            "Do you want to continue?"
+                        )
+                        
+                        if result:
+                            # Fix the URL to bypass virus scan and retry
+                            fixed_url = fix_google_drive_url(url)
+                            download_retry_async(fixed_url)
+                        else:
+                            re_enable_buttons()
+                    
+                    dlg.after(0, show_gdrive_dialog)
+                    return
+                
+                if not temp_file:
+                    dlg.after(0, lambda: show_error("Failed to download archive from URL"))
+                    return
+                
+                # Continue with metadata extraction
+                dlg.after(0, lambda: process_metadata(temp_file, is_7z, url))
+                    
+            except Exception as e:
+                dlg.after(0, lambda: show_error(f"Failed to process mod: {e}"))
+        
+        # Launch async download in background thread
+        thread = threading.Thread(target=download_and_extract_async, daemon=True)
+        thread.start()
 
     btn_frame = tk.Frame(dlg, bg=TriOSTheme.SURFACE)
     btn_frame.grid(row=3, column=0, columnspan=2, pady=12)

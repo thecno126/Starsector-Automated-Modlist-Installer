@@ -129,6 +129,14 @@
       "game_version": "0.95a-RC15",
       "category": "Bonuses",
       "dependencies": []
+    },
+    {
+      "mod_id": "timid_xiv",
+      "name": "Iron Shell",
+      "download_url": "https://github.com/TechpriestEnginseer/solid-winner4/releases/download/1.1813aj/Iron.Shell.zip",
+      "mod_version": "1.18.3aj",
+      "game_version": "0.97a-RC10",
+      "category": "Factions"
     }
   ],
   "author": "thecno-126",

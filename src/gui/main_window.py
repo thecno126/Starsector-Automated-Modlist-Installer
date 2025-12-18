@@ -570,7 +570,13 @@ class ModlistInstaller:
             self._move_to_adjacent_category(mod_name, current_mod, current_category, direction)
     
     def toggle_expand_categories(self):
-        """Toggle expand/collapse all categories (placeholder for future implementation)."""
+        """Toggle expand/collapse all categories.
+        
+        TODO: Not implemented yet. Requires:
+        - UI button binding
+        - State tracking for expanded/collapsed categories
+        - Display logic update in display_modlist_info()
+        """
         self.log("Category expand/collapse not yet implemented", debug=True)
     
     def move_mod_up(self):
