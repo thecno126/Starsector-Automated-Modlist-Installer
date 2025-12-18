@@ -815,6 +815,62 @@ class ModlistInstaller:
         
         return None
     
+    def _format_log_entry(self, message, error=False, info=False, warning=False, debug=False, success=False):
+        """Format log entry with timestamp and level prefix.
+        
+        Args:
+            message: Message to log
+            error, info, warning, debug, success: Log level flags
+            
+        Returns:
+            tuple: (formatted_entry: str, tag: str)
+        """
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        if error:
+            prefix, tag = 'ERROR: ', 'error'
+        elif warning:
+            prefix, tag = 'WARN: ', 'warning'
+        elif info:
+            prefix, tag = 'INFO: ', 'info'
+        elif debug:
+            prefix, tag = 'DEBUG: ', 'debug'
+        elif success:
+            prefix, tag = '', 'success'
+        else:
+            prefix, tag = '', 'normal'
+        
+        log_entry = f"[{timestamp}] {prefix}{message}\n"
+        return (log_entry, tag)
+    
+    def _write_log_to_file(self, log_entry):
+        """Write log entry to file.
+        
+        Args:
+            log_entry: Formatted log entry string
+        """
+        try:
+            with open(LOG_FILE, 'a', encoding='utf-8') as f:
+                f.write(log_entry)
+        except Exception:
+            pass
+    
+    def _configure_log_tag(self, tag):
+        """Configure Tkinter tag color for log level.
+        
+        Args:
+            tag: Tag name (error, warning, info, debug, success, normal)
+        """
+        tag_colors = {
+            'error': TriOSTheme.LOG_ERROR,
+            'warning': TriOSTheme.LOG_WARNING,
+            'success': TriOSTheme.LOG_SUCCESS,
+            'info': TriOSTheme.LOG_INFO,
+            'debug': TriOSTheme.LOG_DEBUG
+        }
+        if tag in tag_colors:
+            self.log_text.tag_config(tag, foreground=tag_colors[tag])
+    
     def log(self, message, error=False, info=False, warning=False, debug=False, success=False):
         """Append a message to the log with different severity levels.
         
@@ -826,61 +882,18 @@ class ModlistInstaller:
             debug: If True, display in gray (for debug messages)
             success: If True, display in green (for success messages)
         """
-        # Filter debug messages if log level is not DEBUG
         if debug and self.log_level != 'DEBUG':
             return
         
         if threading.current_thread() is not threading.main_thread():
             self.root.after(0, lambda: self.log(message, error=error, info=info, warning=warning, debug=debug, success=success))
             return
-
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        # Determine prefix and log level
-        if error:
-            prefix = 'ERROR: '
-            level = 'ERROR'
-        elif warning:
-            prefix = 'WARN: '
-            level = 'WARN'
-        elif info:
-            prefix = 'INFO: '
-            level = 'INFO'
-        elif debug:
-            prefix = 'DEBUG: '
-            level = 'DEBUG'
-        else:
-            prefix = ''
-            level = 'INFO'
+        log_entry, tag = self._format_log_entry(message, error=error, info=info, warning=warning, debug=debug, success=success)
+        self._write_log_to_file(log_entry)
         
-        log_entry = f"[{timestamp}] {prefix}{message}\n"
-        try:
-            with open(LOG_FILE, 'a', encoding='utf-8') as f:
-                f.write(log_entry)
-        except Exception:
-            pass
-
         self.log_text.config(state=tk.NORMAL)
-        
-        # Configure tag colors for different log levels (TriOS theme)
-        if error:
-            tag = "error"
-            self.log_text.tag_config("error", foreground=TriOSTheme.LOG_ERROR)
-        elif warning:
-            tag = "warning"
-            self.log_text.tag_config("warning", foreground=TriOSTheme.LOG_WARNING)
-        elif success:
-            tag = "success"
-            self.log_text.tag_config("success", foreground=TriOSTheme.LOG_SUCCESS)
-        elif info:
-            tag = "info"
-            self.log_text.tag_config("info", foreground=TriOSTheme.LOG_INFO)
-        elif debug:
-            tag = "debug"
-            self.log_text.tag_config("debug", foreground=TriOSTheme.LOG_DEBUG)
-        else:
-            tag = "normal"
-        
+        self._configure_log_tag(tag)
         self.log_text.insert(tk.END, f"{message}\n", tag)
         self.log_text.see(tk.END)
         self.log_text.config(state=tk.DISABLED)
