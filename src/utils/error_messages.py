@@ -1,20 +1,5 @@
-"""
-User-friendly error messages for common installation issues.
-Translates technical errors into actionable advice.
-"""
-
-
 def get_user_friendly_error(error_type, error_details=""):
-    """
-    Convert technical error into user-friendly message with actionable steps.
-    
-    Args:
-        error_type: Type of error (e.g., 'network', 'disk_space', 'permission')
-        error_details: Optional technical details
-        
-    Returns:
-        str: User-friendly error message with suggested actions
-    """
+    """Convert error type to user-friendly message with actionable steps."""
     messages = {
         'network_timeout': (
             "❌ Connection timeout\n\n"
@@ -107,15 +92,6 @@ def get_user_friendly_error(error_type, error_details=""):
 
 
 def suggest_fix_for_error(exception):
-    """
-    Analyze an exception and suggest the most likely fix.
-    
-    Args:
-        exception: Python exception object
-        
-    Returns:
-        str: Error type key for get_user_friendly_error()
-    """
     import requests
     
     # Network errors

@@ -1,9 +1,3 @@
-"""
-Dialog windows for the Modlist Installer application.
-Contains all popup dialogs for adding, editing, importing, and exporting mods.
-Includes custom styled dialog boxes (formerly custom_dialogs.py).
-"""
-
 import tkinter as tk
 from tkinter import ttk, filedialog
 import csv
@@ -14,24 +8,76 @@ from .ui_builder import _create_button
 from utils.theme import TriOSTheme
 
 
-# ============================================================================
-# Custom Styled Dialogs (formerly custom_dialogs.py)
-# ============================================================================
+def _create_dialog(parent, title, width=None, height=None, resizable=False):
+    """Create a centered Toplevel dialog with consistent styling.
+    
+    Args:
+        parent: Parent window
+        title: Dialog title
+        width: Fixed width (if None, auto-size)
+        height: Fixed height (if None, auto-size)
+        resizable: Whether dialog is resizable
+    
+    Returns:
+        tk.Toplevel: Configured dialog
+    """
+    dialog = tk.Toplevel(parent)
+    dialog.title(title)
+    if width and height:
+        dialog.geometry(f"{width}x{height}")
+    dialog.resizable(resizable, resizable)
+    dialog.configure(bg=TriOSTheme.SURFACE)
+    dialog.transient(parent)
+    dialog.grab_set()
+    return dialog
+
+
+def _center_dialog(dialog, parent):
+    """Center dialog on parent window."""
+    try:
+        dialog.update_idletasks()
+        x = parent.winfo_x() + (parent.winfo_width() - dialog.winfo_width()) // 2
+        y = parent.winfo_y() + (parent.winfo_height() - dialog.winfo_height()) // 2
+        dialog.geometry(f"+{x}+{y}")
+    except tk.TclError:
+        pass
+
+
+def _create_form_field(parent, row, label_text, widget_type='entry', width=45, **widget_kwargs):
+    """Create a form field with label and widget.
+    
+    Args:
+        parent: Parent frame
+        row: Grid row number
+        label_text: Label text
+        widget_type: 'entry' or 'combobox'
+        width: Entry/Combobox width
+        **widget_kwargs: Additional widget arguments (textvariable, values, etc.)
+    
+    Returns:
+        tuple: (label, widget)
+    """
+    label = tk.Label(parent, text=label_text, bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY, font=('Arial', 10, 'bold'))
+    label.grid(row=row, column=0, sticky="e", padx=8, pady=6)
+    
+    if widget_type == 'combobox':
+        widget = ttk.Combobox(parent, width=width-3, **widget_kwargs)
+    else:
+        widget_kwargs.setdefault('bg', TriOSTheme.SURFACE_DARK)
+        widget_kwargs.setdefault('fg', TriOSTheme.TEXT_PRIMARY)
+        widget_kwargs.setdefault('insertbackground', TriOSTheme.PRIMARY)
+        widget_kwargs.setdefault('relief', tk.FLAT)
+        widget_kwargs.setdefault('highlightthickness', 1)
+        widget_kwargs.setdefault('highlightbackground', TriOSTheme.BORDER)
+        widget_kwargs.setdefault('highlightcolor', TriOSTheme.PRIMARY)
+        widget = tk.Entry(parent, width=width, **widget_kwargs)
+    
+    widget.grid(row=row, column=1, padx=8, pady=6)
+    return label, widget
+
 
 class StyledDialog:
-    """Base class for custom styled dialogs."""
-    
     def __init__(self, parent, title, message, dialog_type="info", buttons=None):
-        """
-        Create a styled dialog.
-        
-        Args:
-            parent: Parent window
-            title: Dialog title
-            message: Message to display
-            dialog_type: Type of dialog - "info", "success", "error", "warning", "question"
-            buttons: List of (label, value) tuples for buttons
-        """
         self.result = None
         self.dialog = tk.Toplevel(parent)
         self.dialog.transient(parent)
@@ -79,11 +125,7 @@ class StyledDialog:
         self.dialog.bind("<Return>", lambda e: self._on_button_click(buttons[0][1]))
         self.dialog.bind("<Escape>", lambda e: self._on_button_click(False if dialog_type == "question" else True))
         
-        # Center on parent
-        self.dialog.update_idletasks()
-        x = parent.winfo_x() + (parent.winfo_width() - self.dialog.winfo_width()) // 2
-        y = parent.winfo_y() + (parent.winfo_height() - self.dialog.winfo_height()) // 2
-        self.dialog.geometry(f"+{x}+{y}")
+        _center_dialog(self.dialog, parent)
         
     def _on_button_click(self, value):
         """Handle button click."""
@@ -145,32 +187,13 @@ def ask_version_action(title, message, parent=None):
 
 
 def show_validation_report(parent, github_mods, gdrive_mods, other_domains, failed_list):
-    """
-    Show URL validation report dialog with domain breakdown.
-    
-    Args:
-        parent: Parent window
-        github_mods: List of GitHub mods
-        gdrive_mods: List of Google Drive mods
-        other_domains: Dict of {domain: [mod, ...]}
-        failed_list: List of {'mod': mod, 'status': code, 'error': str}
-        
-    Returns:
-        str: 'continue' to proceed, 'cancel' to abort
-    """
     result = {'action': 'cancel'}
     
-    dialog = tk.Toplevel(parent)
-    dialog.transient(parent)
-    dialog.grab_set()
-    dialog.resizable(False, False)
-    dialog.configure(bg=TriOSTheme.SURFACE)
+    dialog = _create_dialog(parent, "Download Sources Analysis")
     
-    # Main frame
     main_frame = tk.Frame(dialog, bg=TriOSTheme.SURFACE)
     main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
     
-    # Title
     tk.Label(main_frame, text="Download Sources Analysis", 
              font=("Arial", 14, "bold"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY).pack(pady=(0, 15))
     
@@ -303,12 +326,7 @@ def show_validation_report(parent, github_mods, gdrive_mods, other_domains, fail
     dialog.bind("<Escape>", lambda e: on_cancel())
     dialog.bind("<Return>", lambda e: on_continue() if len(github_mods) > 0 or len(gdrive_mods) > 0 or other_domains else None)
     
-    # Center on parent
-    dialog.update_idletasks()
-    x = parent.winfo_x() + (parent.winfo_width() - dialog.winfo_width()) // 2
-    y = parent.winfo_y() + (parent.winfo_height() - dialog.winfo_height()) // 2
-    dialog.geometry(f"+{x}+{y}")
-    
+    _center_dialog(dialog, parent)
     dialog.wait_window()
     return result['action']
 
@@ -348,29 +366,18 @@ def fix_google_drive_url(url):
 
 
 def open_add_mod_dialog(parent, app):
-    """Open a modal dialog to add a mod via the UI - downloads and extracts metadata automatically."""
-    dlg = tk.Toplevel(parent)
-    dlg.title("Add Mod")
-    dlg.geometry("550x180")
-    dlg.resizable(False, False)
-    dlg.configure(bg=TriOSTheme.SURFACE)
+    dlg = _create_dialog(parent, "Add Mod", 550, 180)
 
     url_var = tk.StringVar()
     category_var = tk.StringVar(value="Uncategorized")
     status_var = tk.StringVar(value="")
 
-    tk.Label(dlg, text="Download URL:", bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY).grid(row=0, column=0, sticky="e", padx=8, pady=(12, 6))
-    url_entry = tk.Entry(dlg, textvariable=url_var, width=45, bg=TriOSTheme.SURFACE_DARK, fg=TriOSTheme.TEXT_PRIMARY, 
-            insertbackground=TriOSTheme.PRIMARY, relief=tk.FLAT, highlightthickness=1, 
-            highlightbackground=TriOSTheme.BORDER, highlightcolor=TriOSTheme.PRIMARY)
-    url_entry.grid(row=0, column=1, padx=8, pady=(12, 6))
+    _, url_entry = _create_form_field(dlg, 0, "Download URL:", textvariable=url_var)
     url_entry.focus()
+    
+    _, category_combo = _create_form_field(dlg, 1, "Category:", widget_type='combobox', 
+                                           textvariable=category_var, values=app.categories, state='readonly')
 
-    tk.Label(dlg, text="Category:", bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY).grid(row=1, column=0, sticky="e", padx=8, pady=6)
-    category_combo = ttk.Combobox(dlg, textvariable=category_var, width=42, values=app.categories, state='readonly')
-    category_combo.grid(row=1, column=1, padx=8, pady=6)
-
-    # Status label
     status_label = tk.Label(dlg, textvariable=status_var, bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_SECONDARY, wraplength=500)
     status_label.grid(row=2, column=0, columnspan=2, padx=8, pady=6)
 
@@ -493,7 +500,6 @@ def open_add_mod_dialog(parent, app):
     btn_frame = tk.Frame(dlg, bg=TriOSTheme.SURFACE)
     btn_frame.grid(row=3, column=0, columnspan=2, pady=12)
     
-    # Centrer les boutons
     btn_container = tk.Frame(btn_frame, bg=TriOSTheme.SURFACE)
     btn_container.pack(expand=True)
     
@@ -505,14 +511,8 @@ def open_add_mod_dialog(parent, app):
 
 
 def open_edit_mod_dialog(parent, app, current_mod):
-    """Open a modal dialog to view mod info and update name, download URL and category."""
-    dlg = tk.Toplevel(parent)
-    dlg.title(f"Mod Info: {current_mod.get('name', 'Unknown')}")
-    dlg.geometry("550x320")
-    dlg.resizable(False, False)
-    dlg.configure(bg=TriOSTheme.SURFACE)
+    dlg = _create_dialog(parent, f"Mod Info: {current_mod.get('name', 'Unknown')}", 550, 320)
 
-    # Get mod info
     mod_id_value = current_mod.get('mod_id', 'N/A')
     mod_name_value = current_mod.get('name', 'Unknown')
     mod_version_value = current_mod.get('mod_version', 'N/A')
@@ -524,19 +524,13 @@ def open_edit_mod_dialog(parent, app, current_mod):
     url_var = tk.StringVar(value=url_value)
     category_var = tk.StringVar(value=category_value)
 
-    # Readonly fields (labels with values)
     row = 0
     
     tk.Label(dlg, text="Mod ID:", bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY, font=('Arial', 10, 'bold')).grid(row=row, column=0, sticky="e", padx=8, pady=(12, 6))
     tk.Label(dlg, text=mod_id_value, bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_SECONDARY, anchor='w').grid(row=row, column=1, sticky="w", padx=8, pady=(12, 6))
     row += 1
     
-    # Editable Name field (display only, mod_id is the real key)
-    tk.Label(dlg, text="Display Name:", bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY, font=('Arial', 10, 'bold')).grid(row=row, column=0, sticky="e", padx=8, pady=6)
-    name_entry = tk.Entry(dlg, textvariable=name_var, width=45, bg=TriOSTheme.SURFACE_DARK, fg=TriOSTheme.TEXT_PRIMARY, 
-            insertbackground=TriOSTheme.PRIMARY, relief=tk.FLAT, highlightthickness=1, 
-            highlightbackground=TriOSTheme.BORDER, highlightcolor=TriOSTheme.PRIMARY)
-    name_entry.grid(row=row, column=1, padx=8, pady=6)
+    _, name_entry = _create_form_field(dlg, row, "Display Name:", textvariable=name_var)
     row += 1
     
     tk.Label(dlg, text="Mod Version:", bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY, font=('Arial', 10, 'bold')).grid(row=row, column=0, sticky="e", padx=8, pady=6)
@@ -547,18 +541,11 @@ def open_edit_mod_dialog(parent, app, current_mod):
     tk.Label(dlg, text=game_version_value, bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_SECONDARY, anchor='w').grid(row=row, column=1, sticky="w", padx=8, pady=6)
     row += 1
     
-    # Editable Category field
-    tk.Label(dlg, text="Category:", bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY, font=('Arial', 10, 'bold')).grid(row=row, column=0, sticky="e", padx=8, pady=6)
-    category_combo = ttk.Combobox(dlg, textvariable=category_var, width=42, values=app.categories, state='readonly')
-    category_combo.grid(row=row, column=1, sticky="w", padx=8, pady=6)
+    _, category_combo = _create_form_field(dlg, row, "Category:", widget_type='combobox',
+                                           textvariable=category_var, values=app.categories, state='readonly')
     row += 1
     
-    # Editable URL field
-    tk.Label(dlg, text="Download URL:", bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY, font=('Arial', 10, 'bold')).grid(row=row, column=0, sticky="e", padx=8, pady=6)
-    url_entry = tk.Entry(dlg, textvariable=url_var, width=45, bg=TriOSTheme.SURFACE_DARK, fg=TriOSTheme.TEXT_PRIMARY, 
-            insertbackground=TriOSTheme.PRIMARY, relief=tk.FLAT, highlightthickness=1, 
-            highlightbackground=TriOSTheme.BORDER, highlightcolor=TriOSTheme.PRIMARY)
-    url_entry.grid(row=row, column=1, padx=8, pady=6)
+    _, url_entry = _create_form_field(dlg, row, "Download URL:", textvariable=url_var)
     row += 1
 
     def submit():
@@ -595,28 +582,20 @@ def open_edit_mod_dialog(parent, app, current_mod):
     btn_frame = tk.Frame(dlg, bg=TriOSTheme.SURFACE)
     btn_frame.grid(row=row, column=0, columnspan=2, pady=12)
     
-    # Centrer les boutons
     btn_container = tk.Frame(btn_frame, bg=TriOSTheme.SURFACE)
     btn_container.pack(expand=True)
     
     _create_button(btn_container, "Save Changes", submit, width=14, button_type="success").pack(side=tk.LEFT, padx=6)
-    
     _create_button(btn_container, "Close", dlg.destroy, width=12, button_type="secondary").pack(side=tk.LEFT, padx=6)
 
 
 def open_manage_categories_dialog(parent, app):
-    """Open dialog to manage categories."""
-    dlg = tk.Toplevel(parent)
-    dlg.title("Manage Categories")
-    dlg.geometry("500x450")
-    dlg.resizable(True, True)
+    dlg = _create_dialog(parent, "Manage Categories", 500, 450, resizable=True)
     dlg.minsize(400, 350)
-    dlg.configure(bg=TriOSTheme.SURFACE)
     
     tk.Label(dlg, text="Categories (in display order):", font=("Arial", 12, "bold"),
             bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY).pack(pady=(10, 5))
     
-    # Frame for listbox and move buttons
     main_frame = tk.Frame(dlg, bg=TriOSTheme.SURFACE)
     main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=5)
     
@@ -639,7 +618,6 @@ def open_manage_categories_dialog(parent, app):
     move_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=(10, 0))
     
     def refresh_category_listbox(selected_idx=None):
-        """Refresh category listbox and optionally select an item."""
         cat_listbox.delete(0, tk.END)
         for cat in app.categories:
             cat_listbox.insert(tk.END, cat)
@@ -670,10 +648,8 @@ def open_manage_categories_dialog(parent, app):
     down_btn = _create_button(move_frame, "↓", move_down, width=3, font_size=14, button_type="secondary")
     down_btn.pack(pady=(5, 0))
         
-    # Populate categories
     refresh_category_listbox()
     
-    # Buttons frame
     btn_frame = tk.Frame(dlg, bg=TriOSTheme.SURFACE)
     btn_frame.pack(fill=tk.X, padx=20, pady=10)
     
@@ -751,7 +727,6 @@ def open_manage_categories_dialog(parent, app):
         app.display_modlist_info()
         app.log(f"Deleted category: {cat_name}")
     
-    # Centrer tous les boutons
     center_frame = tk.Frame(btn_frame, bg=TriOSTheme.SURFACE)
     center_frame.pack(expand=True)
     
@@ -1042,26 +1017,11 @@ def _set_UI_enabled(app, enabled: bool):
 
 
 def show_google_drive_confirmation_dialog(parent, failed_mods, on_confirm_callback, on_cancel_callback):
-    """Show a confirmation dialog for Google Drive mods that need virus scan bypass.
+    dialog = _create_dialog(parent, "Google Drive Confirmation Required")
     
-    Args:
-        parent: Parent window
-        failed_mods: List of mod dictionaries that failed Google Drive download
-        on_confirm_callback: Callback function when user confirms (receives list of fixed mods)
-        on_cancel_callback: Callback function when user cancels
-    """
-    dialog = tk.Toplevel(parent)
-    dialog.title("Google Drive Confirmation Required")
-    dialog.transient(parent)
-    dialog.grab_set()
-    dialog.resizable(False, False)
-    dialog.configure(bg=TriOSTheme.SURFACE)
-    
-    # Main frame
     main_frame = tk.Frame(dialog, bg=TriOSTheme.SURFACE)
     main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
     
-    # Failed Google Drive mods section
     gdrive_frame = tk.Frame(main_frame, bg=TriOSTheme.SURFACE)
     gdrive_frame.pack(fill=tk.X, pady=(0, 10))
     
@@ -1122,14 +1082,5 @@ def show_google_drive_confirmation_dialog(parent, failed_mods, on_confirm_callba
     # Keyboard bindings
     dialog.bind("<Escape>", lambda e: on_cancel())
     
-    # Center dialog on screen (with protection against widget destruction)
-    try:
-        dialog.update_idletasks()
-        x = parent.winfo_x() + (parent.winfo_width() - dialog.winfo_width()) // 2
-        y = parent.winfo_y() + (parent.winfo_height() - dialog.winfo_height()) // 2
-        dialog.geometry(f"+{x}+{y}")
-    except tk.TclError:
-        # Dialog may be destroyed, use default position
-        pass
-    
+    _center_dialog(dialog, parent)
     dialog.wait_window()

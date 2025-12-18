@@ -1,8 +1,3 @@
-"""
-Backup manager for Starsector mod installations.
-Handles backup and restore of enabled_mods.json and mod folders.
-"""
-
 import json
 import shutil
 from pathlib import Path
@@ -10,27 +5,14 @@ from datetime import datetime
 
 
 class BackupManager:
-    """Manages backups of Starsector mod configurations."""
     
     def __init__(self, starsector_path):
-        """Initialize backup manager.
-        
-        Args:
-            starsector_path: Path to Starsector installation
-        """
         self.starsector_path = Path(starsector_path)
         self.backup_dir = self.starsector_path / "modlist_backups"
         self.backup_dir.mkdir(exist_ok=True)
     
     def create_backup(self, backup_mods=False):
-        """Create a backup of enabled_mods.json and optionally mods folder.
-        
-        Args:
-            backup_mods: If True, backup entire mods folder (can be large)
-            
-        Returns:
-            tuple: (backup_path, success, error_message)
-        """
+        """Backup enabled_mods.json and optionally list installed mods. Returns (path, success, error)."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_path = self.backup_dir / f"backup_{timestamp}"
         backup_path.mkdir(exist_ok=True)
@@ -69,11 +51,7 @@ class BackupManager:
             return None, False, str(e)
     
     def list_backups(self):
-        """List all available backups.
-        
-        Returns:
-            list: List of (backup_path, metadata_dict) tuples, sorted by date (newest first)
-        """
+        """Returns list of (backup_path, metadata_dict), newest first."""
         backups = []
         
         if not self.backup_dir.exists():
@@ -96,14 +74,7 @@ class BackupManager:
         return backups
     
     def restore_backup(self, backup_path):
-        """Restore a backup.
-        
-        Args:
-            backup_path: Path to backup directory
-            
-        Returns:
-            tuple: (success: bool, error_message: str or None)
-        """
+        """Restore enabled_mods.json from backup. Returns (success, error)."""
         backup_path = Path(backup_path)
         
         if not backup_path.exists():
@@ -124,14 +95,6 @@ class BackupManager:
             return False, str(e)
     
     def delete_backup(self, backup_path):
-        """Delete a backup directory.
-        
-        Args:
-            backup_path: Path to backup directory
-            
-        Returns:
-            tuple: (success: bool, error_message: str or None)
-        """
         backup_path = Path(backup_path)
         
         try:
@@ -144,14 +107,7 @@ class BackupManager:
             return False, str(e)
     
     def cleanup_old_backups(self, keep_count=5):
-        """Delete old backups, keeping only the most recent ones.
-        
-        Args:
-            keep_count: Number of backups to keep
-            
-        Returns:
-            int: Number of backups deleted
-        """
+        """Delete old backups, keeping most recent. Returns deleted count."""
         backups = self.list_backups()
         
         if len(backups) <= keep_count:

@@ -1,9 +1,3 @@
-"""
-Archive extraction logic for mod installation.
-Handles ZIP and 7Z archives with security checks and version management.
-Extracted from installer.py to reduce file complexity.
-"""
-
 import zipfile
 import shutil
 from pathlib import Path
@@ -23,30 +17,11 @@ from utils.error_messages import suggest_fix_for_error, get_user_friendly_error
 
 
 class ArchiveExtractor:
-    """Handles extraction of ZIP and 7Z mod archives with version checking."""
     
     def __init__(self, log_callback):
-        """
-        Initialize extractor.
-        
-        Args:
-            log_callback: Function to call for logging (signature: log(message, error=False, info=False))
-        """
         self.log = log_callback
     
     def extract_archive(self, temp_file, mods_dir, is_7z, expected_mod_version=None):
-        """
-        Extract an archive file to the mods directory.
-        
-        Args:
-            temp_file: Path to the temporary archive file
-            mods_dir: Path to the Starsector mods directory
-            is_7z: Boolean indicating if the file is a 7z archive
-            expected_mod_version: Expected mod version from modlist config (optional)
-            
-        Returns:
-            bool or str: True if extraction succeeded, 'skipped' if skipped, False otherwise
-        """
         try:
             if is_7z:
                 return self._extract_7z(temp_file, mods_dir, expected_mod_version)
@@ -76,7 +51,6 @@ class ArchiveExtractor:
             return False
     
     def _extract_7z(self, temp_file, mods_dir, expected_mod_version=None):
-        """Extract a 7z archive."""
         if not HAS_7ZIP:
             self.log("  ✗ Error: py7zr library not installed. Install with: pip install py7zr", error=True)
             return False
@@ -90,13 +64,12 @@ class ArchiveExtractor:
                     self.log("  ✗ Error: Archive is empty", error=True)
                     return False
 
-                # Check if mod already installed
                 already_result = self._check_if_installed(None, members, mods_dir, is_7z=True, 
                                                          expected_mod_version=expected_mod_version)
                 if already_result:
                     return already_result
 
-                # Validate all members for zip-slip protection
+                # Zip-slip protection: validate all paths stay within mods_dir
                 mods_dir_resolved = mods_dir.resolve()
                 for member in all_names:
                     member_path = (mods_dir / member).resolve()
@@ -115,7 +88,6 @@ class ArchiveExtractor:
             return False
     
     def _extract_zip(self, temp_file, mods_dir, expected_mod_version=None):
-        """Extract a ZIP archive with zip-slip protection."""
         with zipfile.ZipFile(temp_file, 'r') as zip_ref:
             members = [m for m in zip_ref.namelist() if m and not m.endswith('/')]
             
@@ -123,11 +95,10 @@ class ArchiveExtractor:
                 self.log("  ✗ Error: Archive is empty", error=True)
                 return False
 
-            # Check if mod already installed and get folder to delete if updating
             already_result = self._check_if_installed(zip_ref, members, mods_dir, 
                                                      expected_mod_version=expected_mod_version)
             
-            # If it's a tuple, it means we need to delete the old version first
+            # Handle update case: delete old version first
             if isinstance(already_result, tuple):
                 folder_to_delete, is_update = already_result
                 if is_update and folder_to_delete:
@@ -138,10 +109,9 @@ class ArchiveExtractor:
                         self.log(f"  ✗ Error removing old version: {e}", error=True)
                         return False
             elif already_result:
-                # String result means 'skipped'
                 return already_result
 
-            # Validate all members for zip-slip protection
+            # Zip-slip protection: validate all paths
             mods_dir_resolved = mods_dir.resolve()
             for member in zip_ref.namelist():
                 member_path = (mods_dir / member).resolve()
@@ -156,22 +126,8 @@ class ArchiveExtractor:
             return True
     
     def _check_if_installed(self, archive_ref, members, mods_dir, is_7z=False, expected_mod_version=None):
-        """
-        Check if a mod is already installed. For ZIP archives, compares versions.
-        For 7z archives, only checks existence.
-        
-        Args:
-            archive_ref: ZipFile object (or None for 7z)
-            members: List of file paths in the archive
-            mods_dir: Path to the Starsector mods directory
-            is_7z: True if this is a 7z archive
-            expected_mod_version: Expected mod version from modlist config (optional)
-            
-        Returns:
-            str: 'skipped' if same/older version or already exists
-            tuple: (folder_path, True) if update needed (newer version, ZIP only)
-            bool: False if not installed
-        """
+        # For ZIP: compare versions. For 7z: only check existence.
+        # Returns: 'skipped' | (folder_path, True) for update | False for not installed
         top_level = set(Path(m).parts[0] for m in members if Path(m).parts)
 
         if len(top_level) == 1:

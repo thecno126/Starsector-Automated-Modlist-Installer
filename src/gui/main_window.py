@@ -1,8 +1,3 @@
-"""
-Main window for the Modlist Installer application.
-Simplified version using modular components.
-"""
-
 import tkinter as tk
 from tkinter import filedialog, ttk
 import re
@@ -25,7 +20,8 @@ from core import (
     UI_DEFAULT_WINDOW_WIDTH, UI_DEFAULT_WINDOW_HEIGHT,
     ModInstaller, ConfigManager, InstallationReport
 )
-from core.installer import validate_mod_urls, is_mod_up_to_date, resolve_mod_dependencies
+from utils.mod_utils import is_mod_up_to_date, resolve_mod_dependencies
+from utils.network_utils import validate_mod_urls
 from .dialogs import (
     open_add_mod_dialog,
     open_manage_categories_dialog,
@@ -54,8 +50,6 @@ from utils.error_messages import get_user_friendly_error
 
 
 class ModlistInstaller:
-    """Main application window for the Modlist Installer."""
-    
     def __init__(self, root):
         self.root = root
         self.root.title("Starsector Automated Modlist Installer")
@@ -63,83 +57,61 @@ class ModlistInstaller:
         self.root.resizable(True, True)
         self.root.minsize(UI_MIN_WINDOW_WIDTH, UI_MIN_WINDOW_HEIGHT)
         
-        # Apply TriOS-inspired theme
         self.root.configure(bg=TriOSTheme.SURFACE_DARK)
-        
-        # Configure ttk styles for themed widgets
         self.style = ttk.Style()
         TriOSTheme.configure_ttk_styles(self.style)
         
-        # Config manager
         self.config_manager = ConfigManager()
         
         self.modlist_data = None
         self.categories = self.config_manager.load_categories()
         
-        # Installation variables
         self.starsector_path = tk.StringVar()
         self.is_installing = False
         self.is_paused = False
         self.download_futures = []
-        self.current_executor = None  # Track active ThreadPoolExecutor for cancellation
-        self.downloaded_temp_files = []  # Track downloaded temp files for cleanup on cancel
-        self.current_mod_name = tk.StringVar(value="")  # Track current mod being processed
-        self.url_validation_cache = {}  # Cache for URL validation results {url: (is_valid, timestamp)}
+        self.current_executor = None
+        self.downloaded_temp_files = []
+        self.current_mod_name = tk.StringVar(value="")
+        self.url_validation_cache = {}  # {url: (is_valid, timestamp)}
         
-        # Mod installer
         self.mod_installer = ModInstaller(self.log)
-        
-        # Installation controller (delegates complex installation logic)
-        self.installation_controller = None  # Initialized after UI is ready
-        
-        # Log level: 'INFO' (default) or 'DEBUG'
+        self.installation_controller = None
         self.log_level = 'INFO'
         
-        # Load preferences and auto-detect
         self.load_preferences()
         self.auto_detect_starsector()
-        
-        # Create UI
         self.create_ui()
         
-        # Initialize installation controller (needs UI to be ready)
         self.installation_controller = InstallationController(self)
-        
-        # Load modlist configuration
         self.modlist_data = self.config_manager.load_modlist_config()
         self.display_modlist_info()
         
         # Event bindings
         self.root.bind('<Configure>', self.on_window_resize)
         self._resize_after_id = None
-        
-        # Handle window close button (X)
         self.root.protocol("WM_DELETE_WINDOW", self.safe_quit)
         
-        # Keyboard shortcuts
         self.root.bind('<Control-q>', lambda e: self.root.destroy())
-        # Bind Ctrl+S to save configuration
         self.root.bind('<Control-s>', lambda e: self.save_modlist_config(log_message=True))
         self.root.bind('<Control-a>', lambda e: self.open_add_mod_dialog())
         
-        # Drag and drop state for mod list reordering
+        # Drag-and-drop for mod reordering
         self.drag_start_line = None
         self.drag_start_y = None
         self._setup_drag_and_drop()
     
     def _setup_drag_and_drop(self):
-        """Set up drag and drop handlers for mod list reordering."""
         self.mod_listbox.bind('<Button-1>', self._on_drag_start, add="+")
         self.mod_listbox.bind('<B1-Motion>', self._on_drag_motion)
         self.mod_listbox.bind('<ButtonRelease-1>', self._on_drag_end, add="+")
     
     def _on_drag_start(self, event):
-        """Handle start of drag operation."""
         index = self.mod_listbox.index(f"@{event.x},{event.y}")
         line_num = int(index.split('.')[0])
         line_text = self.mod_listbox.get(f"{line_num}.0", f"{line_num}.end").strip()
         
-        # Only allow dragging mod lines (not categories or empty lines)
+        # Only allow dragging mod lines, not categories
         if line_text and (line_text.startswith("✓") or line_text.startswith("○") or line_text.startswith("↑")):
             self.drag_start_line = line_num
             self.drag_start_y = event.y
@@ -147,29 +119,22 @@ class ModlistInstaller:
             self.drag_start_line = None
     
     def _on_drag_motion(self, event):
-        """Handle drag motion."""
         if self.drag_start_line is None:
             return
-        
-        # Visual feedback could be added here (e.g., change cursor)
         pass
     
     def _on_drag_end(self, event):
-        """Handle end of drag operation - reorder mod."""
         if self.drag_start_line is None:
             return
         
         try:
-            # Get target line
             index = self.mod_listbox.index(f"@{event.x},{event.y}")
             target_line = int(index.split('.')[0])
             
-            # Only proceed if moved significantly
             if abs(target_line - self.drag_start_line) < 1:
                 self.drag_start_line = None
                 return
             
-            # Get source mod name
             source_text = self.mod_listbox.get(f"{self.drag_start_line}.0", f"{self.drag_start_line}.end")
             source_mod_name = self._extract_mod_name_from_line(source_text)
             
@@ -177,32 +142,28 @@ class ModlistInstaller:
                 self.drag_start_line = None
                 return
             
-            # Find source mod in data
             source_mod = self._find_mod_by_name(source_mod_name)
             if not source_mod:
                 self.drag_start_line = None
                 return
             
-            # Find target category
             target_category = self._find_category_above(target_line)
             if not target_category:
                 self.drag_start_line = None
                 return
             
-            # Calculate position within target category
+            # Calculate position within category
             category_start_line = self._find_category_line(target_category)
             if category_start_line is None:
                 self.drag_start_line = None
                 return
             
-            # Count mods between category start and target
             position = 0
             for line_num in range(category_start_line + 1, target_line + 1):
                 line_text = self.mod_listbox.get(f"{line_num}.0", f"{line_num}.end").strip()
                 if line_text and (line_text.startswith("✓") or line_text.startswith("○") or line_text.startswith("↑")):
                     position += 1
             
-            # Move mod
             self._move_mod_to_category_position(source_mod_name, source_mod, target_category, position)
             
         except Exception as e:
@@ -211,7 +172,6 @@ class ModlistInstaller:
             self.drag_start_line = None
     
     def _find_category_line(self, category_name):
-        """Find the line number of a category header."""
         try:
             max_line = int(self.mod_listbox.index('end-1c').split('.')[0])
         except (tk.TclError, ValueError):
@@ -224,19 +184,15 @@ class ModlistInstaller:
         return None
     
     def _move_mod_to_category_position(self, mod_name, mod, target_category, position):
-        """Move a mod to a specific position within a category."""
         source_category = mod.get('category', 'Uncategorized')
         
-        # Remove from source category
         if source_category in self.modlist_data.get('mods_by_category', {}):
             category_mods = self.modlist_data['mods_by_category'][source_category]
             category_mods = [m for m in category_mods if m.get('name') != mod_name]
             self.modlist_data['mods_by_category'][source_category] = category_mods
         
-        # Update mod category
         mod['category'] = target_category
         
-        # Add to target category at position
         if target_category not in self.modlist_data.get('mods_by_category', {}):
             self.modlist_data['mods_by_category'][target_category] = []
         
@@ -244,41 +200,33 @@ class ModlistInstaller:
         position = max(0, min(position, len(category_mods)))
         category_mods.insert(position, mod)
         
-        # Rebuild mods list
         self.modlist_data['mods'] = []
         for category in self.categories:
             if category in self.modlist_data['mods_by_category']:
                 self.modlist_data['mods'].extend(self.modlist_data['mods_by_category'][category])
         
-        # Save and refresh
         self.save_modlist_config()
         self.display_modlist_info()
         self.log(f"✓ Moved '{mod_name}' to {target_category} (position {position})", debug=True)
     
     def create_ui(self):
-        """Create the user interface using modular builders."""
-        # Header
         create_header(self.root)
         
-        # Main container with horizontal split
         main_container = tk.PanedWindow(self.root, orient=tk.HORIZONTAL, sashwidth=12, sashpad=8, sashrelief=tk.RAISED,
                                        bg=TriOSTheme.SURFACE)
         main_container.pack(fill=tk.BOTH, expand=True)
         
-        # Left side: Main controls
         left_frame = tk.Frame(main_container, bg=TriOSTheme.SURFACE)
         left_frame.pack_configure(padx=10, pady=10)
         main_container.add(left_frame, minsize=550, stretch="always")
         
-        # Path section
         path_frame, self.path_entry, self.browse_btn, self.path_status_label = create_path_section(
             left_frame, self.starsector_path, self.select_starsector_path
         )
-        # Bind validation when user manually edits the path
+        # Bind validation when user manually edits path
         self.starsector_path.trace_add('write', lambda *args: self.on_path_changed())
         self.update_path_status()
         
-        # Modlist section
         info_frame, left_container, self.header_text, self.mod_listbox, self.search_var, mod_action_buttons, header_buttons = create_modlist_section(
             left_frame,
             self.on_mod_click,
@@ -292,11 +240,9 @@ class ModlistInstaller:
             self.edit_modlist_metadata
         )
         
-        # Track selected line and search filter
         self.selected_mod_line = None
         self.search_filter = ""
         
-        # Configure action buttons from modlist section
         if mod_action_buttons:
             mod_action_buttons['add'].config(command=self.open_add_mod_dialog)
             mod_action_buttons['edit'].config(command=self.edit_selected_mod)
@@ -307,7 +253,6 @@ class ModlistInstaller:
             self.remove_btn = mod_action_buttons['remove']
             self.categories_btn = mod_action_buttons['categories']
         
-        # Store header buttons
         if header_buttons:
             self.import_btn = header_buttons.get('import')
             self.export_btn = header_buttons.get('export')
@@ -318,25 +263,21 @@ class ModlistInstaller:
             self.up_btn = header_buttons.get('up')
             self.down_btn = header_buttons.get('down')
             
-            # Configure up/down buttons
             if self.up_btn:
                 self.up_btn.config(command=self.move_mod_up)
             if self.down_btn:
                 self.down_btn.config(command=self.move_mod_down)
         
-        # Bottom buttons (on left side)
         button_frame, self.install_modlist_btn, self.quit_btn = create_bottom_buttons(
             left_frame,
             self.start_installation,
             self.safe_quit
         )
         
-        # Right side: Log panel
         right_frame = tk.Frame(main_container, bg=TriOSTheme.SURFACE)
         right_frame.pack_configure(padx=10, pady=10)
         main_container.add(right_frame, minsize=700, stretch="always")
         
-        # Enable All Mods button (create first so it's at bottom)
         enable_frame, self.enable_mods_btn = create_enable_mods_section(
             right_frame,
             self.enable_all_installed_mods
@@ -348,19 +289,13 @@ class ModlistInstaller:
             self.toggle_pause
         )
         
-        # Set initial sash position (60% left, 40% right)
         self.root.update_idletasks()
         try:
             main_container.sash_place(0, 600, 1)
         except Exception:
-            pass  # Sash position is optional
-    
-    # ============================================
-    # Event Handlers
-    # ============================================
+            pass
     
     def on_window_resize(self, event):
-        """Handle window resize events."""
         if event.widget == self.root:
             if self._resize_after_id:
                 self.root.after_cancel(self._resize_after_id)
@@ -379,12 +314,10 @@ class ModlistInstaller:
             if not response:
                 return
             
-            # Cancel ongoing operations
             self.log("\n" + "=" * 50)
             self.log("User requested shutdown - canceling installation...", error=True)
             self.log("=" * 50)
             
-            # Cancel all pending download futures
             if self.current_executor:
                 try:
                     self.current_executor.shutdown(wait=False, cancel_futures=True)
@@ -392,39 +325,28 @@ class ModlistInstaller:
                 except (RuntimeError, AttributeError) as e:
                     self.log(f"Error canceling tasks: {type(e).__name__}", error=True)
             
-            # Clean up temporary files
             self._cleanup_temp_files()
             
             self.is_installing = False
             self.is_paused = False
         
-        # Save configuration before closing
         self.save_modlist_config()
-        
-        # Cleanup and exit
         self.log("Application closing...")
         self.root.destroy()
     
     def on_mod_click(self, event):
-        """Handle click on mod list."""
         index = self.mod_listbox.index(f"@{event.x},{event.y}")
         line_num = int(index.split('.')[0])
         line_text = self.mod_listbox.get(f"{line_num}.0", f"{line_num}.end")
         
         line_stripped = line_text.strip()
-        # Check if it's a mod line (starts with ✓, ○, or ↑)
         if line_stripped.startswith("✓") or line_stripped.startswith("○") or line_stripped.startswith("↑"):
             self.selected_mod_line = line_num
             self.highlight_selected_mod()
     
     def on_search_mods(self, search_text):
-        """Handle search filter changes."""
         self.search_filter = search_text.lower().strip()
         self.display_modlist_info()
-    
-    # ============================================
-    # Dialog Methods
-    # ============================================
     
     def open_add_mod_dialog(self):
         open_add_mod_dialog(self.root, self)
@@ -438,16 +360,7 @@ class ModlistInstaller:
     def open_export_csv_dialog(self):
         open_export_csv_dialog(self.root, self)
     
-    # ============================================
-    # Mod Management
-    # ============================================
-    
     def _is_url_cached(self, url):
-        """Check if URL validation result is in cache and still valid.
-        
-        Returns:
-            tuple: (is_cached, is_valid) - (True, bool) if cached, (False, None) if not
-        """
         if url in self.url_validation_cache:
             is_valid, timestamp = self.url_validation_cache[url]
             if time.time() - timestamp < CACHE_TIMEOUT:
@@ -455,29 +368,19 @@ class ModlistInstaller:
         return (False, None)
     
     def _cache_url_result(self, url, is_valid):
-        """Store URL validation result in cache."""
         self.url_validation_cache[url] = (is_valid, time.time())
     
     def validate_url(self, url: str, use_cache: bool = True) -> bool:
-        """Return True if the URL appears reachable.
-        
-        Args:
-            url: URL to validate
-            use_cache: If True, use cached validation results (default: True)
-        """
-        # Check cache first
         if use_cache:
             is_cached, is_valid = self._is_url_cached(url)
             if is_cached:
                 return is_valid
         
         try:
-            # Try HEAD first (lighter)
             resp = requests.head(url, timeout=URL_VALIDATION_TIMEOUT_HEAD, allow_redirects=True)
             if 200 <= resp.status_code < 400:
                 result = True
             else:
-                # Some servers don't support HEAD, fallback to GET
                 resp = requests.get(url, stream=True, timeout=URL_VALIDATION_TIMEOUT_HEAD, allow_redirects=True)
                 result = 200 <= resp.status_code < 400
             
@@ -488,7 +391,6 @@ class ModlistInstaller:
             return False
 
     def add_mod_to_config(self, mod: dict) -> None:
-        """Append a mod entry to the config."""
         if not self.modlist_data:
             self.modlist_data = self.config_manager.load_modlist_config()
         
@@ -572,10 +474,6 @@ class ModlistInstaller:
         # Open edit dialog
         from .dialogs import open_edit_mod_dialog
         open_edit_mod_dialog(self.root, self, current_mod)
-    
-    # ============================================
-    # Mod Reordering
-    # ============================================
     
     def _move_mod_in_category(self, mod_name, current_mod, direction):
         """Move mod up or down within category or to adjacent category.
@@ -694,10 +592,6 @@ class ModlistInstaller:
                 return check_text
             check_line += 1
         return None
-    
-    # ============================================
-    # Display
-    # ============================================
     
     def save_modlist_config(self, log_message=False):
         """Save the current modlist configuration.
@@ -872,12 +766,14 @@ class ModlistInstaller:
             # Display mods in this category (if any)
             if cat in categories:
                 for mod in categories[cat]:
-                    # Check if mod is installed
                     is_installed = False
                     if mods_dir and mods_dir.exists():
-                        is_installed = self.mod_installer.is_mod_already_installed(mod, mods_dir)
+                        mod_name = mod.get('name', '')
+                        expected_version = mod.get('mod_version')
+                        if mod_name:
+                            is_up_to_date, _ = is_mod_up_to_date(mod_name, expected_version, mods_dir)
+                            is_installed = is_up_to_date if expected_version else (_ is not None)
                     
-                    # Choose icon based on installation status
                     icon = "✓" if is_installed else "○"
                     tag = 'installed' if is_installed else 'not_installed'
                     
@@ -1187,31 +1083,41 @@ class ModlistInstaller:
             custom_dialogs.showerror("Error", f"Mods directory not found: {mods_dir}")
             return
         
-        # Disable button during refresh
         if self.refresh_btn:
-            self.refresh_btn.config(state=tk.DISABLED, text="↻")
+            self.refresh_btn.config(state=tk.DISABLED)
         
         self.log("=" * 50)
         self.log("Refreshing mod metadata from installed mods...")
         self.log("Reloading modlist configuration...")
         
         try:
-            # Reload modlist configuration from file
             self.modlist_data = self.config_manager.load_modlist_config()
             
-            # Update mod metadata from installed mods
-            self._update_mod_metadata_from_installed(mods_dir)
+            updated_count = 0
+            for mod in self.modlist_data.get('mods', []):
+                mod_name = mod.get('name', '')
+                if not mod_name:
+                    continue
+                
+                for folder, metadata in scan_installed_mods(mods_dir):
+                    if is_mod_name_match(mod_name, folder.name, metadata.get('name', '')):
+                        if metadata.get('version') and metadata['version'] != 'unknown':
+                            mod['mod_version'] = metadata['version']
+                            updated_count += 1
+                        if metadata.get('gameVersion'):
+                            mod['game_version'] = metadata['gameVersion']
+                        break
+            
             self.save_modlist_config()
             self.display_modlist_info()
-            self.log("✓ Metadata refresh complete!")
-            custom_dialogs.showsuccess("Success", "Mod metadata has been refreshed from installed mods")
+            self.log(f"✓ Metadata refresh complete! Updated {updated_count} mod(s)")
+            custom_dialogs.showsuccess("Success", f"Refreshed metadata for {updated_count} mod(s)")
         except Exception as e:
             self.log(f"✗ Error refreshing metadata: {e}", error=True)
             custom_dialogs.showerror("Error", f"Failed to refresh metadata: {e}")
         finally:
-            # Re-enable button
             if self.refresh_btn:
-                self.refresh_btn.config(state=tk.NORMAL, text="↻")
+                self.refresh_btn.config(state=tk.NORMAL)
     
     def enable_all_installed_mods(self):
         """Enable all currently installed mods in Starsector by updating enabled_mods.json."""
@@ -1580,7 +1486,8 @@ class ModlistInstaller:
             try:
                 validation_result['data'] = validate_mod_urls(
                     self.modlist_data['mods'], 
-                    progress_callback=None
+                    progress_callback=None,
+                    timeout=URL_VALIDATION_TIMEOUT_HEAD
                 )
             except Exception as e:
                 validation_result['error'] = str(e)
@@ -1672,14 +1579,13 @@ class ModlistInstaller:
         
         # Run installation in thread with filtered mods
         def run_specific_installation():
-            self._install_mods_internal(mods_to_install, skip_gdrive_check=skip_gdrive_check)
+            self.installation_controller.install_mods_internal(mods_to_install, skip_gdrive_check=skip_gdrive_check)
         
         thread = threading.Thread(target=run_specific_installation, daemon=True)
         thread.start()
     
     def install_mods(self):
-        """Install the mods from the modlist using parallel downloads and sequential extraction."""
-        self._install_mods_internal(self.modlist_data['mods'])
+        self.installation_controller.install_mods_internal(self.modlist_data['mods'])
     
     def _cleanup_temp_files(self):
         """Clean up temporary files created during mod installation."""
@@ -1714,46 +1620,6 @@ class ModlistInstaller:
         
         if deleted_count > 0:
             self.log(f"Cleaned up {deleted_count} temporary file(s)")
-    
-    def _download_mods_parallel(self, mods_to_download, skip_gdrive_check=False, max_workers=None):
-        """Download mods in parallel. Delegates to InstallationController."""
-        return self.installation_controller.download_mods_parallel(mods_to_download, skip_gdrive_check, max_workers)
-
-    def _install_mods_internal(self, mods_to_install, skip_gdrive_check=False):
-        """Internal method to install a list of mods. Delegates to InstallationController."""
-        return self.installation_controller.install_mods_internal(mods_to_install, skip_gdrive_check)
-    
-    def _finalize_installation_cancelled(self):
-        """Cleanup and reset UI after installation cancellation. Delegates to InstallationController."""
-        return self.installation_controller.finalize_installation_cancelled()
-    
-    def _extract_downloaded_mods(self, download_results, mods_dir):
-        """Extract all downloaded mods sequentially. Delegates to InstallationController."""
-        report = InstallationReport()
-        return self.installation_controller.extract_downloaded_mods_with_report(download_results, mods_dir, report)
-    
-    def _extract_downloaded_mods_with_report(self, download_results, mods_dir, report):
-        """Extract all downloaded mods sequentially. Delegates to InstallationController."""
-        return self.installation_controller.extract_downloaded_mods_with_report(download_results, mods_dir, report)
-    
-    def _cleanup_remaining_downloads(self, download_results, start_index):
-        """Clean up unprocessed downloaded files. Delegates to InstallationController."""
-        return self.installation_controller.cleanup_remaining_downloads(download_results, start_index)
-    
-    def _auto_detect_game_version(self, mod, temp_path, is_7z):
-        """Auto-detect and update game_version and mod_version. Delegates to InstallationController."""
-        return self.installation_controller.auto_detect_game_version(mod, temp_path, is_7z)
-    
-    def _update_mod_metadata_from_installed(self, mods_dir):
-        """Auto-detect and update mod metadata from installed mods. Delegates to InstallationController."""
-        return self.installation_controller.update_mod_metadata_from_installed(mods_dir)
-    
-    def _finalize_installation_with_report(self, report, mods_dir, download_results, total_mods,
-                                           gdrive_failed=None, extraction_failures=None):
-        """Finalize installation with InstallationReport. Delegates to InstallationController."""
-        return self.installation_controller.finalize_installation_with_report(
-            report, mods_dir, download_results, total_mods, gdrive_failed, extraction_failures
-        )
     
     def _show_installation_complete_message(self):
         """Display the installation complete banner (used for Google Drive cancellation)."""

@@ -1,8 +1,3 @@
-"""
-UI builder for the Modlist Installer application.
-Contains functions to create the user interface components.
-"""
-
 import tkinter as tk
 from tkinter import ttk, scrolledtext
 import sys
@@ -11,12 +6,10 @@ from core import UI_BOTTOM_BUTTON_HEIGHT
 import platform
 
 
-# ============================================================================
-# Tooltip Widget
-# ============================================================================
+IS_MACOS = sys.platform == 'darwin'
+
 
 class ToolTip:
-    """Simple tooltip widget for hover help."""
     def __init__(self, widget, text):
         self.widget = widget
         self.text = text
@@ -27,7 +20,6 @@ class ToolTip:
     def show_tooltip(self, event=None):
         if self.tooltip_window or not self.text:
             return
-        # Get widget position
         try:
             x = self.widget.winfo_rootx() + 25
             y = self.widget.winfo_rooty() + 25
@@ -49,24 +41,15 @@ class ToolTip:
             self.tooltip_window = None
 
 
-# Detect macOS
-IS_MACOS = sys.platform == 'darwin'
-
-
 class ThemedButton(tk.Canvas):
-    """Custom button widget that respects colors on macOS."""
+    """Canvas-based button for macOS (standard tk.Button colors don't work reliably on macOS)."""
     
     def __init__(self, parent, text, command=None, bg=None, fg=None, 
                  activebackground=None, activeforeground=None, width=100, 
                  font=("Arial", 9, "bold"), state=tk.NORMAL, **kwargs):
-        # Calculate height from font size
         font_size = font[1] if isinstance(font, tuple) else 9
         height = font_size + 16
-        
-        # Remove 'state' from kwargs if it exists
         kwargs.pop('state', None)
-        
-        # Store width to handle dynamic resizing
         self.requested_width = width
         
         super().__init__(parent, width=width, height=height, 
@@ -82,28 +65,23 @@ class ThemedButton(tk.Canvas):
         self.is_pressed = False
         self.is_disabled = (state == tk.DISABLED)
         
-        # Draw button
         self.rect = self.create_rectangle(0, 0, width, height, 
                                           fill=self.bg_color, outline="", width=0)
         self.text_item = self.create_text(width//2, height//2, text=text, 
                                          fill=self.fg_color, font=font)
         
-        # Bind to configure event to redraw on resize
         self.bind("<Configure>", self._on_resize)
         
-        # Apply initial state
         if self.is_disabled:
             self.itemconfig(self.rect, fill=TriOSTheme.SURFACE_LIGHT)
             self.itemconfig(self.text_item, fill=TriOSTheme.TEXT_DISABLED)
         else:
-            # Bind events only if not disabled
             self.bind("<Button-1>", self.on_press)
             self.bind("<ButtonRelease-1>", self.on_release)
             self.bind("<Enter>", self.on_enter)
             self.bind("<Leave>", self.on_leave)
     
     def _on_resize(self, event):
-        """Redraw button when canvas is resized."""
         width = event.width
         height = event.height
         self.coords(self.rect, 0, 0, width, height)
@@ -118,7 +96,6 @@ class ThemedButton(tk.Canvas):
         if self.is_pressed and self.command:
             self.command()
         self.is_pressed = False
-        # Check if mouse is still over button (protect against widget destruction)
         try:
             x, y = event.x, event.y
             width = self.winfo_width()
@@ -130,7 +107,6 @@ class ThemedButton(tk.Canvas):
                 self.itemconfig(self.rect, fill=self.bg_color)
                 self.itemconfig(self.text_item, fill=self.fg_color)
         except tk.TclError:
-            # Widget was destroyed, ignore
             pass
     
     def on_enter(self, event):
@@ -144,19 +120,15 @@ class ThemedButton(tk.Canvas):
             self.itemconfig(self.text_item, fill=self.fg_color)
     
     def configure(self, **kwargs):
-        """Allow configuration like normal widgets."""
         if 'command' in kwargs:
-            # Handle command changes
             self.command = kwargs.pop('command')
         
         if 'text' in kwargs:
-            # Handle text changes
             new_text = kwargs.pop('text')
             self.text = new_text
             self.itemconfig(self.text_item, text=new_text)
         
         if 'state' in kwargs:
-            # Handle state changes (for disable/enable)
             if kwargs['state'] == tk.DISABLED:
                 self.is_disabled = True
                 self.itemconfig(self.rect, fill=TriOSTheme.SURFACE_LIGHT)
@@ -181,35 +153,20 @@ class ThemedButton(tk.Canvas):
     config = configure  # Alias
 
 
-# Helper function to create buttons with consistent styling
 def _create_button(parent, text, command, width=10, font_size=9, button_type="primary", **kwargs):
-    """Create a standard button with consistent styling using TriOS theme."""
     style = TriOSTheme.get_button_style(button_type)
     
     if IS_MACOS:
-        # Use custom Canvas-based button for macOS
-        # Augmenter la largeur pour éviter le crop du texte
-        pixel_width = max(width * 9, len(text) * 8 + 20)  # Plus de marge pour le texte
+        pixel_width = max(width * 9, len(text) * 8 + 20)
         return ThemedButton(
-            parent, 
-            text=text, 
-            command=command,
-            bg=style.get('bg'),
-            fg=style.get('fg'),
+            parent, text=text, command=command,
+            bg=style.get('bg'), fg=style.get('fg'),
             activebackground=style.get('activebackground'),
             activeforeground=style.get('activeforeground'),
-            width=pixel_width,
-            font=("Arial", font_size, "bold")
+            width=pixel_width, font=("Arial", font_size, "bold")
         )
     else:
-        # Use standard tk.Button for other platforms
-        style.update({
-            'relief': tk.FLAT,
-            'borderwidth': 1,
-            'highlightthickness': 0,
-            'padx': 8,
-            'pady': 5
-        })
+        style.update({'relief': tk.FLAT, 'borderwidth': 1, 'highlightthickness': 0, 'padx': 8, 'pady': 5})
         style.update(kwargs)
         return tk.Button(parent, text=text, command=command, 
                         font=("Arial", font_size, "bold"), width=width, **style)
