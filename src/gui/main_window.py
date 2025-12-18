@@ -106,13 +106,41 @@ class ModlistInstaller:
         self.mod_listbox.bind('<B1-Motion>', self._on_drag_motion)
         self.mod_listbox.bind('<ButtonRelease-1>', self._on_drag_end, add="+")
     
+    def _is_mod_line(self, line_text):
+        """Check if line is a mod (not category).
+        
+        Args:
+            line_text: Text from listbox line
+            
+        Returns:
+            bool: True if line is mod line (starts with icon)
+        """
+        line_stripped = line_text.strip()
+        return line_stripped and line_stripped.startswith(("✓", "○", "↑"))
+    
+    def _calculate_drop_position(self, category_start_line, target_line):
+        """Calculate position in category for drop target.
+        
+        Args:
+            category_start_line: Line number of category header
+            target_line: Line number of drop target
+            
+        Returns:
+            int: Position in category (0-indexed)
+        """
+        position = 0
+        for line_num in range(category_start_line + 1, target_line + 1):
+            line_text = self.mod_listbox.get(f"{line_num}.0", f"{line_num}.end")
+            if self._is_mod_line(line_text):
+                position += 1
+        return position
+    
     def _on_drag_start(self, event):
         index = self.mod_listbox.index(f"@{event.x},{event.y}")
         line_num = int(index.split('.')[0])
-        line_text = self.mod_listbox.get(f"{line_num}.0", f"{line_num}.end").strip()
+        line_text = self.mod_listbox.get(f"{line_num}.0", f"{line_num}.end")
         
-        # Only allow dragging mod lines, not categories
-        if line_text and (line_text.startswith("✓") or line_text.startswith("○") or line_text.startswith("↑")):
+        if self._is_mod_line(line_text):
             self.drag_start_line = line_num
             self.drag_start_y = event.y
         else:
@@ -152,18 +180,12 @@ class ModlistInstaller:
                 self.drag_start_line = None
                 return
             
-            # Calculate position within category
             category_start_line = self._find_category_line(target_category)
             if category_start_line is None:
                 self.drag_start_line = None
                 return
             
-            position = 0
-            for line_num in range(category_start_line + 1, target_line + 1):
-                line_text = self.mod_listbox.get(f"{line_num}.0", f"{line_num}.end").strip()
-                if line_text and (line_text.startswith("✓") or line_text.startswith("○") or line_text.startswith("↑")):
-                    position += 1
-            
+            position = self._calculate_drop_position(category_start_line, target_line)
             self._move_mod_to_category_position(source_mod_name, source_mod, target_category, position)
             
         except Exception as e:
@@ -626,12 +648,8 @@ class ModlistInstaller:
         from .dialogs import open_edit_modlist_metadata_dialog
         open_edit_modlist_metadata_dialog(self.root, self)
     
-    def display_modlist_info(self):
-        """Display the modlist information."""
-        if not self.modlist_data:
-            return
-        
-        # Update header
+    def _update_header_text(self):
+        """Update header text widget with modlist metadata."""
         self.header_text.config(state=tk.NORMAL)
         self.header_text.delete(1.0, tk.END)
         
@@ -644,26 +662,26 @@ class ModlistInstaller:
         
         self.header_text.insert(1.0, header_info)
         self.header_text.config(state=tk.DISABLED)
-        
-        # Update mod list
-        self.mod_listbox.config(state=tk.NORMAL)
-        self.mod_listbox.delete(1.0, tk.END)
-        
-        # Configure category and selection tags (TriOS theme colors)
+    
+    def _configure_listbox_tags(self):
+        """Configure Tkinter tags for listbox (category, selection, status)."""
         self.mod_listbox.tag_configure('category', background=TriOSTheme.CATEGORY_BG, 
             foreground=TriOSTheme.CATEGORY_FG, justify='center')
         self.mod_listbox.tag_configure('selected', background=TriOSTheme.ITEM_SELECTED_BG, 
             foreground=TriOSTheme.ITEM_SELECTED_FG)
-        
-        # Configure tags for installed/not installed mods
         self.mod_listbox.tag_configure('installed', foreground=TriOSTheme.SUCCESS)
         self.mod_listbox.tag_configure('not_installed', foreground=TriOSTheme.TEXT_SECONDARY)
-        self.mod_listbox.tag_configure('outdated', foreground='#e67e22')  # Orange for update available
+        self.mod_listbox.tag_configure('outdated', foreground='#e67e22')
+    
+    def _group_mods_by_category(self, mods):
+        """Group mods by category, applying search filter.
         
-        # Group mods by category
-        mods = self.modlist_data.get('mods', [])
-        
-        # Apply search filter if active
+        Args:
+            mods: List of mod dictionaries
+            
+        Returns:
+            dict: {category: [mod1, mod2, ...]}
+        """
         if self.search_filter:
             mods = [m for m in mods if self.search_filter in m.get('name', '').lower()]
         
@@ -671,29 +689,53 @@ class ModlistInstaller:
         for mod in mods:
             cat = mod.get('category', 'Uncategorized')
             categories.setdefault(cat, []).append(mod)
+        return categories
+    
+    def _get_mod_installation_status(self, mod, mods_dir):
+        """Check if mod is installed and up-to-date.
         
-        # Check installation status
+        Args:
+            mod: Mod dictionary
+            mods_dir: Path to mods directory
+            
+        Returns:
+            tuple: (icon, tag) for display
+        """
+        is_installed = False
+        if mods_dir and mods_dir.exists():
+            mod_name = mod.get('name', '')
+            expected_version = mod.get('mod_version')
+            if mod_name:
+                is_up_to_date, _ = is_mod_up_to_date(mod_name, expected_version, mods_dir)
+                is_installed = is_up_to_date if expected_version else (_ is not None)
+        
+        icon = "✓" if is_installed else "○"
+        tag = 'installed' if is_installed else 'not_installed'
+        return (icon, tag)
+    
+    def display_modlist_info(self):
+        """Display the modlist information."""
+        if not self.modlist_data:
+            return
+        
+        self._update_header_text()
+        
+        self.mod_listbox.config(state=tk.NORMAL)
+        self.mod_listbox.delete(1.0, tk.END)
+        self._configure_listbox_tags()
+        
+        mods = self.modlist_data.get('mods', [])
+        grouped_mods = self._group_mods_by_category(mods)
+        
         starsector_path = self.starsector_path.get()
         mods_dir = Path(starsector_path) / "mods" if starsector_path else None
         
-        # Display all categories (even empty ones)
         for cat in self.categories:
             self.mod_listbox.insert(tk.END, f"{cat}\n", 'category')
             
-            # Display mods in this category (if any)
-            if cat in categories:
-                for mod in categories[cat]:
-                    is_installed = False
-                    if mods_dir and mods_dir.exists():
-                        mod_name = mod.get('name', '')
-                        expected_version = mod.get('mod_version')
-                        if mod_name:
-                            is_up_to_date, _ = is_mod_up_to_date(mod_name, expected_version, mods_dir)
-                            is_installed = is_up_to_date if expected_version else (_ is not None)
-                    
-                    icon = "✓" if is_installed else "○"
-                    tag = 'installed' if is_installed else 'not_installed'
-                    
+            if cat in grouped_mods:
+                for mod in grouped_mods[cat]:
+                    icon, tag = self._get_mod_installation_status(mod, mods_dir)
                     self.mod_listbox.insert(tk.END, f"  {icon} {mod['name']}\n", ('mod', tag))
         
         self.mod_listbox.config(state=tk.DISABLED)
