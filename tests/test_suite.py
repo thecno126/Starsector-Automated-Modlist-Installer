@@ -21,7 +21,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from src.core.config_manager import ConfigManager
-from src.core.installer import ModInstaller, validate_mod_urls
+from src.core.installer import ModInstaller
+from src.utils.network_utils import validate_mod_urls
 from src.gui.dialogs import fix_google_drive_url
 
 
@@ -1089,15 +1090,20 @@ class TestRefreshMetadataFunction:
             "version": "1.5.0"
         }))
         
+        # Add a mod to config that matches
+        mock_app.modlist_data['mods'] = [
+            {"name": "Test Mod 1", "download_url": "http://example.com/mod1.zip"}
+        ]
+        
         mock_app.refresh_btn = Mock()
         
-        with patch.object(mock_app, '_update_mod_metadata_from_installed') as mock_update, \
-             patch.object(custom_dialogs, 'showsuccess'):
-            
+        with patch.object(custom_dialogs, 'showsuccess'):
             mock_app.refresh_mod_metadata()
             
-            mock_update.assert_called_once()
+            # Verify that display was called
             assert mock_app.display_modlist_info.called
+            # Verify that the mod metadata was updated
+            assert mock_app.modlist_data['mods'][0].get('mod_version') == '1.5.0'
             assert any("refresh complete" in str(msg).lower() for msg, *_ in mock_app.log_messages)
 
 
