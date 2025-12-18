@@ -1123,6 +1123,43 @@ class ModlistInstaller:
         from .dialogs import open_restore_backup_dialog
         open_restore_backup_dialog(self.root, self)
     
+    def _check_write_permissions(self, mods_dir):
+        """Check write permissions on mods directory.
+        
+        Args:
+            mods_dir: Path to mods directory
+            
+        Returns:
+            tuple: (success: bool, error_message: str or None)
+        """
+        try:
+            test_file = mods_dir / ".write_test"
+            mods_dir.mkdir(exist_ok=True)
+            test_file.write_text("test")
+            test_file.unlink()
+            self.log("✓ Write permissions verified", debug=True)
+            return True, None
+        except (PermissionError, OSError) as e:
+            friendly_msg = get_user_friendly_error('permission_denied')
+            return False, f"{friendly_msg}\n\nTechnical: {e}"
+    
+    def _check_internet_connection(self):
+        """Quick internet connection check.
+        
+        Returns:
+            tuple: (success: bool, error_message: str or None)
+        """
+        try:
+            import socket
+            socket.create_connection(("www.google.com", 80), timeout=3)
+            self.log("✓ Internet connection verified", debug=True)
+            return True, None
+        except (socket.error, socket.timeout):
+            self.log("⚠ Internet connection may be unavailable", warning=True)
+            if not custom_dialogs.askyesno("Connection Warning", "Could not verify internet connection.\n\nContinue anyway?"):
+                return False, "Installation cancelled due to connection issues"
+            return True, None
+    
     def _run_pre_installation_checks(self, starsector_dir):
         """Run comprehensive pre-installation checks.
         
@@ -1131,38 +1168,24 @@ class ModlistInstaller:
         """
         mods_dir = starsector_dir / "mods"
         
-        # 1. Check disk space
+        # Check disk space
         has_space, space_msg = self.check_disk_space()
         if not has_space:
             self.log(space_msg, warning=True)
             if not custom_dialogs.askyesno("Low Disk Space", f"{space_msg}\n\nContinue anyway?"):
                 return False, "Installation cancelled due to low disk space"
         
-        # 2. Check write permissions
-        try:
-            test_file = mods_dir / ".write_test"
-            mods_dir.mkdir(exist_ok=True)
-            test_file.write_text("test")
-            test_file.unlink()
-            self.log("✓ Write permissions verified", debug=True)
-        except (PermissionError, OSError) as e:
-            friendly_msg = get_user_friendly_error('permission_denied')
-            return False, f"{friendly_msg}\n\nTechnical: {e}"
+        # Check write permissions
+        perm_success, perm_error = self._check_write_permissions(mods_dir)
+        if not perm_success:
+            return False, perm_error
         
-        # 3. Check internet connection (quick test)
-        try:
-            import socket
-            socket.create_connection(("www.google.com", 80), timeout=3)
-            self.log("✓ Internet connection verified", debug=True)
-        except (socket.error, socket.timeout):
-            self.log("⚠ Internet connection may be unavailable", warning=True)
-            if not custom_dialogs.askyesno("Connection Warning", "Could not verify internet connection.\n\nContinue anyway?"):
-                return False, "Installation cancelled due to connection issues"
+        # Check internet connection
+        conn_success, conn_error = self._check_internet_connection()
+        if not conn_success:
+            return False, conn_error
         
-        # 4. Check for potential version conflicts (basic check)
-        starsector_version = self.modlist_data.get('starsector_version', 'Unknown')
-        
-        # 6. Check dependencies
+        # Check dependencies
         dependency_issues = self._check_dependencies(mods_dir)
         if dependency_issues:
             issues_text = "\n".join([f"  • {mod_name}: missing {', '.join(deps)}" 
