@@ -296,7 +296,7 @@ For questions or support, please open an issue on GitHub: https://github.com/the
 - **Author field synchronization** - Author field now fully synchronized across metadata dialog, JSON config, CSV export/import, and header display
 - **Headless testing** - MockTk/MockToplevel fixtures prevent GUI windows during test execution
 - **NameError fixes** - Fixed dialog callback references for proper error handling
-- **JSON validation** - Created `validate_config.py` script to detect and fix configuration issues
+- **Configuration validation** - Built-in validation in ConfigManager and dialogs for data integrity
 - **Redundancy removal** - Eliminated `mods_by_category` structure, simplified codebase by 150+ lines
 - **macOS compatibility** - Fixed file dialogs on macOS by adding parent parameter and changing wildcard to "*.*"
 - **Test suite expansion** - Grew from 36 to 80 comprehensive tests covering all major workflows
