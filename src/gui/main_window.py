@@ -46,6 +46,7 @@ from utils.backup_manager import BackupManager
 from utils.path_validator import StarsectorPathValidator
 from utils.error_messages import get_user_friendly_error
 from utils.url_validator import URLValidator
+from utils import mod_operations
 
 
 class ModlistInstaller:
@@ -1078,25 +1079,16 @@ class ModlistInstaller:
         
         self.log("=" * 50)
         self.log("Refreshing mod metadata from installed mods...")
-        self.log("Reloading modlist configuration...")
         
         try:
             self.modlist_data = self.config_manager.load_modlist_config()
             
-            updated_count = 0
-            for mod in self.modlist_data.get('mods', []):
-                mod_name = mod.get('name', '')
-                if not mod_name:
-                    continue
-                
-                for folder, metadata in scan_installed_mods(mods_dir):
-                    if is_mod_name_match(mod_name, folder.name, metadata.get('name', '')):
-                        if metadata.get('version') and metadata['version'] != 'unknown':
-                            mod['mod_version'] = metadata['version']
-                            updated_count += 1
-                        if metadata.get('gameVersion'):
-                            mod['game_version'] = metadata['gameVersion']
-                        break
+            updated_count, error = mod_operations.refresh_mod_metadata(
+                self.modlist_data, mods_dir, log_callback=self.log
+            )
+            
+            if error:
+                raise Exception(error)
             
             self.save_modlist_config()
             self.display_modlist_info()
@@ -1124,27 +1116,20 @@ class ModlistInstaller:
             return
         
         self.log("=" * 50)
-        self.log("Enabling all installed mods...")
         
         try:
-            # Scan all installed mods
-            all_installed_folders = []
-            for folder, metadata in scan_installed_mods(mods_dir):
-                all_installed_folders.append(folder.name)
-                self.log(f"  Found: {folder.name}", debug=True)
+            enabled_count, error = mod_operations.enable_all_installed_mods(
+                mods_dir, self.mod_installer, log_callback=self.log
+            )
             
-            if not all_installed_folders:
-                custom_dialogs.showwarning("No Mods Found", "No mods were found in the mods directory.")
+            if error:
+                if "No mods found" in error:
+                    custom_dialogs.showwarning("No Mods Found", error)
+                else:
+                    custom_dialogs.showerror("Error", error)
                 return
             
-            # Update enabled_mods.json with all installed mods
-            success = self.mod_installer.update_enabled_mods(mods_dir, all_installed_folders, merge=False)
-            
-            if success:
-                self.log(f"✓ Enabled {len(all_installed_folders)} mod(s) in enabled_mods.json")
-                custom_dialogs.showsuccess("Success", f"Successfully enabled {len(all_installed_folders)} mod(s).\n\nYour mods should now be active when you start Starsector.")
-            else:
-                custom_dialogs.showerror("Error", "Failed to update enabled_mods.json")
+            custom_dialogs.showsuccess("Success", f"Successfully enabled {enabled_count} mod(s).\n\nYour mods should now be active when you start Starsector.")
         except Exception as e:
             self.log(f"✗ Error enabling mods: {e}", error=True)
             custom_dialogs.showerror("Error", f"Failed to enable mods: {e}")
