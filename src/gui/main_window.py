@@ -52,6 +52,7 @@ from utils.validators import StarsectorPathValidator, URLValidator
 from utils.error_messages import get_user_friendly_error
 from utils import installation_checks
 from utils import listbox_helpers
+from utils.category_navigator import CategoryNavigator
 
 
 
@@ -89,6 +90,7 @@ class ModlistInstaller:
         self.auto_detect_starsector()
         self.create_ui()
         
+        self.category_navigator = CategoryNavigator(self.mod_listbox)
         self.installation_controller = InstallationController(self)
         self.modlist_data = self.config_manager.load_modlist_config()
         self.display_modlist_info()
@@ -200,16 +202,8 @@ class ModlistInstaller:
             self.drag_start_line = None
     
     def _find_category_line(self, category_name):
-        try:
-            max_line = int(self.mod_listbox.index('end-1c').split('.')[0])
-        except (tk.TclError, ValueError):
-            return None
-        
-        for line_num in range(1, max_line + 1):
-            line_text = self.mod_listbox.get(f"{line_num}.0", f"{line_num}.end").strip()
-            if line_text == category_name:
-                return line_num
-        return None
+        """Find line number of category header."""
+        return self.category_navigator.find_category_line(category_name)
     
     def _move_mod_to_category_position(self, mod_name, mod, target_category, position):
         source_category = mod.get('category', 'Uncategorized')
@@ -608,37 +602,12 @@ class ModlistInstaller:
             self._move_mod_in_category(mod_name, current_mod, 1)
     
     def _find_category_above(self, line_num, current_category=None):
-        """Find category header above given line.
-        
-        Args:
-            line_num: Line number to search from
-            current_category: Optional category to exclude from results
-        """
-        check_line = line_num - 1
-        while check_line >= 1:
-            check_text = self.mod_listbox.get(f"{check_line}.0", f"{check_line}.end").strip()
-            # Category lines don't start with status icons
-            if check_text and not (check_text.startswith("✓") or check_text.startswith("○") or check_text.startswith("↑")):
-                if current_category is None or check_text != current_category:
-                    return check_text
-            check_line -= 1
-        return None
+        """Find category header above given line."""
+        return self.category_navigator.find_category_above(line_num, current_category)
     
     def _find_category_below(self, line_num):
         """Find category header below given line."""
-        try:
-            max_line = int(self.mod_listbox.index('end-1c').split('.')[0])
-        except (tk.TclError, ValueError):
-            max_line = 1
-        
-        check_line = line_num + 1
-        while check_line <= max_line:
-            check_text = self.mod_listbox.get(f"{check_line}.0", f"{check_line}.end").strip()
-            # Category lines don't start with status icons
-            if check_text and not (check_text.startswith("✓") or check_text.startswith("○") or check_text.startswith("↑")):
-                return check_text
-            check_line += 1
-        return None
+        return self.category_navigator.find_category_below(line_num)
     
     def save_modlist_config(self, log_message=False):
         """Save the current modlist configuration.
