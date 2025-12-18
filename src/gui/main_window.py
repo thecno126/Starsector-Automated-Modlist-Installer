@@ -667,6 +667,7 @@ class ModlistInstaller:
         
         header_info = (
             f"Name: {self.modlist_data.get('modlist_name') or 'Unnamed'}\n"
+            f"Author: {self.modlist_data.get('author') or 'n/a'}\n"
             f"Version: {self.modlist_data.get('version') or 'n/a'}\n"
             f"Compatible with: {self.modlist_data.get('starsector_version') or 'N/A'}\n"
             f"Description: {self.modlist_data.get('description') or 'n/a'}"
@@ -952,6 +953,7 @@ class ModlistInstaller:
     def select_starsector_path(self):
         """Open dialog to select Starsector folder."""
         folder = filedialog.askdirectory(
+            parent=self.root,
             title="Select Starsector installation folder",
             initialdir=self.starsector_path.get() if self.starsector_path.get() else str(Path.home())
         )
@@ -1174,7 +1176,7 @@ class ModlistInstaller:
                 "Starsector installation folder not set.\n\nWould you like to select it now?"
             )
             if response:
-                folder = filedialog.askdirectory(title="Select Starsector folder")
+                folder = filedialog.askdirectory(parent=self.root, title="Select Starsector folder")
                 if folder:
                     is_valid, message = self.validate_starsector_path(folder)
                     if is_valid:

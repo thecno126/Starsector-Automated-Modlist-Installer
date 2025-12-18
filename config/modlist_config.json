@@ -1,134 +1,16 @@
 {
   "modlist_name": "ASTRA",
-  "version": "0.8",
+  "version": "1.0",
   "starsector_version": "0.98a-RC8",
-  "description": "A vanilla friendly Starsector modlist",
+  "description": "Starsector Modlist",
   "mods": [
     {
-      "name": "MagicLib",
-      "download_url": "https://github.com/MagicLibStarsector/MagicLib/releases/latest/download/MagicLib.zip",
-      "category": "Libs",
-      "game_version": "0.98a-RC7",
-      "mod_version": "1.5.6",
-      "mod_id": "MagicLib",
-      "dependencies": []
-    },
-    {
-      "name": "GraphicsLib",
-      "download_url": "https://bitbucket.org/DarkRevenant/graphicslib/downloads/GraphicsLib_1.12.1.7z",
-      "category": "Libs",
-      "game_version": "0.98a-RC8",
-      "mod_version": "1.12.1",
-      "mod_id": "shaderLib",
-      "dependencies": []
-    },
-    {
-      "name": "RetroLib",
-      "download_url": "https://github.com/SafariJohn/Roider-Union/raw/refs/heads/main/RetroLib%201.1.1.zip",
-      "category": "Libs",
-      "game_version": "0.98a-RC8",
-      "mod_version": "1.1.1",
-      "mod_id": "RetroLib",
-      "dependencies": []
-    },
-    {
-      "name": "Lunalib",
-      "download_url": "https://github.com/Lukas22041/LunaLib/releases/latest/download/LunaLib.zip",
-      "category": "Libs",
-      "game_version": "0.98a-RC5",
-      "mod_version": "2.0.5",
-      "mod_id": "lunalib",
-      "dependencies": []
-    },
-    {
-      "name": "LazyLib",
-      "download_url": "https://github.com/LazyWizard/lazylib/releases/download/3.0/LazyLib.3.0.zip",
-      "category": "Libs",
-      "game_version": "0.98a-RC5",
-      "mod_version": "3.0.0",
-      "mod_id": "lw_lazylib",
-      "dependencies": []
-    },
-    {
+      "mod_id": "roider",
       "name": "Roider Union",
       "download_url": "https://github.com/SafariJohn/Roider-Union/raw/refs/heads/main/Roider%20Union%202.2.6.zip",
-      "category": "✓ Grand.Colonies",
-      "game_version": "0.98a-RC8",
       "mod_version": "2.2.6",
-      "mod_id": "roider",
-      "dependencies": []
-    },
-    {
-      "name": "Market Retrofits",
-      "download_url": "https://github.com/Alaricdragon/MarketRetrofits/archive/refs/heads/master.zip",
-      "category": "Libs",
-      "game_version": "0.98a-RC5",
-      "mod_version": "0.2.5",
-      "mod_id": "aaamarketRetrofits",
-      "dependencies": []
-    },
-    {
-      "mod_id": "assortment_of_things",
-      "name": "Random Assortment of Things",
-      "download_url": "https://github.com/Lukas22041/Random-Assortment-of-Things/releases/latest/download/Random-Assortment-of-Things.zip",
-      "mod_version": "3.2.4",
       "game_version": "0.98a-RC8",
-      "category": "Megamods",
-      "dependencies": []
-    },
-    {
-      "name": "Nexerelin",
-      "download_url": "https://github.com/Histidine91/Nexerelin/releases/download/v0.12.1b/Nexerelin_0.12.1b.zip",
-      "category": "Megamods",
-      "game_version": "0.98a-RC8",
-      "mod_version": "0.12.1b",
-      "mod_id": "nexerelin",
-      "dependencies": []
-    },
-    {
-      "mod_id": "GrandColonies",
-      "name": "Grand.Colonies",
-      "download_url": "https://github.com/SirHartley/Grand.Colonies/releases/download/2.1.b/Grand.Colonies2.1.b.zip",
-      "mod_version": "2.1.b",
-      "game_version": "0.98a",
-      "category": "✓ Random Assortment of Things",
-      "dependencies": []
-    },
-    {
-      "mod_id": "sun_nomadic_survival",
-      "name": "Nomadic Survival",
-      "download_url": "https://github.com/NateNBJ/NomadicSurvival/releases/latest/download/Nomadic.Survival.zip",
-      "mod_version": "1.5.0",
-      "game_version": "0.98a-RC7",
-      "category": "Gameplay",
-      "dependencies": []
-    },
-    {
-      "mod_id": "PAGSM",
-      "name": "Phillip Andrada: Gas Station Manager",
-      "download_url": "https://drive.google.com/uc?export=download&id=1FDZoF81T14cAx3_feXBBqXuBFTFOGd1y",
-      "mod_version": "1.14.1aa",
-      "game_version": "0.98a-RC7",
-      "category": "Factions",
-      "dependencies": []
-    },
-    {
-      "name": "Tahlan Shipworks",
-      "download_url": "https://github.com/niatahl/tahlan-shipworks/releases/download/1.4/tahlan-shipworks.zip",
-      "category": "Factions",
-      "game_version": "0.98a",
-      "mod_version": "1.4",
-      "mod_id": "tahlan",
-      "dependencies": []
-    },
-    {
-      "mod_id": "memeportraits",
-      "name": "Meme portraits",
-      "download_url": "https://drive.google.com/uc?export=download&id=1W04kNVKEnZZDghE8jE9Yr6RJXXb_kBsq",
-      "mod_version": "1.06",
-      "game_version": "0.95a-RC15",
-      "category": "Bonuses",
-      "dependencies": []
+      "category": "Factions"
     },
     {
       "mod_id": "timid_xiv",
@@ -137,7 +19,119 @@
       "mod_version": "1.18.3aj",
       "game_version": "0.97a-RC10",
       "category": "Factions"
+    },
+    {
+      "mod_id": "shaderLib",
+      "name": "GraphicsLib",
+      "download_url": "https://bitbucket.org/DarkRevenant/graphicslib/downloads/GraphicsLib_1.12.1.7z",
+      "mod_version": "1.12.1",
+      "game_version": "0.98a-RC8",
+      "category": "Libs"
+    },
+    {
+      "mod_id": "lw_lazylib",
+      "name": "LazyLib",
+      "download_url": "https://github.com/LazyWizard/lazylib/releases/download/3.0/LazyLib.3.0.zip",
+      "mod_version": "3.0.0",
+      "game_version": "0.98a-RC5",
+      "category": "Libs"
+    },
+    {
+      "mod_id": "lunalib",
+      "name": "LunaLib",
+      "download_url": "https://github.com/Lukas22041/LunaLib/releases/latest/download/LunaLib.zip",
+      "mod_version": "2.0.5",
+      "game_version": "0.98a-RC5",
+      "category": "Libs"
+    },
+    {
+      "mod_id": "MagicLib",
+      "name": "MagicLib",
+      "download_url": "https://github.com/MagicLibStarsector/MagicLib/releases/latest/download/MagicLib.zip",
+      "mod_version": "1.5.6",
+      "game_version": "0.98a-RC7",
+      "category": "Libs"
+    },
+    {
+      "mod_id": "aaamarketRetrofits",
+      "name": "market retrofits",
+      "download_url": "https://github.com/Alaricdragon/MarketRetrofits/archive/refs/heads/master.zip",
+      "mod_version": "0.2.5",
+      "game_version": "0.98a-RC5",
+      "category": "Libs"
+    },
+    {
+      "mod_id": "RetroLib",
+      "name": "RetroLib",
+      "download_url": "https://github.com/SafariJohn/Roider-Union/raw/refs/heads/main/RetroLib%201.1.1.zip",
+      "mod_version": "1.1.1",
+      "game_version": "0.98a-RC8",
+      "category": "Libs"
+    },
+    {
+      "mod_id": "sidebarLib",
+      "name": "sidebarLib",
+      "download_url": "https://download1321.mediafire.com/4leca9o6onxg3QWkkUMov8JBhxkTgGFfIOT5GgfncHCzl71Hc7g2hjxk8IBareGEC9z-LfwxVJTTaw8F80Zv3YVcaffsx1v5hwQfn8u695HuZCzTj7UMH_2zMzifYD33-k-Izmc-SrM97A7ol-NG7At12EwYVfJjmrp8Wx_cF6X4/cqq1zipsp97c8ro/sidebarLib-20250802.zip",
+      "mod_version": "20250802",
+      "game_version": "0.98a",
+      "category": "Libs"
+    },
+    {
+      "mod_id": "assortment_of_things",
+      "name": "Random Assortment of Things",
+      "download_url": "https://github.com/Lukas22041/Random-Assortment-of-Things/releases/latest/download/Random-Assortment-of-Things.zip",
+      "mod_version": "3.2.4",
+      "game_version": "0.98a-RC8",
+      "category": "Megamods"
+    },
+    {
+      "mod_id": "nexerelin",
+      "name": "Nexerelin",
+      "download_url": "https://github.com/Histidine91/Nexerelin/releases/download/v0.12.1b/Nexerelin_0.12.1b.zip",
+      "mod_version": "0.12.1b",
+      "game_version": "0.98a-RC8",
+      "category": "Megamods"
+    },
+    {
+      "mod_id": "memeportraits",
+      "name": "Meme portraits",
+      "download_url": "https://drive.google.com/uc?export=download&id=1W04kNVKEnZZDghE8jE9Yr6RJXXb_kBsq",
+      "mod_version": "1.06",
+      "game_version": "0.95a-RC15",
+      "category": "Bonuses"
+    },
+    {
+      "mod_id": "sun_nomadic_survival",
+      "name": "Nomadic Survival",
+      "download_url": "https://github.com/NateNBJ/NomadicSurvival/releases/latest/download/Nomadic.Survival.zip",
+      "mod_version": "1.5.0",
+      "game_version": "0.98a-RC7",
+      "category": "Gameplay"
+    },
+    {
+      "mod_id": "GrandColonies",
+      "name": "Grand.Colonies",
+      "download_url": "https://github.com/SirHartley/Grand.Colonies/releases/download/2.1.b/Grand.Colonies2.1.b.zip",
+      "mod_version": "2.1.b",
+      "game_version": "0.98a",
+      "category": "Gameplay"
+    },
+    {
+      "mod_id": "PAGSM",
+      "name": "Phillip Andrada: Gas Station Manager",
+      "download_url": "https://drive.google.com/uc?export=download&id=1FDZoF81T14cAx3_feXBBqXuBFTFOGd1y",
+      "mod_version": "1.14.1aa",
+      "game_version": "0.98a-RC7",
+      "category": "Factions"
+    },
+    {
+      "mod_id": "tahlan",
+      "name": "Tahlan Shipworks",
+      "download_url": "https://github.com/niatahl/tahlan-shipworks/releases/download/1.4/tahlan-shipworks.zip",
+      "mod_version": "1.4",
+      "game_version": "0.98a",
+      "category": "Factions"
     }
   ],
-  "author": "thecno-126"
+  "author": "thecno126"
 }

@@ -779,8 +779,9 @@ def open_manage_categories_dialog(parent, app):
 def open_import_csv_dialog(parent, app):
     """Open a file dialog to select a CSV file and import mods."""
     csv_file = filedialog.askopenfilename(
+        parent=parent,
         title="Select CSV file",
-        filetypes=[("CSV files", "*.csv"), ("All files", "*")]
+        filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
     )
     if not csv_file:
         return
@@ -802,9 +803,10 @@ def open_import_csv_dialog(parent, app):
 def open_export_csv_dialog(parent, app):
     """Open a file dialog to export mods to CSV."""
     csv_file = filedialog.asksaveasfilename(
+        parent=parent,
         title="Export modlist to CSV",
         defaultextension=".csv",
-        filetypes=[("CSV files", "*.csv"), ("All files", "*")]
+        filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
     )
     
     if not csv_file:
@@ -814,9 +816,10 @@ def open_export_csv_dialog(parent, app):
         with open(csv_file, 'w', newline='', encoding='utf-8') as f:
             # Write metadata section
             metadata_writer = csv.writer(f)
-            metadata_writer.writerow(['modlist_name', 'starsector_version', 'modlist_description', 'modlist_version'])
+            metadata_writer.writerow(['modlist_name', 'author', 'starsector_version', 'modlist_description', 'modlist_version'])
             metadata_writer.writerow([
                 app.modlist_data.get('modlist_name', ''),
+                app.modlist_data.get('author', ''),
                 app.modlist_data.get('starsector_version', ''),
                 app.modlist_data.get('description', ''),
                 app.modlist_data.get('version', '')
@@ -895,6 +898,7 @@ def _import_csv_file(csv_path: str, app, replace_mode: bool = False):
             # Update modlist metadata using mapping
             metadata_mapping = {
                 'modlist_name': 'modlist_name',
+                'author': 'author',
                 'starsector_version': 'starsector_version',
                 'modlist_description': 'description',
                 'modlist_version': 'version'
