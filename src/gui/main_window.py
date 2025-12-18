@@ -8,6 +8,7 @@ import concurrent.futures
 from datetime import datetime
 import os
 import shutil
+import time
 
 # Import from our modules
 from core import (
@@ -40,13 +41,18 @@ from utils.theme import TriOSTheme
 from utils.mod_utils import (
     normalize_mod_name,
     is_mod_name_match,
-    scan_installed_mods
+    scan_installed_mods,
+    check_missing_dependencies,
+    refresh_mod_metadata,
+    enable_all_installed_mods,
+    check_mod_dependencies
 )
 from utils.backup_manager import BackupManager
-from utils.path_validator import StarsectorPathValidator
+from utils.validators import StarsectorPathValidator, URLValidator
 from utils.error_messages import get_user_friendly_error
-from utils.url_validator import URLValidator
-from utils import mod_operations
+from utils import installation_checks
+from utils import listbox_helpers
+
 
 
 class ModlistInstaller:
@@ -801,38 +807,12 @@ class ModlistInstaller:
     
     def _extract_mod_name_from_line(self, line_text):
         """Extract mod name from a listbox line."""
-        line = line_text.strip()
-        # Check if it's a mod line (starts with ✓, ○, or ↑)
-        if not (line.startswith("✓") or line.startswith("○") or line.startswith("↑")):
-            return None
-        # Remove icon prefix and extract name (before version if present)
-        name_part = line_text.replace("  ✓ ", "").replace("  ○ ", "").replace("  ↑ ", "")
-        return name_part.split(" v")[0].strip()
+        return listbox_helpers.extract_mod_name_from_line(line_text)
     
     def _find_mod_by_name(self, mod_name):
-        """Find a mod dict by name using exact match or normalized matching.
-        
-        Args:
-            mod_name: Name to search for
-            
-        Returns:
-            dict: Mod dictionary or None if not found
-        """
+        """Find a mod dict by name using exact match or normalized matching."""
         mods = self.modlist_data.get('mods', [])
-        
-        # First try exact match (fastest)
-        exact_match = next((m for m in mods if m.get('name') == mod_name), None)
-        if exact_match:
-            return exact_match
-        
-        # Try normalized matching as fallback
-        normalized_search = normalize_mod_name(mod_name)
-        for mod in mods:
-            mod_config_name = mod.get('name', '')
-            if normalize_mod_name(mod_config_name) == normalized_search:
-                return mod
-        
-        return None
+        return listbox_helpers.find_mod_by_name(mod_name, mods)
     
     def _format_log_entry(self, message, error=False, info=False, warning=False, debug=False, success=False):
         """Format log entry with timestamp and level prefix.
@@ -1074,6 +1054,9 @@ class ModlistInstaller:
             custom_dialogs.showerror("Error", f"Mods directory not found: {mods_dir}")
             return
         
+        has_space, space_msg = self.check_disk_space()
+        self.log(f"Disk space: {space_msg}")
+        
         if self.refresh_btn:
             self.refresh_btn.config(state=tk.DISABLED)
         
@@ -1083,7 +1066,7 @@ class ModlistInstaller:
         try:
             self.modlist_data = self.config_manager.load_modlist_config()
             
-            updated_count, error = mod_operations.refresh_mod_metadata(
+            updated_count, error = refresh_mod_metadata(
                 self.modlist_data, mods_dir, log_callback=self.log
             )
             
@@ -1118,7 +1101,7 @@ class ModlistInstaller:
         self.log("=" * 50)
         
         try:
-            enabled_count, error = mod_operations.enable_all_installed_mods(
+            enabled_count, error = enable_all_installed_mods(
                 mods_dir, self.mod_installer, log_callback=self.log
             )
             
@@ -1139,42 +1122,12 @@ class ModlistInstaller:
         from .dialogs import open_restore_backup_dialog
         open_restore_backup_dialog(self.root, self)
     
-    def _check_write_permissions(self, mods_dir):
-        """Check write permissions on mods directory.
+    def check_disk_space(self):
+        """Check if there's enough disk space."""
+        if not self.starsector_path.get():
+            return True, "Starsector path not set"
         
-        Args:
-            mods_dir: Path to mods directory
-            
-        Returns:
-            tuple: (success: bool, error_message: str or None)
-        """
-        try:
-            test_file = mods_dir / ".write_test"
-            mods_dir.mkdir(exist_ok=True)
-            test_file.write_text("test")
-            test_file.unlink()
-            self.log("✓ Write permissions verified", debug=True)
-            return True, None
-        except (PermissionError, OSError) as e:
-            friendly_msg = get_user_friendly_error('permission_denied')
-            return False, f"{friendly_msg}\n\nTechnical: {e}"
-    
-    def _check_internet_connection(self):
-        """Quick internet connection check.
-        
-        Returns:
-            tuple: (success: bool, error_message: str or None)
-        """
-        try:
-            import socket
-            socket.create_connection(("www.google.com", 80), timeout=3)
-            self.log("✓ Internet connection verified", debug=True)
-            return True, None
-        except (socket.error, socket.timeout):
-            self.log("⚠ Internet connection may be unavailable", warning=True)
-            if not custom_dialogs.askyesno("Connection Warning", "Could not verify internet connection.\n\nContinue anyway?"):
-                return False, "Installation cancelled due to connection issues"
-            return True, None
+        return installation_checks.check_disk_space(self.starsector_path.get(), MIN_FREE_SPACE_GB)
     
     def _run_pre_installation_checks(self, starsector_dir):
         """Run comprehensive pre-installation checks.
@@ -1182,39 +1135,28 @@ class ModlistInstaller:
         Returns:
             tuple: (success: bool, error_message: str or None)
         """
+        def log_wrapper(msg, level='info'):
+            if level == 'warning':
+                self.log(msg, warning=True)
+            elif level == 'debug':
+                self.log(msg, debug=True)
+            else:
+                self.log(msg)
+        
+        def prompt_wrapper(title, message):
+            return custom_dialogs.askyesno(title, message)
+        
         mods_dir = starsector_dir / "mods"
+        check_deps_func = lambda md: self._check_dependencies(md)
         
-        # Check disk space
-        has_space, space_msg = self.check_disk_space()
-        if not has_space:
-            self.log(space_msg, warning=True)
-            if not custom_dialogs.askyesno("Low Disk Space", f"{space_msg}\n\nContinue anyway?"):
-                return False, "Installation cancelled due to low disk space"
-        
-        # Check write permissions
-        perm_success, perm_error = self._check_write_permissions(mods_dir)
-        if not perm_success:
-            return False, perm_error
-        
-        # Check internet connection
-        conn_success, conn_error = self._check_internet_connection()
-        if not conn_success:
-            return False, conn_error
-        
-        # Check dependencies
-        dependency_issues = self._check_dependencies(mods_dir)
-        if dependency_issues:
-            issues_text = "\n".join([f"  • {mod_name}: missing {', '.join(deps)}" 
-                                     for mod_name, deps in dependency_issues.items()])
-            self.log(f"⚠ Dependency issues found:\n{issues_text}", warning=True)
-            
-            message = f"Some mods have missing dependencies:\n\n{issues_text}\n\nThese dependencies will be installed if they're in the modlist.\n\nContinue?"
-            if not custom_dialogs.askyesno("Missing Dependencies", message):
-                return False, "Installation cancelled due to missing dependencies"
-        else:
-            self.log("✓ No dependency issues found", debug=True)
-        
-        return True, None
+        return installation_checks.run_all_pre_installation_checks(
+            starsector_dir,
+            self.modlist_data,
+            check_deps_func,
+            log_callback=log_wrapper,
+            prompt_callback=prompt_wrapper,
+            min_disk_gb=MIN_FREE_SPACE_GB
+        )
     
     def _check_dependencies(self, mods_dir):
         """Check for missing dependencies in the modlist.
@@ -1225,42 +1167,14 @@ class ModlistInstaller:
         Returns:
             dict: {mod_name: [list of missing dependency IDs]}
         """
-        from utils.mod_utils import extract_dependencies_from_text, check_missing_dependencies
+        # Delegate to mod_utils
+        missing_deps, error = check_mod_dependencies(self.modlist_data, mods_dir)
         
-        # First, extract dependencies from modlist mods
-        for mod in self.modlist_data.get('mods', []):
-            mod_id = mod.get('mod_id')
-            if not mod_id:
-                continue
-            
-            # If dependencies not already in mod data, we'll check installed mods later
-            if 'dependencies' not in mod:
-                mod['dependencies'] = []
+        if error:
+            self.log(f"Error checking dependencies: {error}", debug=True)
+            return {}
         
-        # Get installed mod IDs
-        installed_mod_ids = set()
-        for folder, metadata in scan_installed_mods(mods_dir):
-            mod_id = metadata.get('id')
-            if mod_id:
-                installed_mod_ids.add(mod_id)
-        
-        # Add modlist mod IDs (they will be installed)
-        modlist_mod_ids = {m.get('mod_id') for m in self.modlist_data.get('mods', []) if m.get('mod_id')}
-        all_available_ids = installed_mod_ids | modlist_mod_ids
-        
-        # Check for missing dependencies
-        missing_deps_by_id = check_missing_dependencies(self.modlist_data.get('mods', []), all_available_ids)
-        
-        # Convert to user-friendly format (mod name instead of ID)
-        dependency_issues = {}
-        for mod_id, missing_deps in missing_deps_by_id.items():
-            # Find mod name
-            mod = next((m for m in self.modlist_data.get('mods', []) if m.get('mod_id') == mod_id), None)
-            if mod:
-                mod_name = mod.get('name', mod_id)
-                dependency_issues[mod_name] = missing_deps
-        
-        return dependency_issues
+        return missing_deps
     
     def start_installation(self):
         """Start the installation process."""

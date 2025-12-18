@@ -1,7 +1,11 @@
 """Mod metadata extraction, version comparison, and dependency resolution.
 
+Includes both low-level utilities (parsing, extraction) and high-level operations
+(refresh metadata, enable mods, check dependencies).
+
 Public API:
-    High-level: extract_all_metadata_from_text(), read_mod_info_from_archive()
+    High-level operations: refresh_mod_metadata(), enable_all_installed_mods(), check_mod_dependencies()
+    Metadata extraction: extract_all_metadata_from_text(), read_mod_info_from_archive()
     Low-level parsing: extract_mod_id_from_text(), extract_mod_version_from_text(), 
                        extract_game_version_from_text(), extract_dependencies_from_text()
     Version handling: compare_versions(), extract_major_version()
@@ -282,3 +286,120 @@ def read_mod_info_from_archive(archive_path: Path, is_7z: bool = False) -> Optio
         pass
     return None
 
+
+# ============================================================================
+# High-Level Mod Operations
+# ============================================================================
+
+def refresh_mod_metadata(modlist_data, mods_dir, log_callback=None):
+    """Refresh mod metadata from installed mods.
+    
+    Args:
+        modlist_data: Modlist configuration dictionary
+        mods_dir: Path to mods directory
+        log_callback: Optional callback for logging messages
+        
+    Returns:
+        tuple: (updated_count: int, error_message: str or None)
+    """
+    def log(msg, **kwargs):
+        if log_callback:
+            log_callback(msg, **kwargs)
+    
+    log("Reloading modlist configuration...")
+    
+    updated_count = 0
+    for mod in modlist_data.get('mods', []):
+        mod_name = mod.get('name', '')
+        if not mod_name:
+            continue
+        
+        for folder, metadata in scan_installed_mods(mods_dir):
+            if is_mod_name_match(mod_name, folder.name, metadata.get('name', '')):
+                if metadata.get('version') and metadata['version'] != 'unknown':
+                    mod['mod_version'] = metadata['version']
+                    updated_count += 1
+                if metadata.get('gameVersion'):
+                    mod['game_version'] = metadata['gameVersion']
+                break
+    
+    return (updated_count, None)
+
+
+def check_mod_dependencies(modlist_data, mods_dir):
+    """Check for missing dependencies of mods in the modlist.
+    
+    Args:
+        modlist_data: The modlist JSON data
+        mods_dir: Path to the mods directory
+        
+    Returns:
+        tuple: (missing_deps_dict, error_msg) where missing_deps_dict maps mod_name -> list of missing deps
+    """
+    # Get installed mods (returns list of (folder, metadata) tuples)
+    installed_mods_raw = scan_installed_mods(mods_dir)
+    if not installed_mods_raw:
+        return {}, "Could not scan installed mods"
+    
+    # Extract mod IDs from metadata (second element of each tuple)
+    installed_mod_ids = {metadata.get("id", "").lower() 
+                         for folder, metadata in installed_mods_raw 
+                         if metadata.get("id")}
+    
+    # Check each modlist entry
+    missing_deps = {}
+    for mod_entry in modlist_data.get("mods", []):
+        mod_name = mod_entry.get("name", "Unknown Mod")
+        dependencies = mod_entry.get("dependencies", [])
+        
+        if not dependencies:
+            continue
+        
+        # Find missing dependencies
+        mod_missing = []
+        for dep in dependencies:
+            dep_id = dep.get("id", "").lower()
+            if dep_id and dep_id not in installed_mod_ids:
+                dep_name = dep.get("name", dep_id)
+                mod_missing.append(dep_name)
+        
+        if mod_missing:
+            missing_deps[mod_name] = mod_missing
+    
+    return missing_deps, None
+
+
+def enable_all_installed_mods(mods_dir, mod_installer, log_callback=None):
+    """Enable all installed mods by updating enabled_mods.json.
+    
+    Args:
+        mods_dir: Path to mods directory
+        mod_installer: ModInstaller instance
+        log_callback: Optional callback for logging messages
+        
+    Returns:
+        tuple: (enabled_count: int, error_message: str or None)
+    """
+    def log(msg, **kwargs):
+        if log_callback:
+            log_callback(msg, **kwargs)
+    
+    log("Enabling all installed mods...")
+    
+    # Scan all installed mods
+    all_installed_folders = []
+    for folder, metadata in scan_installed_mods(mods_dir):
+        all_installed_folders.append(folder.name)
+        log(f"  Found: {folder.name}", debug=True)
+    
+    if not all_installed_folders:
+        return (0, "No mods found in mods directory")
+    
+    # Update enabled_mods.json with all installed mods
+    success = mod_installer.update_enabled_mods(mods_dir, all_installed_folders, merge=False)
+    
+    if success:
+        log(f"✓ Enabled {len(all_installed_folders)} mod(s) in enabled_mods.json")
+        return (len(all_installed_folders), None)
+    else:
+        return (0, "Failed to update enabled_mods.json")
