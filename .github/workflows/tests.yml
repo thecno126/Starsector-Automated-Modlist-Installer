@@ -31,9 +31,8 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest -v --tb=short
+          pytest tests/test_suite.py -v --tb=short
 
       - name: Test imports
         run: |
-          cd src
-          python -c "from gui import ModlistInstaller; from core import ModInstaller, ConfigManager; print('✓ All imports OK')"
+          python -c "from src.gui.main_window import ModlistInstaller; from src.core.installer import ModInstaller; from src.core.config_manager import ConfigManager; print('✓ All imports OK')"
