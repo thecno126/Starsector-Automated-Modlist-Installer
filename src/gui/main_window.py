@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import filedialog, ttk
 import re
-import requests
 from . import dialogs as custom_dialogs
 from pathlib import Path
 import threading
@@ -9,13 +8,12 @@ import concurrent.futures
 from datetime import datetime
 import os
 import shutil
-import time
 
 # Import from our modules
 from core import (
     LOG_FILE,
     URL_VALIDATION_TIMEOUT_HEAD, MIN_FREE_SPACE_GB,
-    MAX_DOWNLOAD_WORKERS, CACHE_TIMEOUT,
+    MAX_DOWNLOAD_WORKERS,
     UI_MIN_WINDOW_WIDTH, UI_MIN_WINDOW_HEIGHT,
     UI_DEFAULT_WINDOW_WIDTH, UI_DEFAULT_WINDOW_HEIGHT,
     ModInstaller, ConfigManager, InstallationReport
