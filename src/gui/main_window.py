@@ -215,35 +215,29 @@ class ModlistInstaller:
             self.log(f"✗ Cannot move mod to non-existent category: {target_category}", debug=True)
             return
         
-        source_category = mod.get('category', 'Uncategorized')
-        
-        # Initialize mods_by_category if it doesn't exist
-        if 'mods_by_category' not in self.modlist_data:
-            self.modlist_data['mods_by_category'] = {}
-        
-        # Remove from source category
-        if source_category in self.modlist_data['mods_by_category']:
-            category_mods = self.modlist_data['mods_by_category'][source_category]
-            category_mods = [m for m in category_mods if m.get('name') != mod_name]
-            self.modlist_data['mods_by_category'][source_category] = category_mods
+        # Remove mod from current position
+        mods = self.modlist_data.get('mods', [])
+        mods = [m for m in mods if m.get('name') != mod_name]
         
         # Update mod category
         mod['category'] = target_category
         
-        # Initialize target category if it doesn't exist
-        if target_category not in self.modlist_data['mods_by_category']:
-            self.modlist_data['mods_by_category'][target_category] = []
+        # Group remaining mods by category in order
+        grouped = {}
+        for cat in self.categories:
+            grouped[cat] = [m for m in mods if m.get('category', 'Uncategorized') == cat]
         
-        # Add to target category at specified position
-        category_mods = self.modlist_data['mods_by_category'][target_category]
-        position = max(0, min(position, len(category_mods)))
-        category_mods.insert(position, mod)
+        # Insert mod at specified position in target category
+        target_mods = grouped.get(target_category, [])
+        position = max(0, min(position, len(target_mods)))
+        target_mods.insert(position, mod)
+        grouped[target_category] = target_mods
         
-        # Rebuild global mods list
+        # Rebuild global mods list maintaining category order
         self.modlist_data['mods'] = []
         for category in self.categories:
-            if category in self.modlist_data['mods_by_category']:
-                self.modlist_data['mods'].extend(self.modlist_data['mods_by_category'][category])
+            if category in grouped:
+                self.modlist_data['mods'].extend(grouped[category])
         
         self.save_modlist_config()
         self.display_modlist_info()
