@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 from .ui_builder import _create_button
 from utils.theme import TriOSTheme
+from utils.symbols import LogSymbols
 
 
 def _create_dialog(parent, title, width=None, height=None, resizable=False):
@@ -98,8 +99,8 @@ class StyledDialog:
         message_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
         
         # Icon
-        icons = {"info": "ℹ", "success": "✓", "warning": "⚠", "error": "✗", "question": "?"}
-        tk.Label(message_frame, text=icons.get(dialog_type, "ℹ"), 
+        icons = {"info": LogSymbols.INFO, "success": LogSymbols.SUCCESS, "warning": LogSymbols.WARNING, "error": LogSymbols.ERROR, "question": LogSymbols.QUESTION}
+        tk.Label(message_frame, text=icons.get(dialog_type, LogSymbols.INFO), 
                 font=("Arial", 36, "bold"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.PRIMARY).pack(side=tk.LEFT, padx=(0, 15))
         
         # Message
@@ -210,7 +211,7 @@ def show_validation_report(parent, github_mods, gdrive_mods, other_domains, fail
         github_frame = tk.Frame(summary_frame, bg=TriOSTheme.SURFACE)
         github_frame.pack(fill=tk.X, pady=(0, 8))
         
-        tk.Label(github_frame, text=f"✓ {len(github_mods)} mod(s) from GitHub", 
+        tk.Label(github_frame, text=f"{LogSymbols.SUCCESS} {len(github_mods)} mod(s) from GitHub", 
                 font=("Arial", 11, "bold"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.GITHUB_FG).pack(anchor=tk.W)
         
         # List GitHub mods
@@ -230,7 +231,7 @@ def show_validation_report(parent, github_mods, gdrive_mods, other_domains, fail
         gdrive_frame = tk.Frame(summary_frame, bg=TriOSTheme.SURFACE)
         gdrive_frame.pack(fill=tk.X, pady=(0, 8))
         
-        tk.Label(gdrive_frame, text=f"✓ {len(gdrive_mods)} mod(s) from Google Drive", 
+        tk.Label(gdrive_frame, text=f"{LogSymbols.SUCCESS} {len(gdrive_mods)} mod(s) from Google Drive", 
                 font=("Arial", 11, "bold"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.GDRIVE_FG).pack(anchor=tk.W)
         
         # Info about large files
@@ -257,7 +258,7 @@ def show_validation_report(parent, github_mods, gdrive_mods, other_domains, fail
         other_frame.pack(fill=tk.X, pady=(0, 8))
         
         total_other = sum(len(mods) for mods in other_domains.values())
-        tk.Label(other_frame, text=f"⚠ {total_other} mod(s) from other sources", 
+        tk.Label(other_frame, text=f"{LogSymbols.WARNING} {total_other} mod(s) from other sources", 
                 font=("Arial", 11, "bold"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.OTHER_FG).pack(anchor=tk.W)
         
         # List each domain with its mods
@@ -280,7 +281,7 @@ def show_validation_report(parent, github_mods, gdrive_mods, other_domains, fail
         failed_frame = tk.Frame(summary_frame, bg=TriOSTheme.SURFACE)
         failed_frame.pack(fill=tk.X, pady=(0, 0))
         
-        tk.Label(failed_frame, text=f"✗ {len(failed_list)} mod(s) inaccessible", 
+        tk.Label(failed_frame, text=f"{LogSymbols.ERROR} {len(failed_list)} mod(s) inaccessible", 
                 font=("Arial", 11, "bold"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.FAILED_FG).pack(anchor=tk.W, pady=(0, 2))
         
         tk.Label(failed_frame, 
@@ -422,11 +423,11 @@ def open_add_mod_dialog(parent, app):
             
             def retry_download():
                 try:
-                    temp_file, is_7z = app.mod_installer.download_archive(
-                        {'download_url': retry_url, 'name': 'temp'}, 
+                    result = app.mod_installer.download_archive(
+                        {'download_url': retry_url, 'name': 'temp'},
                         skip_gdrive_check=True
                     )
-                    
+                    temp_file, is_7z = result.temp_path, result.is_7z
                     if not temp_file or temp_file == 'GDRIVE_HTML':
                         dlg.after(0, lambda: show_error("Failed to download archive even with fixed URL"))
                         return
@@ -491,8 +492,8 @@ def open_add_mod_dialog(parent, app):
                 import tempfile
                 from pathlib import Path
                 
-                # Download the archive
-                temp_file, is_7z = app.mod_installer.download_archive({'download_url': url, 'name': 'temp'})
+                result = app.mod_installer.download_archive({'download_url': url, 'name': 'temp'})
+                temp_file, is_7z = result.temp_path, result.is_7z
                 
                 # Handle Google Drive HTML response (virus scan warning)
                 if temp_file == 'GDRIVE_HTML':
@@ -675,7 +676,7 @@ def open_manage_categories_dialog(parent, app):
         app.categories[idx], app.categories[idx+1] = app.categories[idx+1], app.categories[idx]
         refresh_category_listbox(idx+1)
     
-    up_btn = _create_button(move_frame, "↑", move_up, width=3, font_size=14, button_type="secondary")
+    up_btn = _create_button(move_frame, LogSymbols.UPDATED, move_up, width=3, font_size=14, button_type="secondary")
     up_btn.pack(pady=(0, 5))
     
     down_btn = _create_button(move_frame, "↓", move_down, width=3, font_size=14, button_type="secondary")
@@ -841,9 +842,9 @@ def open_export_csv_dialog(parent, app):
                     'category': mod.get('category', 'Uncategorized')
                 })
         
-        app.log(f"✓ Exported {len(app.modlist_data.get('mods', []))} mods to {csv_file}", success=True)
+        app.log(f"{LogSymbols.SUCCESS} Exported {len(app.modlist_data.get('mods', []))} mods to {csv_file}", success=True)
     except Exception as e:
-        app.log(f"✗ Export error: {e}", error=True)
+        app.log(f"{LogSymbols.ERROR} Export error: {e}", error=True)
 
 
 def _import_csv_file(csv_path: str, app, replace_mode: bool = False):
@@ -885,10 +886,12 @@ def _import_csv_file(csv_path: str, app, replace_mode: bool = False):
         metadata_updated = False
         start_line = 0
         
-        # If first line has metadata and no mod headers, it's metadata-only
-        if has_metadata and not has_mod_headers:
-            app.log(f"  Parsing metadata section...")
+        # Early return: no metadata section, parse as regular CSV
+        if not (has_metadata and not has_mod_headers):
+            app.log(f"  No metadata section detected, parsing as regular CSV")
+        else:
             # Parse metadata from first line
+            app.log(f"  Parsing metadata section...")
             reader = csv.DictReader([lines[0], lines[1]])  # Header + values
             metadata_row = next(reader)
             
@@ -922,8 +925,6 @@ def _import_csv_file(csv_path: str, app, replace_mode: bool = False):
             
             # Skip metadata lines (header + value)
             start_line = 2
-        else:
-            app.log(f"  No metadata section detected, parsing as regular CSV")
         
         # Now parse mods starting from the appropriate line
         if start_line < len(lines):
@@ -962,7 +963,8 @@ def _import_csv_file(csv_path: str, app, replace_mode: bool = False):
                 if not mod_id or not name:
                     app.log(f"  ⚠ CSV missing mod_id/name for {url}, attempting auto-detection...", info=True)
                     try:
-                        temp_file, is_7z = app.mod_installer.download_archive({'download_url': url, 'name': 'temp'})
+                        result = app.mod_installer.download_archive({'download_url': url, 'name': 'temp'})
+                        temp_file, is_7z = result.temp_path, result.is_7z
                         if temp_file:
                             try:
                                 from pathlib import Path
@@ -974,7 +976,7 @@ def _import_csv_file(csv_path: str, app, replace_mode: bool = False):
                                         mod_version = metadata.get('version', '')
                                     if not game_version:
                                         game_version = metadata.get('gameVersion', '')
-                                    app.log(f"  ✓ Auto-detected: {name} (ID: {mod_id})", info=True)
+                                    app.log(f"  {LogSymbols.SUCCESS} Auto-detected: {name} (ID: {mod_id})", info=True)
                             finally:
                                 Path(temp_file).unlink()
                     except Exception as e:
@@ -1035,7 +1037,7 @@ def _import_csv_file(csv_path: str, app, replace_mode: bool = False):
         
         app.root.after(0, lambda: _set_ui_enabled(app, True))
     except (FileNotFoundError, csv.Error, UnicodeDecodeError, ValueError) as e:
-        app.log(f"  ✗ Error importing CSV: {type(e).__name__}: {e}", error=True)
+        app.log(f"  {LogSymbols.ERROR} Error importing CSV: {type(e).__name__}: {e}", error=True)
         app.root.after(0, lambda: custom_dialogs.showerror("Import failed", f"Error during CSV import:\n{type(e).__name__}: {e}"))
         app.root.after(0, lambda: _set_ui_enabled(app, True))
 
@@ -1082,7 +1084,7 @@ def show_google_drive_confirmation_dialog(parent, failed_mods, on_confirm_callba
     warning_frame.pack(fill=tk.X, pady=(0, 0))
     
     warning_text = tk.Label(warning_frame, 
-        text="⚠️  Google can't verify these files due to their size. Confirm only if from a trusted source.",
+        text=f"{LogSymbols.WARNING}  Google can't verify these files due to their size. Confirm only if from a trusted source.",
         font=("Arial", 9), bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_SECONDARY, wraplength=500, justify=tk.LEFT)
     warning_text.pack(anchor=tk.W)
     
@@ -1343,7 +1345,7 @@ def open_restore_backup_dialog(parent, app):
             
             success, error = backup_manager.delete_backup(backup_path)
             if success:
-                app.log(f"✓ Deleted backup: {formatted}")
+                app.log(f"{LogSymbols.SUCCESS} Deleted backup: {formatted}")
                 listbox.delete(idx)
                 backups.pop(idx)
                 
@@ -1379,7 +1381,7 @@ def open_restore_backup_dialog(parent, app):
         _center_dialog(dialog, parent)
         
     except Exception as e:
-        app.log(f"✗ Error accessing backups: {e}", error=True)
+        app.log(f"{LogSymbols.ERROR} Error accessing backups: {e}", error=True)
         showerror("Error", f"Failed to access backups:\n{e}", parent)
 
 

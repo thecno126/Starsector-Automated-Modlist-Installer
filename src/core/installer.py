@@ -14,6 +14,8 @@ except ImportError:
 
 from .constants import REQUEST_TIMEOUT, CHUNK_SIZE, MAX_RETRIES
 from .archive_extractor import ArchiveExtractor
+from model_types import DownloadResult
+from utils.symbols import LogSymbols
 from utils.mod_utils import (
     normalize_mod_name,
     extract_all_metadata_from_text,
@@ -68,32 +70,32 @@ class ModInstaller:
             self.log(f"  Downloading {mod['name']}{version_str}...")
             self.log(f"  From: {mod['download_url']}")
             
-            temp_file, is_7z = self.download_archive(mod)
-            if not temp_file:
+            result = self.download_archive(mod)
+            if not result.temp_path:
                 return False
             
             try:
                 self.log(f"  Inspecting archive contents...")
-                success = self.extract_archive(temp_file, mods_dir, is_7z, mod_version)
+                success = self.extract_archive(result.temp_path, mods_dir, result.is_7z, mod_version)
                 if success:
-                    self.log(f"  ✓ {mod['name']} installed successfully")
+                    self.log(f"  {LogSymbols.SUCCESS} {mod['name']} installed successfully")
                 return success
             finally:
-                if temp_file and Path(temp_file).exists():
+                if result.temp_path and Path(result.temp_path).exists():
                     try:
-                        Path(temp_file).unlink()
+                        Path(result.temp_path).unlink()
                     except (OSError, PermissionError):
                         pass
             
         except requests.exceptions.RequestException as e:
-            self.log(f"  ✗ Download error: {e}", error=True)
+            self.log(f"  {LogSymbols.ERROR} Download error: {e}", error=True)
         except zipfile.BadZipFile:
-            self.log(f"  ✗ Corrupted ZIP file", error=True)
+            self.log(f"  {LogSymbols.ERROR} Corrupted ZIP file", error=True)
         except Exception as e:
-            self.log(f"  ✗ Unexpected error: {e}", error=True)
+            self.log(f"  {LogSymbols.ERROR} Unexpected error: {e}", error=True)
         return False
 
-    def download_archive(self, mod: Dict[str, Any], skip_gdrive_check: bool = False) -> Tuple[Optional[str], bool]:
+    def download_archive(self, mod: Dict[str, Any], skip_gdrive_check: bool = False) -> DownloadResult:
         temp_path = None
         
         def attempt_download():
@@ -106,7 +108,7 @@ class ModInstaller:
             
             if not skip_gdrive_check and ('drive.google.com' in url_lower or 'drive.usercontent.google.com' in url_lower):
                 if 'text/html' in content_type:
-                    return 'GDRIVE_HTML', False
+                    return DownloadResult('GDRIVE_HTML', False)
             
             is_7z = '.7z' in url_lower or '7z' in content_type
             temp_fd, temp_path = tempfile.mkstemp(suffix='.7z' if is_7z else '.zip', prefix='modlist_')
@@ -123,29 +125,29 @@ class ModInstaller:
                     pass
                 raise ValueError("Downloaded file is not a valid archive")
             
-            return temp_path, is_7z
+            return DownloadResult(temp_path, is_7z)
         
         try:
             return retry_with_backoff(attempt_download, max_retries=MAX_RETRIES, 
                                      exceptions=(requests.exceptions.RequestException, ValueError))
         except requests.exceptions.RequestException as e:
-            self.log(f"  ✗ Download failed after {MAX_RETRIES} attempts: {type(e).__name__}", error=True)
+            self.log(f"  {LogSymbols.ERROR} Download failed after {MAX_RETRIES} attempts: {type(e).__name__}", error=True)
             error_type = suggest_fix_for_error(e)
             if error_type:
                 self.log(f"\n{get_user_friendly_error(error_type)}", error=True)
         except ValueError as e:
-            self.log(f"  ✗ {str(e)}", error=True)
+            self.log(f"  {LogSymbols.ERROR} {str(e)}", error=True)
             if 'not a valid archive' in str(e):
                 self.log(f"\n{get_user_friendly_error('corrupted_archive')}", error=True)
         except Exception as e:
-            self.log(f"  ✗ Unexpected download error: {e}", error=True)
+            self.log(f"  {LogSymbols.ERROR} Unexpected download error: {e}", error=True)
         
         if temp_path and os.path.exists(temp_path):
             try:
                 os.unlink(temp_path)
             except (OSError, PermissionError):
                 pass
-        return None, False
+        return DownloadResult(None, False)
     
     def _validate_archive_integrity(self, file_path: str, is_7z: bool) -> bool:
         if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:

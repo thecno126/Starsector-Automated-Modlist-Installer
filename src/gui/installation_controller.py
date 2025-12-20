@@ -7,15 +7,20 @@ from core import InstallationReport, MAX_DOWNLOAD_WORKERS
 from utils.mod_utils import is_mod_up_to_date, resolve_mod_dependencies
 from utils.mod_utils import scan_installed_mods, is_mod_name_match
 from utils.backup_manager import BackupManager
+from utils.symbols import LogSymbols
 
 
 class InstallationController:
     def __init__(self, main_window):
         self.window = main_window
         self.mod_installer = main_window.mod_installer
+    
+    def _set_progress(self, value):
+        """Thread-safe progress bar update."""
+        self.window.install_progress_bar['value'] = value
+        self.window.root.update_idletasks()
         
     def download_mods_parallel(self, mods_to_download, skip_gdrive_check=False, max_workers=None):
-        # Returns: (download_results, gdrive_failed)
         download_results = []
         gdrive_failed = []
         
@@ -41,25 +46,25 @@ class InstallationController:
                     
                 mod = future_to_mod[future]
                 mod_name = mod.get('name', 'Unknown')
-                self.window.current_mod_name.set(f"⬇ Downloading: {mod_name}")
+                self.window.root.after(0, lambda n=mod_name: self.window.current_mod_name.set(f"⬇ Downloading: {n}"))
                 
                 try:
-                    temp_path, is_7z = future.result()
-                    if temp_path == 'GDRIVE_HTML':
+                    result = future.result()
+                    if result.temp_path == 'GDRIVE_HTML':
                         gdrive_failed.append(mod)
-                        self.window.log(f"  ⚠️  Google Drive returned HTML (virus scan warning): {mod.get('name')}", error=True)
-                    elif temp_path:
-                        download_results.append((mod, temp_path, is_7z))
-                        self.window.downloaded_temp_files.append(temp_path)
-                        self.window.log(f"  ✓ Downloaded: {mod.get('name')}")
+                        self.window.log(f"  {LogSymbols.WARNING}  Google Drive returned HTML (virus scan warning): {mod.get('name')}", error=True)
+                    elif result.temp_path:
+                        download_results.append((mod, result.temp_path, result.is_7z))
+                        self.window.downloaded_temp_files.append(result.temp_path)
+                        self.window.log(f"  {LogSymbols.SUCCESS} Downloaded: {mod.get('name')}")
                     else:
-                        self.window.log(f"  ✗ Failed to download: {mod.get('name')}", error=True)
+                        self.window.log(f"  {LogSymbols.ERROR} Failed to download: {mod.get('name')}", error=True)
                 except Exception as e:
-                    self.window.log(f"  ✗ Download error for {mod.get('name')}: {e}", error=True)
+                    self.window.log(f"  {LogSymbols.ERROR} Download error for {mod.get('name')}: {e}", error=True)
                     
                 completed += 1
-                self.window.install_progress_bar['value'] = (completed / len(mods_to_download)) * 50
-                self.window.root.update_idletasks()
+                progress_value = (completed / len(mods_to_download)) * 50
+                self.window.root.after(0, lambda v=progress_value: self._set_progress(v))
         finally:
             if self.window.current_executor:
                 self.window.current_executor.shutdown(wait=True)
@@ -78,17 +83,16 @@ class InstallationController:
         
         self.window.log("Creating backup of enabled_mods.json...")
         try:
-            backup_manager = BackupManager(self.window.starsector_path.get())
-            backup_path, success, error = backup_manager.create_backup(backup_mods=False)
-            if success:
-                self.window.log(f"✓ Backup created: {backup_path.name}")
-                deleted = backup_manager.cleanup_old_backups(keep_count=5)
-                if deleted > 0:
-                    self.window.log(f"  Cleaned up {deleted} old backup(s)", debug=True)
+            if self.window.backup_manager:
+                result = self.window.backup_manager.create_backup(backup_mods=False)
+                if result.success:
+                    self.window.log(f"{LogSymbols.SUCCESS} Backup created: {result.path.name}")
+                else:
+                    self.window.log(f"{LogSymbols.WARNING} Backup failed: {result.error}", warning=True)
             else:
-                self.window.log(f"⚠ Backup failed: {error}", warning=True)
+                self.window.log(f"{LogSymbols.WARNING} Backup manager not initialized", warning=True)
         except Exception as e:
-            self.window.log(f"⚠ Could not create backup: {e}", warning=True)
+            self.window.log(f"{LogSymbols.WARNING} Could not create backup: {e}", warning=True)
 
         # Update metadata from installed mods for accurate version checking
         self.window.log("Scanning installed mods for metadata...")
@@ -102,7 +106,7 @@ class InstallationController:
 
         self.window.log("Resolving mod dependencies...")
         mods_to_install = resolve_mod_dependencies(mods_to_install, installed_mods_dict)
-        self.window.log(f"  ✓ Dependencies resolved, installation order optimized")
+        self.window.log(f"  {LogSymbols.SUCCESS} Dependencies resolved, installation order optimized")
 
         # Filter: check which mods are already up-to-date
         mods_to_download = []
@@ -112,17 +116,17 @@ class InstallationController:
             mod_name = mod.get('name', 'Unknown')
             mod_version = mod.get('mod_version')
             
-            is_up_to_date, installed_version = is_mod_up_to_date(mod_name, mod_version, mods_dir)
+            check = is_mod_up_to_date(mod_name, mod_version, mods_dir)
             
-            if is_up_to_date:
-                version_str = f" (v{installed_version})" if installed_version else ""
-                report.add_skipped(mod_name, "already up-to-date", installed_version)
+            if check.is_current:
+                version_str = f" (v{check.installed_version})" if check.installed_version else ""
+                report.add_skipped(mod_name, "already up-to-date", check.installed_version)
                 pre_skipped += 1
             else:
-                if installed_version is not None:
-                    status = f"update ({installed_version} → {mod_version})" if mod_version else "update"
+                if check.installed_version is not None:
+                    status = f"update ({check.installed_version} → {mod_version})" if mod_version else "update"
                     if mod_version:
-                        report.add_updated(mod_name, installed_version, mod_version)
+                        report.add_updated(mod_name, check.installed_version, mod_version)
                     self.window.log(f"  → Will {status}: '{mod_name}'")
                 else:
                     self.window.log(f"  → Will install: '{mod_name}'")
@@ -131,9 +135,9 @@ class InstallationController:
         
         if pre_skipped > 0:
             if pre_skipped == len(mods_to_install):
-                self.window.log(f"✓ All {pre_skipped} mods are already up-to-date!")
+                self.window.log(f"{LogSymbols.SUCCESS} All {pre_skipped} mods are already up-to-date!")
             else:
-                self.window.log(f"○ Skipped {pre_skipped} up-to-date mod(s)")
+                self.window.log(f"{LogSymbols.NOT_INSTALLED} Skipped {pre_skipped} up-to-date mod(s)")
         
         if not mods_to_download:
             self.window.install_progress_bar['value'] = 100
@@ -182,7 +186,7 @@ class InstallationController:
         
         if not download_results:
             self.window.log("All mods were skipped (already installed or failed to download)", info=True)
-            self.window.install_progress_bar['value'] = 100
+            self.window.root.after(0, lambda: self._set_progress(100))
             return (0, 0, [])
         
         for i, (mod, temp_path, is_7z) in enumerate(download_results, 1):
@@ -197,7 +201,7 @@ class InstallationController:
             mod_name = mod.get('name', 'Unknown')
             mod_version = self.window._get_mod_game_version(mod)
             
-            self.window.current_mod_name.set(f"📦 Extracting: {mod_name}")
+            self.window.root.after(0, lambda n=mod_name: self.window.current_mod_name.set(f"📦 Extracting: {n}"))
             
             version_str = f" v{mod_version}" if mod_version else ""
             self.window.log(f"\n[{i}/{len(download_results)}] Installing {mod_name}{version_str}...")
@@ -217,7 +221,7 @@ class InstallationController:
                     skipped += 1
                     report.add_skipped(mod_name, "already installed", expected_mod_version)
                 elif success:
-                    self.window.log(f"  ✓ {mod['name']} installed successfully", success=True)
+                    self.window.log(f"  {LogSymbols.SUCCESS} {mod['name']} installed successfully", success=True)
                     extracted += 1
                     
                     if metadata:
@@ -226,17 +230,16 @@ class InstallationController:
                     detected_version = metadata.get('version') if metadata else expected_mod_version
                     report.add_installed(mod_name, detected_version)
                 else:
-                    self.window.log(f"  ✗ Failed to install {mod['name']}", error=True)
+                    self.window.log(f"  {LogSymbols.ERROR} Failed to install {mod['name']}", error=True)
                     extraction_failures.append(mod)
                     skipped += 1
             except Exception as e:
-                self.window.log(f"  ✗ Unexpected extraction error for {mod.get('name')}: {e}", error=True)
+                self.window.log(f"  {LogSymbols.ERROR} Unexpected extraction error for {mod.get('name')}: {e}", error=True)
                 extraction_failures.append(mod)
                 skipped += 1
             
             progress = 50 + ((extracted + skipped) / len(download_results)) * 50
-            self.window.install_progress_bar['value'] = progress
-            self.window.root.update_idletasks()
+            self.window.root.after(0, lambda v=progress: self._set_progress(v))
         
         return (extracted, skipped, extraction_failures)
     
@@ -318,12 +321,12 @@ class InstallationController:
                     
                     if changed:
                         updated_count += 1
-                        self.window.log(f"  ✓ Updated metadata: {mod.get('name')} (ID: {installed_id})", info=True)
+                        self.window.log(f"  {LogSymbols.SUCCESS} Updated metadata: {mod.get('name')} (ID: {installed_id})", info=True)
                     
                     break
         
         if updated_count > 0:
-            self.window.log(f"✓ Updated metadata for {updated_count} mod(s)")
+            self.window.log(f"{LogSymbols.SUCCESS} Updated metadata for {updated_count} mod(s)")
     
     def finalize_installation_with_report(self, report, mods_dir, download_results, total_mods,
                                            gdrive_failed=None, extraction_failures=None):
@@ -341,7 +344,7 @@ class InstallationController:
         # No longer prompting user during installation
         
         if not report.has_errors():
-            self.window.log("✓ Installation Complete! Use 'Enable All Mods' button to activate them.", success=True)
+            self.window.log(f"{LogSymbols.SUCCESS} Installation Complete! Use 'Enable All Mods' button to activate them.", success=True)
         
         # Save modlist to persist any auto-detected game_version values from extraction
         self.window.save_modlist_config(log_message=False)

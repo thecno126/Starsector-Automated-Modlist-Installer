@@ -1,8 +1,10 @@
+# -*- coding: utf-8 -*-
 """Application constants, paths, and InstallationReport tracker."""
 import sys
 import time
 from pathlib import Path
 from datetime import datetime
+from utils.symbols import LogSymbols
 
 
 # Base directory resolution (script vs PyInstaller bundle)
@@ -90,28 +92,37 @@ class InstallationReport:
         duration = self.get_duration()
         minutes, seconds = divmod(int(duration), 60)
         
+        # Summary stats
+        installed_count = len(self.installed)
+        updated_count = len(self.updated)
+        skipped_count = len(self.skipped)
+        errors_count = len(self.errors)
+        
         summary = [
-            "\n" + "─" * 60,
-            f"✓ Installation Complete ({minutes}m {seconds}s)",
-            "─" * 60,
-            f"✓ {len(self.installed)} installed | ↑ {len(self.updated)} updated | ○ {len(self.skipped)} skipped | ✗ {len(self.errors)} errors"
+            "\n" + "-" * 60,
+            f"{LogSymbols.SUCCESS} Installation Complete ({minutes}m {seconds}s)",
+            "-" * 60,
+            f"{LogSymbols.SUCCESS} {installed_count} installed | "
+            f"{LogSymbols.UPDATED} {updated_count} updated | "
+            f"{LogSymbols.NOT_INSTALLED} {skipped_count} skipped | "
+            f"{LogSymbols.ERROR} {errors_count} errors"
         ]
         
         if self.installed:
             summary.append("\nNewly Installed:")
             for item in self.installed:
                 version = f" v{item['version']}" if item['version'] else ""
-                summary.append(f"  ✓ {item['mod']}{version}")
+                summary.append(f"  {LogSymbols.SUCCESS} {item['mod']}{version}")
         
         if self.updated:
             summary.append("\nUpdated:")
             for item in self.updated:
-                summary.append(f"  ↑ {item['mod']}: {item['old_version']} → {item['new_version']}")
+                summary.append(f"  {LogSymbols.UPDATED} {item['mod']}: {item['old_version']} → {item['new_version']}")
         
         if self.errors:
             summary.append("\nErrors:")
             for item in self.errors:
-                summary.append(f"  ✗ {item['mod']}: {item['error']}")
+                summary.append(f"  {LogSymbols.ERROR} {item['mod']}: {item['error']}")
                 summary.append(f"    URL: {item['url']}")
         
         return "\n".join(summary)

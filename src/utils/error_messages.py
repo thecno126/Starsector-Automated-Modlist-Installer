@@ -1,3 +1,8 @@
+"""User-friendly error message templates."""
+
+from utils.symbols import LogSymbols
+
+
 def get_user_friendly_error(error_type, error_details=""):
     """Convert error type to user-friendly message with actionable steps."""
     messages = {
@@ -56,7 +61,7 @@ def get_user_friendly_error(error_type, error_details=""):
         ),
         
         'gdrive_limit': (
-            "⚠️ Google Drive download quota exceeded\n\n"
+            LogSymbols.WARNING + " Google Drive download quota exceeded\n\n"
             "This mod can't be downloaded right now due to Google Drive limits.\n\n"
             "Try:\n"
             "• Wait a few hours and try again\n"
@@ -65,14 +70,14 @@ def get_user_friendly_error(error_type, error_details=""):
         ),
         
         'dependency_missing': (
-            "⚠️ Missing dependencies\n\n"
+            LogSymbols.WARNING + " Missing dependencies\n\n"
             "Some mods require other mods to be installed first.\n\n"
             "The installer will try to install them in the correct order.\n"
             "Check the log for details."
         ),
         
         'version_mismatch': (
-            "⚠️ Version incompatibility\n\n"
+            LogSymbols.WARNING + " Version incompatibility\n\n"
             "This mod might not work with your Starsector version.\n\n"
             "The mod will be installed but might cause issues.\n"
             "Check the mod page for compatible versions."

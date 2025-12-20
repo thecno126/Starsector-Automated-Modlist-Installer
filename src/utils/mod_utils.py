@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Optional, Tuple, Dict, Any, List
 import zipfile
 import tempfile
+from model_types import ModVersionCheck
+from utils.symbols import LogSymbols
 
 
 def normalize_mod_name(name: str) -> str:
@@ -200,8 +202,8 @@ def extract_major_version(version_str: Optional[str]) -> Optional[str]:
     return match.group(1) if match else version_str.split('-')[0]
 
 
-def is_mod_up_to_date(mod_name: str, expected_version: Optional[str], mods_dir: Path) -> Tuple[bool, Optional[str]]:
-    """Check installed mod version >= expected. Returns (is_up_to_date, installed_version)."""
+def is_mod_up_to_date(mod_name: str, expected_version: Optional[str], mods_dir: Path) -> ModVersionCheck:
+    """Check if installed mod version >= expected."""
     installed_version = None
     
     for folder, metadata in scan_installed_mods(mods_dir):
@@ -210,18 +212,19 @@ def is_mod_up_to_date(mod_name: str, expected_version: Optional[str], mods_dir: 
             break
     
     if not installed_version:
-        return False, None
+        return ModVersionCheck(False, None)
     
     if not expected_version:
-        return True, installed_version
+        return ModVersionCheck(True, installed_version)
     
     if installed_version == 'unknown':
-        return False, installed_version
+        return ModVersionCheck(False, installed_version)
     
     try:
-        return compare_versions(installed_version, expected_version) >= 0, installed_version
+        is_current = compare_versions(installed_version, expected_version) >= 0
+        return ModVersionCheck(is_current, installed_version)
     except Exception:
-        return False, installed_version
+        return ModVersionCheck(False, installed_version)
 
 
 def resolve_mod_dependencies(mods: List[Dict[str, Any]], installed_mods_dict: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -399,7 +402,7 @@ def enable_all_installed_mods(mods_dir, mod_installer, log_callback=None):
     success = mod_installer.update_enabled_mods(mods_dir, all_installed_folders, merge=False)
     
     if success:
-        log(f"✓ Enabled {len(all_installed_folders)} mod(s) in enabled_mods.json")
+        log(f"{LogSymbols.SUCCESS} Enabled {len(all_installed_folders)} mod(s) in enabled_mods.json")
         return (len(all_installed_folders), None)
     else:
         return (0, "Failed to update enabled_mods.json")

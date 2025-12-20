@@ -1,6 +1,7 @@
 """Category navigation and search helpers for Tkinter listbox."""
 
 import tkinter as tk
+from utils.symbols import LogSymbols
 
 
 class CategoryNavigator:
@@ -88,4 +89,4 @@ class CategoryNavigator:
             bool: True if mod line
         """
         stripped = line_text.strip()
-        return stripped.startswith("✓") or stripped.startswith("○") or stripped.startswith("↑")
+        return stripped.startswith(LogSymbols.INSTALLED) or stripped.startswith(LogSymbols.NOT_INSTALLED) or stripped.startswith(LogSymbols.UPDATED)

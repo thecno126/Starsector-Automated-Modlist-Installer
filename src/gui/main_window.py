@@ -10,7 +10,6 @@ import os
 import shutil
 import time
 
-# Import from our modules
 from core import (
     LOG_FILE,
     URL_VALIDATION_TIMEOUT_HEAD, MIN_FREE_SPACE_GB,
@@ -53,6 +52,7 @@ from utils.error_messages import get_user_friendly_error
 from utils import installation_checks
 from utils import listbox_helpers
 from utils.category_navigator import CategoryNavigator
+from utils.symbols import LogSymbols
 
 
 
@@ -97,7 +97,6 @@ class ModlistInstaller:
         self.modlist_data = self.config_manager.load_modlist_config()
         self.display_modlist_info()
         
-        # Event bindings
         self.root.bind('<Configure>', self.on_window_resize)
         self._resize_after_id = None
         self.root.protocol("WM_DELETE_WINDOW", self.safe_quit)
@@ -106,7 +105,6 @@ class ModlistInstaller:
         self.root.bind('<Control-s>', lambda e: self.save_modlist_config(log_message=True))
         self.root.bind('<Control-a>', lambda e: self.open_add_mod_dialog())
         
-        # Drag-and-drop for mod reordering
         self.drag_start_line = None
         self.drag_start_y = None
         self._setup_drag_and_drop()
@@ -126,7 +124,7 @@ class ModlistInstaller:
             bool: True if line is mod line (starts with icon)
         """
         line_stripped = line_text.strip()
-        return line_stripped and line_stripped.startswith(("✓", "○", "↑"))
+        return line_stripped and line_stripped.startswith((LogSymbols.INSTALLED, LogSymbols.NOT_INSTALLED, LogSymbols.UPDATED))
     
     def _calculate_drop_position(self, category_start_line, target_line):
         """Calculate position in category for drop target.
@@ -210,11 +208,11 @@ class ModlistInstaller:
     def _move_mod_to_category_position(self, mod_name, mod, target_category, position):
         """Move mod to specific position in target category with safety checks."""
         if not mod or not mod_name:
-            self.log(f"✗ Cannot move mod: invalid mod data", debug=True)
+            self.log(f"{LogSymbols.ERROR} Cannot move mod: invalid mod data", debug=True)
             return
         
         if target_category not in self.categories:
-            self.log(f"✗ Cannot move mod to non-existent category: {target_category}", debug=True)
+            self.log(f"{LogSymbols.ERROR} Cannot move mod to non-existent category: {target_category}", debug=True)
             return
         
         # Remove mod from current position
@@ -243,7 +241,7 @@ class ModlistInstaller:
         
         self.save_modlist_config()
         self.display_modlist_info()
-        self.log(f"✓ Moved '{mod_name}' to {target_category} (position {position})", debug=True)
+        self.log(f"{LogSymbols.SUCCESS} Moved '{mod_name}' to {target_category} (position {position})", debug=True)
     
     def _configure_mod_action_buttons(self, mod_action_buttons):
         """Configure mod action buttons (add, edit, remove, categories).
@@ -396,7 +394,7 @@ class ModlistInstaller:
         line_text = self.mod_listbox.get(f"{line_num}.0", f"{line_num}.end")
         
         line_stripped = line_text.strip()
-        if line_stripped.startswith("✓") or line_stripped.startswith("○") or line_stripped.startswith("↑"):
+        if line_stripped.startswith(LogSymbols.INSTALLED) or line_stripped.startswith(LogSymbols.NOT_INSTALLED) or line_stripped.startswith(LogSymbols.UPDATED):
             self.selected_mod_line = line_num
             self.highlight_selected_mod()
     
@@ -721,10 +719,10 @@ class ModlistInstaller:
             mod_name = mod.get('name', '')
             expected_version = mod.get('mod_version')
             if mod_name:
-                is_up_to_date, _ = is_mod_up_to_date(mod_name, expected_version, mods_dir)
-                is_installed = is_up_to_date if expected_version else (_ is not None)
+                check = is_mod_up_to_date(mod_name, expected_version, mods_dir)
+                is_installed = check.is_current if expected_version else (check.installed_version is not None)
         
-        icon = "✓" if is_installed else "○"
+        icon = LogSymbols.INSTALLED if is_installed else LogSymbols.NOT_INSTALLED
         tag = 'installed' if is_installed else 'not_installed'
         return (icon, tag)
     
@@ -772,8 +770,8 @@ class ModlistInstaller:
         for line_num in range(1, max_line + 1):
             line_text = self.mod_listbox.get(f"{line_num}.0", f"{line_num}.end")
             line_stripped = line_text.strip()
-            # Check if it's a mod line (starts with ✓, ○, or ↑)
-            if (line_stripped.startswith("✓") or line_stripped.startswith("○") or line_stripped.startswith("↑")) and mod_name in line_text:
+            # Check if it's a mod line (starts with icon)
+            if (line_stripped.startswith(LogSymbols.INSTALLED) or line_stripped.startswith(LogSymbols.NOT_INSTALLED) or line_stripped.startswith(LogSymbols.UPDATED)) and mod_name in line_text:
                 self.selected_mod_line = line_num
                 self.highlight_selected_mod()
                 return
@@ -929,10 +927,10 @@ class ModlistInstaller:
         if detected_path:
             self.starsector_path.set(str(detected_path))
             self._auto_detected = True
-            self.log(f"✓ Auto-detected Starsector installation: {detected_path}", info=True)
+            self.log(f"{LogSymbols.SUCCESS} Auto-detected Starsector installation: {detected_path}", info=True)
         else:
             self._auto_detected = False
-            self.log("⚠ Could not auto-detect Starsector. Please set path manually.", warning=True)
+            self.log(f"{LogSymbols.WARNING} Could not auto-detect Starsector. Please set path manually.", warning=True)
     
     def validate_starsector_path(self, path_str):
         """Validate Starsector installation path."""
@@ -991,21 +989,17 @@ class ModlistInstaller:
         path = self.starsector_path.get()
         
         if not path:
-            self.path_status_label.config(text="⚠ No Starsector installation detected", fg="#e67e22")
+            self.path_status_label.config(text=f"{LogSymbols.WARNING} No Starsector installation detected", fg="#e67e22")
             return
         
         is_valid, message = self.validate_starsector_path(path)
         if is_valid:
             if hasattr(self, '_auto_detected') and self._auto_detected:
-                self.path_status_label.config(text="✓ Auto-detected", fg="#27ae60")
+                self.path_status_label.config(text=f"{LogSymbols.SUCCESS} Auto-detected", fg="#27ae60")
             else:
-                self.path_status_label.config(text="✓ Valid path", fg="#27ae60")
+                self.path_status_label.config(text=f"{LogSymbols.SUCCESS} Valid path", fg="#27ae60")
         else:
-            self.path_status_label.config(text=f"✗ {message}", fg="#e74c3c")
-    
-    # ============================================
-    # Installation
-    # ============================================
+            self.path_status_label.config(text=f"{LogSymbols.ERROR} {message}", fg="#e74c3c")
     
     def toggle_pause(self):
         """Toggle pause/resume during installation."""
@@ -1075,10 +1069,10 @@ class ModlistInstaller:
             
             self.save_modlist_config()
             self.display_modlist_info()
-            self.log(f"✓ Metadata refresh complete! Updated {updated_count} mod(s)")
+            self.log(f"{LogSymbols.SUCCESS} Metadata refresh complete! Updated {updated_count} mod(s)")
             custom_dialogs.showsuccess("Success", f"Refreshed metadata for {updated_count} mod(s)")
         except Exception as e:
-            self.log(f"✗ Error refreshing metadata: {e}", error=True)
+            self.log(f"{LogSymbols.ERROR} Error refreshing metadata: {e}", error=True)
             custom_dialogs.showerror("Error", f"Failed to refresh metadata: {e}")
         finally:
             if self.refresh_btn:
@@ -1114,7 +1108,7 @@ class ModlistInstaller:
             
             custom_dialogs.showsuccess("Success", f"Successfully enabled {enabled_count} mod(s).\n\nYour mods should now be active when you start Starsector.")
         except Exception as e:
-            self.log(f"✗ Error enabling mods: {e}", error=True)
+            self.log(f"{LogSymbols.ERROR} Error enabling mods: {e}", error=True)
             custom_dialogs.showerror("Error", f"Failed to enable mods: {e}")
     
     def restore_backup_dialog(self):
@@ -1140,22 +1134,21 @@ class ModlistInstaller:
         """
         if not self.backup_manager:
             error_msg = "Backup manager not initialized. Please set Starsector path."
-            self.log(f"✗ {error_msg}", error=True)
+            self.log(f"{LogSymbols.ERROR} {error_msg}", error=True)
             return False, error_msg
         
         formatted_ts = backup_timestamp or str(backup_path)
         
         try:
-            # Step 1: Create pre-restore backup of current state
             self.log(f"Creating pre-restore backup of current state...", info=True)
-            pre_backup_path, pre_success, pre_error = self.backup_manager.create_backup()
+            result = self.backup_manager.create_backup()
             
-            if not pre_success:
-                error_msg = f"Failed to create pre-restore backup: {pre_error}"
-                self.log(f"✗ {error_msg}", error=True)
+            if not result.success:
+                error_msg = f"Failed to create pre-restore backup: {result.error}"
+                self.log(f"{LogSymbols.ERROR} {error_msg}", error=True)
                 return False, error_msg
             
-            self.log(f"✓ Pre-restore backup created: {pre_backup_path.name}", success=True)
+            self.log(f"{LogSymbols.SUCCESS} Pre-restore backup created: {result.path.name}", success=True)
             
             # Step 2: Restore the selected backup
             self.log(f"Restoring backup from {formatted_ts}...", info=True)
@@ -1163,10 +1156,10 @@ class ModlistInstaller:
             
             if not success:
                 error_msg = f"Failed to restore backup: {error}"
-                self.log(f"✗ {error_msg}", error=True)
+                self.log(f"{LogSymbols.ERROR} {error_msg}", error=True)
                 return False, error_msg
             
-            self.log(f"✓ Backup restored from {formatted_ts}", success=True)
+            self.log(f"{LogSymbols.SUCCESS} Backup restored from {formatted_ts}", success=True)
             
             # Step 3: Refresh UI to reflect restored state
             self.log("Refreshing UI...", info=True)
@@ -1176,7 +1169,7 @@ class ModlistInstaller:
             
         except Exception as e:
             error_msg = f"Unexpected error during restore: {e}"
-            self.log(f"✗ {error_msg}", error=True)
+            self.log(f"{LogSymbols.ERROR} {error_msg}", error=True)
             return False, error_msg
     
     def _refresh_after_restore(self):
@@ -1190,10 +1183,10 @@ class ModlistInstaller:
             if hasattr(self, 'modlist_data') and self.modlist_data:
                 self.display_modlist_info()
             
-            self.log("✓ UI refreshed successfully", success=True)
+            self.log(f"{LogSymbols.SUCCESS} UI refreshed successfully", success=True)
             
         except Exception as e:
-            self.log(f"⚠ Warning: Failed to refresh UI: {e}", warning=True)
+            self.log(f"{LogSymbols.WARNING} Warning: Failed to refresh UI: {e}", warning=True)
     
     def check_disk_space(self):
         """Check if there's enough disk space."""
@@ -1294,7 +1287,7 @@ class ModlistInstaller:
         if not check_success:
             custom_dialogs.showerror("Pre-Installation Check Failed", check_error)
             return
-        self.log("✓ All pre-installation checks passed")
+        self.log(f"{LogSymbols.SUCCESS} All pre-installation checks passed")
         
         # Validate URLs asynchronously
         self.log("Validating mod URLs (this may take a moment)...")
@@ -1496,7 +1489,7 @@ class ModlistInstaller:
     
     def _show_installation_complete_message(self):
         """Display the installation complete banner (used for Google Drive cancellation)."""
-        self.log("\n✓ Installation workflow complete.", success=True)
+        self.log(f"\n{LogSymbols.SUCCESS} Installation workflow complete.", success=True)
 
     def _propose_fix_google_drive_urls(self, failed_mods):
         """Propose to fix Google Drive URLs after installation is complete.

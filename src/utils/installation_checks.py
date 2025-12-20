@@ -5,6 +5,7 @@ import socket
 import shutil
 
 from utils.error_messages import get_user_friendly_error
+from utils.symbols import LogSymbols
 
 
 def check_disk_space(install_dir, min_gb=5):
@@ -103,27 +104,27 @@ def run_all_pre_installation_checks(starsector_dir, modlist_data, check_deps_fun
     perm_success, perm_error = check_write_permissions(mods_dir)
     if not perm_success:
         return False, perm_error
-    log("✓ Write permissions verified", 'debug')
+    log(f"{LogSymbols.SUCCESS} Write permissions verified", 'debug')
     
     # Check internet connection
     conn_success, conn_error = check_internet_connection()
     if not conn_success:
-        log("⚠ Internet connection may be unavailable", 'warning')
+        log(f"{LogSymbols.WARNING} Internet connection may be unavailable", 'warning')
         if not prompt("Connection Warning", f"{conn_error}\n\nContinue anyway?"):
             return False, "Installation cancelled due to connection issues"
-    log("✓ Internet connection verified", 'debug')
+    log(f"{LogSymbols.SUCCESS} Internet connection verified", 'debug')
     
     # Check dependencies
     dependency_issues = check_deps_func(mods_dir)
     if dependency_issues:
         issues_text = "\n".join([f"  • {mod_name}: missing {', '.join(deps)}" 
                                  for mod_name, deps in dependency_issues.items()])
-        log(f"⚠ Dependency issues found:\n{issues_text}", 'warning')
+        log(f"{LogSymbols.WARNING} Dependency issues found:\n{issues_text}", 'warning')
         
         message = f"Some mods have missing dependencies:\n\n{issues_text}\n\nThese dependencies will be installed if they're in the modlist.\n\nContinue?"
         if not prompt("Missing Dependencies", message):
             return False, "Installation cancelled due to missing dependencies"
     else:
-        log("✓ No dependency issues found", 'debug')
+        log(f"{LogSymbols.SUCCESS} No dependency issues found", 'debug')
     
     return True, None

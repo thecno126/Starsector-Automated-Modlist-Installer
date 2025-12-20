@@ -279,11 +279,9 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
                               bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY)
     info_frame.pack(fill=tk.BOTH, expand=True)
     
-    # Main content container
     left_container = tk.Frame(info_frame, bg=TriOSTheme.SURFACE)
     left_container.pack(fill=tk.BOTH, expand=True)
     
-    # Header text - uses system theme colors
     header_text = tk.Text(
         left_container, 
         height=5, 
@@ -298,7 +296,6 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
     )
     header_text.pack(fill=tk.X, pady=(0, 5))
     
-    # Search bar with action buttons (if callback provided)
     search_var = None
     mod_action_buttons = {}
     if search_callback:

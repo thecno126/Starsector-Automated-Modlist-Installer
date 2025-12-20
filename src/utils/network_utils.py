@@ -59,15 +59,16 @@ def validate_mod_urls(mods, progress_callback=None, timeout=3, max_workers=10):
                                        headers={'Range': 'bytes=0-0'}, stream=True)
                 response.close()
             
-            if 200 <= response.status_code < 300:
-                if is_github:
-                    return (index, 'github', mod, domain, response.status_code, None)
-                elif is_gdrive:
-                    return (index, 'google_drive', mod, domain, response.status_code, None)
-                else:
-                    return (index, 'other', mod, domain, response.status_code, None)
-            else:
+            # Early return: non-success status
+            if not (200 <= response.status_code < 300):
                 return (index, 'failed', mod, domain, response.status_code, f'HTTP {response.status_code}')
+            
+            # Success: categorize by domain
+            if is_github:
+                return (index, 'github', mod, domain, response.status_code, None)
+            if is_gdrive:
+                return (index, 'google_drive', mod, domain, response.status_code, None)
+            return (index, 'other', mod, domain, response.status_code, None)
         except requests.exceptions.Timeout:
             return (index, 'failed', mod, domain, 0, 'Timeout (3s)')
         except requests.exceptions.RequestException as e:

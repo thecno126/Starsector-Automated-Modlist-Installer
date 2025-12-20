@@ -25,6 +25,7 @@ from src.core.config_manager import ConfigManager
 from src.core.installer import ModInstaller
 from src.utils.network_utils import validate_mod_urls
 from src.gui.dialogs import fix_google_drive_url
+from model_types import BackupResult
 
 
 # ============================================================================
@@ -1364,7 +1365,7 @@ class TestRestoreBackupSafely:
         
         # Setup mock backup manager
         mock_backup_mgr = Mock()
-        mock_backup_mgr.create_backup.return_value = (Path("backup_pre_restore"), True, None)
+        mock_backup_mgr.create_backup.return_value = BackupResult(Path("backup_pre_restore"), True, None)
         mock_backup_mgr.restore_backup.return_value = (True, None)
         mock_app.backup_manager = mock_backup_mgr
         
@@ -1398,7 +1399,7 @@ class TestRestoreBackupSafely:
         """Test that restore is aborted if pre-restore backup creation fails."""
         # Setup mock backup manager with failing pre-backup
         mock_backup_mgr = Mock()
-        mock_backup_mgr.create_backup.return_value = (None, False, "Disk full")
+        mock_backup_mgr.create_backup.return_value = BackupResult(None, False, "Disk full")
         mock_app.backup_manager = mock_backup_mgr
         
         # Call restore_backup_safely
@@ -1417,7 +1418,7 @@ class TestRestoreBackupSafely:
         """Test that if restore fails, the function reports failure properly."""
         # Setup mock backup manager
         mock_backup_mgr = Mock()
-        mock_backup_mgr.create_backup.return_value = (Path("backup_pre_restore"), True, None)
+        mock_backup_mgr.create_backup.return_value = BackupResult(Path("backup_pre_restore"), True, None)
         mock_backup_mgr.restore_backup.return_value = (False, "Corrupt backup file")
         mock_app.backup_manager = mock_backup_mgr
         
@@ -1446,7 +1447,7 @@ class TestRestoreBackupSafely:
         """Test that UI refresh failure doesn't prevent successful restore."""
         # Setup mock backup manager
         mock_backup_mgr = Mock()
-        mock_backup_mgr.create_backup.return_value = (Path("backup_pre_restore"), True, None)
+        mock_backup_mgr.create_backup.return_value = BackupResult(Path("backup_pre_restore"), True, None)
         mock_backup_mgr.restore_backup.return_value = (True, None)
         mock_app.backup_manager = mock_backup_mgr
         

@@ -1,6 +1,7 @@
 """Helper functions for Tkinter listbox text extraction and navigation."""
 
 from utils.mod_utils import normalize_mod_name
+from utils.symbols import LogSymbols
 
 
 def extract_mod_name_from_line(line_text):
@@ -13,11 +14,11 @@ def extract_mod_name_from_line(line_text):
         str: Mod name or None if not a mod line
     """
     line = line_text.strip()
-    # Check if it's a mod line (starts with ✓, ○, or ↑)
-    if not (line.startswith("✓") or line.startswith("○") or line.startswith("↑")):
+    # Check if it's a mod line (starts with icon)
+    if not (line.startswith(LogSymbols.INSTALLED) or line.startswith(LogSymbols.NOT_INSTALLED) or line.startswith(LogSymbols.UPDATED)):
         return None
     # Remove icon prefix and extract name (before version if present)
-    name_part = line_text.replace("  ✓ ", "").replace("  ○ ", "").replace("  ↑ ", "")
+    name_part = line_text.replace(f"  {LogSymbols.INSTALLED} ", "").replace(f"  {LogSymbols.NOT_INSTALLED} ", "").replace(f"  {LogSymbols.UPDATED} ", "")
     return name_part.split(" v")[0].strip()
 
 
@@ -56,4 +57,4 @@ def is_mod_line(line_text):
         bool: True if line is a mod entry
     """
     line = line_text.strip()
-    return line.startswith("✓") or line.startswith("○") or line.startswith("↑")
+    return line.startswith(LogSymbols.INSTALLED) or line.startswith(LogSymbols.NOT_INSTALLED) or line.startswith(LogSymbols.UPDATED)
