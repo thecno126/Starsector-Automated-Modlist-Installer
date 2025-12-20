@@ -116,8 +116,8 @@ class InstallationReport:
         
         if self.updated:
             summary.append("\nUpdated:")
-            for item in self.updated:
-                summary.append(f"  {LogSymbols.UPDATED} {item['mod']}: {item['old_version']} → {item['new_version']}")
+            for item in self.updates:
+                summary.append(f"  {LogSymbols.UPDATED} {item['mod']}: {item['old_version']} {LogSymbols.ARROW_RIGHT} {item['new_version']}")
         
         if self.errors:
             summary.append("\nErrors:")

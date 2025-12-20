@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext
 import sys
 from utils.theme import TriOSTheme
+from utils.symbols import UISymbols
 from core import UI_BOTTOM_BUTTON_HEIGHT
 import platform
 
@@ -247,29 +248,25 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
         button_container.pack(side=tk.RIGHT)
         
         if edit_metadata_callback:
-            # Unicode: U+22EF (⋯) - Points horizontaux
-            edit_metadata_btn = _create_button(button_container, "⋯", edit_metadata_callback, width=3, font_size=17, button_type="secondary")
+            edit_metadata_btn = _create_button(button_container, UISymbols.EDIT_METADATA, edit_metadata_callback, width=3, font_size=17, button_type="secondary")
             edit_metadata_btn.pack(side=tk.LEFT, padx=(0, 8))
             ToolTip(edit_metadata_btn, "Edit modlist metadata (name, version, description)")
             header_buttons['edit_metadata'] = edit_metadata_btn
         
         if refresh_callback:
-            # Unicode: U+21BB (↻) - Flèche circulaire antihoraire
-            refresh_btn = _create_button(button_container, "↻", refresh_callback, width=3, font_size=17, button_type="secondary")
+            refresh_btn = _create_button(button_container, UISymbols.REFRESH, refresh_callback, width=3, font_size=17, button_type="secondary")
             refresh_btn.pack(side=tk.LEFT, padx=(0, 8))
             ToolTip(refresh_btn, "Refresh mod metadata from installed mods")
             header_buttons['refresh'] = refresh_btn
         
         if import_callback:
-            # Unicode: U+2913 (⤓) - Flèche bas avec crochet
-            import_btn = _create_button(button_container, "⤓", import_callback, width=3, font_size=17, button_type="secondary")
+            import_btn = _create_button(button_container, UISymbols.IMPORT, import_callback, width=3, font_size=17, button_type="secondary")
             import_btn.pack(side=tk.LEFT, padx=(0, 5))
             ToolTip(import_btn, "Import mods from CSV file")
             header_buttons['import'] = import_btn
         
         if export_callback:
-            # Unicode: U+2912 (⤒) - Flèche haut avec crochet
-            export_btn = _create_button(button_container, "⤒", export_callback, width=3, font_size=17, button_type="secondary")
+            export_btn = _create_button(button_container, UISymbols.EXPORT, export_callback, width=3, font_size=17, button_type="secondary")
             export_btn.pack(side=tk.LEFT)
             ToolTip(export_btn, "Export modlist to CSV file")
             header_buttons['export'] = export_btn
@@ -302,11 +299,11 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
         search_frame = tk.Frame(left_container, bg=TriOSTheme.SURFACE)
         search_frame.pack(fill=tk.X, pady=(0, 5))
         
-        tk.Label(search_frame, text="🔍", font=("Arial", 12),
+        tk.Label(search_frame, text=UISymbols.SEARCH, font=("Arial", 12),
                 bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY).pack(side=tk.LEFT, padx=(0, 5))
         
         # Clear button right after magnifying glass
-        clear_btn = _create_button(search_frame, "✕", lambda: search_var.set(""),
+        clear_btn = _create_button(search_frame, UISymbols.CLEAR, lambda: search_var.set(""),
                                    width=3, font_size=10, button_type="secondary")
         clear_btn.pack(side=tk.LEFT, padx=(0, 5))
         ToolTip(clear_btn, "Clear search")
@@ -320,21 +317,19 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
         search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         
         # Action buttons from right to left: Remove, Add, Categories, Edit
-        # Final order displayed: Edit (✏) | Categories (⚙) | Add (+) | Remove (−)
-        # Using better Unicode symbols: Edit=✏️, Categories=⚙️, Add=➕, Remove=✖
-        remove_btn = _create_button(search_frame, "✖", None, width=3, font_size=13, button_type="danger")
+        remove_btn = _create_button(search_frame, UISymbols.REMOVE, None, width=3, font_size=13, button_type="danger")
         remove_btn.pack(side=tk.RIGHT, padx=(2, 0))
         ToolTip(remove_btn, "Remove selected mod")
         
-        add_btn = _create_button(search_frame, "➕", None, width=3, font_size=12, button_type="success")
+        add_btn = _create_button(search_frame, UISymbols.ADD, None, width=3, font_size=12, button_type="success")
         add_btn.pack(side=tk.RIGHT, padx=2)
         ToolTip(add_btn, "Add new mod to the list")
         
-        gear_btn = _create_button(search_frame, "⚙", None, width=3, font_size=14, button_type="secondary")
+        gear_btn = _create_button(search_frame, UISymbols.SETTINGS, None, width=3, font_size=14, button_type="secondary")
         gear_btn.pack(side=tk.RIGHT, padx=2)
         ToolTip(gear_btn, "Manage categories")
         
-        edit_btn = _create_button(search_frame, "✏️", None, width=3, font_size=12, button_type="plain")
+        edit_btn = _create_button(search_frame, UISymbols.EDIT, None, width=3, font_size=12, button_type="plain")
         edit_btn.pack(side=tk.RIGHT, padx=2)
         ToolTip(edit_btn, "Edit selected mod")
         
@@ -383,13 +378,12 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
     tk.Label(reorder_container, text="Reorder:", font=("Arial", 9),
             bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_SECONDARY).pack(side=tk.LEFT, padx=(0, 5))
     
-    # Using better arrow symbols: ⬆ (U+2B06) and ⬇ (U+2B07)
-    up_btn = _create_button(reorder_container, "⬆", None, width=3, font_size=13, button_type="secondary")
+    up_btn = _create_button(reorder_container, UISymbols.ARROW_UP, None, width=3, font_size=13, button_type="secondary")
     up_btn.pack(side=tk.LEFT, padx=(0, 2))
     ToolTip(up_btn, "Move selected mod up")
     header_buttons['up'] = up_btn
     
-    down_btn = _create_button(reorder_container, "⬇", None, width=3, font_size=13, button_type="secondary")
+    down_btn = _create_button(reorder_container, UISymbols.ARROW_DOWN, None, width=3, font_size=13, button_type="secondary")
     down_btn.pack(side=tk.LEFT)
     ToolTip(down_btn, "Move selected mod down")
     header_buttons['down'] = down_btn
@@ -400,15 +394,13 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
         action_container.pack(side=tk.RIGHT)
         
         if clear_callback:
-            # Unicode: U+2421 (␡) - DEL (symbole texte)
-            clear_all_btn = _create_button(action_container, "␡", clear_callback, width=3, font_size=17, button_type="delete_purple")
+            clear_all_btn = _create_button(action_container, UISymbols.DELETE, clear_callback, width=3, font_size=17, button_type="delete_purple")
             clear_all_btn.pack(side=tk.RIGHT, padx=(3, 0))
             ToolTip(clear_all_btn, "Clear all mods from the list")
             header_buttons['clear'] = clear_all_btn
         
         if restore_callback:
-            # Unicode: U+1F4BE (💾) - Disquette (backup/restore classique)
-            restore_backup_btn = _create_button(action_container, "💾", restore_callback, width=3, font_size=17, button_type="secondary")
+            restore_backup_btn = _create_button(action_container, UISymbols.SAVE, restore_callback, width=3, font_size=17, button_type="secondary")
             restore_backup_btn.pack(side=tk.RIGHT)
             ToolTip(restore_backup_btn, "Select a backup to restore")
             header_buttons['restore'] = restore_backup_btn
@@ -442,7 +434,7 @@ def create_log_section(main_frame, current_mod_var=None, pause_callback=None, en
     # Pause/Resume button in top right
     pause_btn = None
     if pause_callback:
-        pause_btn = _create_button(top_bar, "⏸", pause_callback, width=4, font_size=14, 
+        pause_btn = _create_button(top_bar, UISymbols.PAUSE, pause_callback, width=4, font_size=14, 
                                    state=tk.DISABLED, button_type="secondary")
         pause_btn.pack(side=tk.RIGHT)
         ToolTip(pause_btn, "Pause installation")

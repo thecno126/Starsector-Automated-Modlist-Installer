@@ -54,14 +54,6 @@
       "category": "Libs"
     },
     {
-      "mod_id": "aaamarketRetrofits",
-      "name": "market retrofits",
-      "download_url": "https://github.com/Alaricdragon/MarketRetrofits/archive/refs/heads/master.zip",
-      "mod_version": "0.2.5",
-      "game_version": "0.98a-RC5",
-      "category": "Libs"
-    },
-    {
       "mod_id": "RetroLib",
       "name": "RetroLib",
       "download_url": "https://github.com/SafariJohn/Roider-Union/raw/refs/heads/main/RetroLib%201.1.1.zip",

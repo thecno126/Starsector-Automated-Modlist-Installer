@@ -55,12 +55,12 @@ class ModInstaller:
             
             if updated:
                 config_manager.save_modlist_config(config)
-                self.log(f"  ℹ Updated metadata for {mod_name}", debug=True)
+                self.log(f"  {LogSymbols.INFO} Updated metadata for {mod_name}", debug=True)
             
             return updated
             
         except Exception as e:
-            self.log(f"  ⚠ Could not update metadata: {e}", debug=True)
+            self.log(f"  {LogSymbols.WARNING} Could not update metadata: {e}", debug=True)
             return False
     
     def install_mod(self, mod: Dict[str, Any], mods_dir: Path) -> bool:
@@ -201,14 +201,14 @@ class ModInstaller:
                         existing_ids = json.load(f).get('enabledMods', [])
                         self.log(f"  Found {len(existing_ids)} previously enabled mod(s)", debug=True)
                 except (json.JSONDecodeError, IOError) as e:
-                    self.log(f"  ⚠ Could not read enabled_mods.json: {e}", info=True)
+                    self.log(f"  {LogSymbols.WARNING} Could not read enabled_mods.json: {e}", info=True)
             
             new_ids = []
             for mod_name in installed_mod_names:
                 for folder, metadata in scan_installed_mods(mods_dir, lambda f, c: f.name == mod_name):
                     if mod_id := metadata.get('id'):
                         new_ids.append(mod_id)
-                        self.log(f"  ✓ Found mod ID '{mod_id}' for {mod_name}", debug=True)
+                        self.log(f"  {LogSymbols.SUCCESS} Found mod ID '{mod_id}' for {mod_name}", debug=True)
                         break
             
             enabled_ids = [id for id in existing_ids if id not in new_ids] + new_ids if merge else new_ids
@@ -221,7 +221,7 @@ class ModInstaller:
             return True
                 
         except Exception as e:
-            self.log(f"  ✗ Error updating enabled_mods.json: {e}", error=True)
+            self.log(f"  {LogSymbols.ERROR} Error updating enabled_mods.json: {e}", error=True)
             return False
     
     def detect_outdated_mods(self, mods_dir: Path, modlist_mods: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -248,12 +248,12 @@ class ModInstaller:
                                     'expected_version': expected_version,
                                     'mod_id': metadata.get('id') or folder.name
                                 })
-                                self.log(f"  ⚠ Outdated: {modlist_name} ({installed_version} < {expected_version})", info=True)
+                                self.log(f"  {LogSymbols.WARNING} Outdated: {modlist_name} ({installed_version} < {expected_version})", info=True)
                         break
             
             return outdated_mods
         except Exception as e:
-            self.log(f"  ✗ Error detecting outdated mods: {e}", error=True)
+            self.log(f"  {LogSymbols.ERROR} Error detecting outdated mods: {e}", error=True)
             return []
     
     def detect_incompatible_game_versions(self, mods_dir: Path, expected_game_version: str) -> List[Dict[str, Any]]:
@@ -279,5 +279,5 @@ class ModInstaller:
                         })
             return incompatible_mods
         except Exception as e:
-            self.log(f"  ✗ Error detecting incompatible game versions: {e}", error=True)
+            self.log(f"  {LogSymbols.ERROR} Error detecting incompatible game versions: {e}", error=True)
             return []

@@ -88,9 +88,9 @@ class ModlistInstaller:
         self.backup_manager = None  # Initialized after starsector_path is set
         
         self.load_preferences()
+        self.create_ui()
         self.auto_detect_starsector()
         self._initialize_backup_manager()
-        self.create_ui()
         
         self.category_navigator = CategoryNavigator(self.mod_listbox)
         self.installation_controller = InstallationController(self)
@@ -1010,7 +1010,7 @@ class ModlistInstaller:
         
         if self.is_paused:
             self.log("Installation paused", warning=True)
-            self.pause_install_btn.config(text="▶")
+            self.pause_install_btn.config(text=UISymbols.PLAY)
             # Update tooltip dynamically
             from .ui_builder import ToolTip
             # Clear existing tooltip bindings
@@ -1022,7 +1022,7 @@ class ModlistInstaller:
             ToolTip(self.pause_install_btn, "Resume installation")
         else:
             self.log("Installation resumed", info=True)
-            self.pause_install_btn.config(text="⏸")
+            self.pause_install_btn.config(text=UISymbols.PAUSE)
             # Update tooltip dynamically
             from .ui_builder import ToolTip
             # Clear existing tooltip bindings
@@ -1281,7 +1281,7 @@ class ModlistInstaller:
             return
         
         # Run comprehensive pre-installation checks
-        self.log("\n" + "─" * 60)
+        self.log("\n" + LogSymbols.SEPARATOR * 60)
         self.log("Running pre-installation checks...")
         check_success, check_error = self._run_pre_installation_checks(starsector_dir)
         if not check_success:
@@ -1317,12 +1317,12 @@ class ModlistInstaller:
             if outdated:
                 self.log(f"\n⚠ Found {len(outdated)} outdated mod(s):", warning=True)
                 for mod_info in outdated:
-                    self.log(f"  • {mod_info['name']}: v{mod_info['installed_version']} → v{mod_info['expected_version']}", warning=True)
+                    self.log(f"  {LogSymbols.BULLET} {mod_info['name']}: v{mod_info['installed_version']} {LogSymbols.ARROW_RIGHT} v{mod_info['expected_version']}", warning=True)
                 
                 # Ask user if they want to update
                 msg = f"{len(outdated)} mod(s) will be updated:\n\n"
                 for mod_info in outdated[:5]:  # Show max 5 in dialog
-                    msg += f"• {mod_info['name']}: v{mod_info['installed_version']} → v{mod_info['expected_version']}\n"
+                    msg += f"{LogSymbols.BULLET} {mod_info['name']}: v{mod_info['installed_version']} {LogSymbols.ARROW_RIGHT} v{mod_info['expected_version']}\n"
                 if len(outdated) > 5:
                     msg += f"... +{len(outdated) - 5} more\n"
                 

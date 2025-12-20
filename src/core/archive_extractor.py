@@ -1,7 +1,7 @@
 import zipfile
 import shutil
 from pathlib import Path
-from utils.symbols import LogSymbols
+from utils.symbols import LogSymbols, UISymbols
 
 try:
     import py7zr
@@ -103,7 +103,7 @@ class ArchiveExtractor:
             if isinstance(already_result, tuple):
                 folder_to_delete, is_update = already_result
                 if is_update and folder_to_delete:
-                    self.log(f"  🗑 Removing old version: {folder_to_delete.name}", info=True)
+                    self.log(f"  {LogSymbols.TRASH} Removing old version: {folder_to_delete.name}", info=True)
                     try:
                         shutil.rmtree(folder_to_delete)
                     except Exception as e:
@@ -135,7 +135,7 @@ class ArchiveExtractor:
         if len(top_level) != 1:
             for member in members:
                 if (mods_dir / Path(member)).exists():
-                    self.log("  ℹ Skipped: Installation would overlap existing files", info=True)
+                    self.log(f"  {LogSymbols.INFO} Skipped: Installation would overlap existing files", info=True)
                     return 'skipped'
             return False
         
@@ -149,7 +149,7 @@ class ArchiveExtractor:
         
         # Early return: 7z archives skip version comparison
         if is_7z:
-            self.log(f"  ℹ Skipped: Mod '{root_dir}' already installed", info=True)
+            self.log(f"  {LogSymbols.INFO} Skipped: Mod '{root_dir}' already installed", info=True)
             return 'skipped'
         
         # For ZIP, check version in mod_info.json
@@ -158,7 +158,7 @@ class ArchiveExtractor:
         
         # Early return: no mod_info.json available
         if mod_info_path_in_archive not in members or not installed_mod_info.exists():
-            self.log(f"  ℹ Skipped: Mod '{root_dir}' already installed", info=True)
+            self.log(f"  {LogSymbols.INFO} Skipped: Mod '{root_dir}' already installed", info=True)
             return 'skipped'
         
         try:
@@ -181,16 +181,16 @@ class ArchiveExtractor:
             
             if version_comparison > 0:
                 # Newer version available
-                self.log(f"  ⬆ Update available: '{mod_id}' {installed_version} → {version_to_install}", info=True)
+                self.log(f"  {UISymbols.ARROW_UP} Update available: '{mod_id}' {installed_version} {LogSymbols.ARROW_RIGHT} {version_to_install}", info=True)
                 self.log(f"  Installing newer version...", info=True)
                 return (mod_root, True)
             
             # Same or older version
             status = "newer" if version_comparison < 0 else "already"
-            self.log(f"  ℹ Skipped: '{mod_id}' v{installed_version} {status} installed", info=True)
+            self.log(f"  {LogSymbols.INFO} Skipped: '{mod_id}' v{installed_version} {status} installed", info=True)
             return 'skipped'
             
         except (IOError, UnicodeDecodeError) as e:
-            self.log(f"  ⚠ Warning: Error reading mod metadata - {type(e).__name__}", info=True)
-            self.log(f"  ℹ Skipped: Mod '{root_dir}' already installed (version comparison unavailable)", info=True)
+            self.log(f"  {LogSymbols.WARNING} Warning: Error reading mod metadata - {type(e).__name__}", info=True)
+            self.log(f"  {LogSymbols.INFO} Skipped: Mod '{root_dir}' already installed (version comparison unavailable)", info=True)
             return 'skipped'

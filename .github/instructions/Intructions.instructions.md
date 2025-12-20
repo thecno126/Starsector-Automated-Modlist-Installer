@@ -9,6 +9,26 @@ applyTo: '**'
 
 Application Python/Tkinter pour automatiser l'installation de mods Starsector depuis une modlist JSON. Supporte le téléchargement parallèle, extraction ZIP/7z, gestion des dépendances, backups automatiques et refresh de métadonnées.
 
+## Règles critiques
+
+**⚠️ SYMBOLES UNICODE - NE JAMAIS HARDCODER**
+
+Tous les symboles Unicode (✓, ✗, ⚠️, ⬆, ⬇, etc.) sont **centralisés** dans `src/utils/symbols.py`. **TOUJOURS** utiliser `LogSymbols` et `UISymbols` au lieu de hardcoder les caractères.
+
+```python
+from utils.symbols import LogSymbols, UISymbols
+
+# ✓ BON
+self.log(f"{LogSymbols.SUCCESS} Installation complete")
+button = _create_button(frame, UISymbols.ARROW_UP, callback)
+
+# ✗ MAUVAIS - Ne jamais faire
+self.log("✓ Installation complete")  # ❌ INTERDIT
+button = _create_button(frame, "⬆", callback)  # ❌ INTERDIT
+```
+
+Voir section "Symboles centralisés" ci-dessous pour la liste complète.
+
 ## Architecture du code
 
 ### Structure des modules
@@ -67,21 +87,26 @@ if result.success:
 **TOUJOURS utiliser LogSymbols au lieu de symboles hardcodés :**
 
 ```python
-from utils.symbols import LogSymbols
+from utils.symbols import LogSymbols, UISymbols
 
 # ✓ BON
 self.log(f"{LogSymbols.SUCCESS} Installation complete")
 self.log(f"{LogSymbols.ERROR} Failed to download", error=True)
 self.log(f"{LogSymbols.WARNING} Disk space low", warning=True)
 icon = LogSymbols.INSTALLED if installed else LogSymbols.NOT_INSTALLED
+btn = _create_button(frame, UISymbols.ARROW_UP, callback)
+status_var.set(f"{UISymbols.DOWNLOADING} Downloading...")
 
 # ✗ MAUVAIS - Ne jamais hardcoder
 self.log("✓ Installation complete")  # ❌
 self.log("✗ Failed", error=True)     # ❌
 icon = "✓" if installed else "○"     # ❌
+btn = _create_button(frame, "⬆", callback)  # ❌
 ```
 
 **Symboles disponibles :**
+
+**LogSymbols** (pour les logs et messages) :
 - `LogSymbols.SUCCESS` = "✓"
 - `LogSymbols.ERROR` = "✗"
 - `LogSymbols.WARNING` = "⚠️"
@@ -90,6 +115,29 @@ icon = "✓" if installed else "○"     # ❌
 - `LogSymbols.INSTALLED` = "✓"
 - `LogSymbols.NOT_INSTALLED` = "○"
 - `LogSymbols.UPDATED` = "↑"
+- `LogSymbols.BULLET` = "•"
+- `LogSymbols.TRASH` = "🗑"
+- `LogSymbols.ARROW_RIGHT` = "→"
+
+**UISymbols** (pour les boutons et UI) :
+- `UISymbols.ARROW_UP` = "⬆"
+- `UISymbols.ARROW_DOWN` = "⬇"
+- `UISymbols.ARROW_DOWN_ALT` = "↓"
+- `UISymbols.DOWNLOADING` = "⬇"
+- `UISymbols.PAUSE` = "⏸"
+- `UISymbols.PLAY` = "▶"
+- `UISymbols.EDIT_METADATA` = "⋯"
+- `UISymbols.REFRESH` = "↻"
+- `UISymbols.IMPORT` = "⤓"
+- `UISymbols.EXPORT` = "⤒"
+- `UISymbols.SEARCH` = "🔍"
+- `UISymbols.CLEAR` = "✕"
+- `UISymbols.REMOVE` = "✖"
+- `UISymbols.ADD` = "➕"
+- `UISymbols.SETTINGS` = "⚙"
+- `UISymbols.EDIT` = "✏️"
+- `UISymbols.DELETE` = "␡"
+- `UISymbols.SAVE` = "💾"
 
 ## Règles d'imports
 
@@ -367,7 +415,7 @@ if b'<html' in content[:1024].lower():
 
 - [ ] Tous les tests passent (88/88)
 - [ ] Aucun import `from src.`
-- [ ] Tous les symboles utilisent `LogSymbols`
+- [ ] **Aucun symbole Unicode hardcodé** (utiliser `LogSymbols`/`UISymbols`)
 - [ ] Tous les tuples de retour sont des NamedTuples
 - [ ] Thread-safety : UI mutations via `root.after()`
 - [ ] Backup retention utilise `backup_manager`

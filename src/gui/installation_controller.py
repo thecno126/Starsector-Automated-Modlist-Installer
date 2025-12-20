@@ -7,7 +7,7 @@ from core import InstallationReport, MAX_DOWNLOAD_WORKERS
 from utils.mod_utils import is_mod_up_to_date, resolve_mod_dependencies
 from utils.mod_utils import scan_installed_mods, is_mod_name_match
 from utils.backup_manager import BackupManager
-from utils.symbols import LogSymbols
+from utils.symbols import LogSymbols, UISymbols
 
 
 class InstallationController:
@@ -46,7 +46,7 @@ class InstallationController:
                     
                 mod = future_to_mod[future]
                 mod_name = mod.get('name', 'Unknown')
-                self.window.root.after(0, lambda n=mod_name: self.window.current_mod_name.set(f"⬇ Downloading: {n}"))
+                self.window.root.after(0, lambda n=mod_name: self.window.current_mod_name.set(f"{UISymbols.DOWNLOADING} Downloading: {n}"))
                 
                 try:
                     result = future.result()
@@ -79,7 +79,7 @@ class InstallationController:
         total_mods = len(mods_to_install)
 
         self.window.log(f"\nStarting installation of {total_mods} mod{'s' if total_mods > 1 else ''}...")
-        self.window.log("─" * 60)
+        self.window.log(LogSymbols.SEPARATOR * 60)
         
         self.window.log("Creating backup of enabled_mods.json...")
         try:
@@ -124,12 +124,12 @@ class InstallationController:
                 pre_skipped += 1
             else:
                 if check.installed_version is not None:
-                    status = f"update ({check.installed_version} → {mod_version})" if mod_version else "update"
+                    status = f"update ({check.installed_version} {LogSymbols.ARROW_RIGHT} {mod_version})" if mod_version else "update"
                     if mod_version:
                         report.add_updated(mod_name, check.installed_version, mod_version)
-                    self.window.log(f"  → Will {status}: '{mod_name}'")
+                    self.window.log(f"  {LogSymbols.ARROW_RIGHT} Will {status}: '{mod_name}'")
                 else:
-                    self.window.log(f"  → Will install: '{mod_name}'")
+                    self.window.log(f"  {LogSymbols.ARROW_RIGHT} Will install: '{mod_name}'")
                 
                 mods_to_download.append(mod)
         

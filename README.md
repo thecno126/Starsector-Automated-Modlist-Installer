@@ -8,7 +8,7 @@ An amateur tool to manage and install Starsector modlists with parallel download
 ## ✨ Key Features
 
 ### Smart Installation
-- 🎯 **Intelligent Updates** - Automatically installs only missing or outdated mods
+- 🎯 **Intelligent installation** - installs only missing or outdated mods
 - 🔍 **Auto-detection** - Finds Starsector installation automatically on startup
 - ⚡ **Parallel Downloads** - 3 concurrent workers for faster installation
 - ✅ **Status Indicators** - Visual markers (✓ installed, ○ not installed, ↑ update available)

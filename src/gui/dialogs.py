@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from .ui_builder import _create_button
 from utils.theme import TriOSTheme
-from utils.symbols import LogSymbols
+from utils.symbols import LogSymbols, UISymbols
 
 
 def _create_dialog(parent, title, width=None, height=None, resizable=False):
@@ -395,7 +395,7 @@ def open_add_mod_dialog(parent, app):
         # Disable buttons during download
         add_button.config(state=tk.DISABLED)
         cancel_button.config(state=tk.DISABLED)
-        status_var.set("⬇ Downloading and extracting metadata...")
+        status_var.set(f"{UISymbols.DOWNLOADING} Downloading and extracting metadata...")
         dlg.update()
 
         # Helper functions for Tkinter-safe callbacks
@@ -418,7 +418,7 @@ def open_add_mod_dialog(parent, app):
         
         def download_retry_async(retry_url):
             """Retry download with fixed Google Drive URL."""
-            status_var.set("⬇ Retrying download with fixed URL...")
+            status_var.set(f"{UISymbols.DOWNLOADING} Retrying download with fixed URL...")
             dlg.update()
             
             def retry_download():
@@ -679,7 +679,7 @@ def open_manage_categories_dialog(parent, app):
     up_btn = _create_button(move_frame, LogSymbols.UPDATED, move_up, width=3, font_size=14, button_type="secondary")
     up_btn.pack(pady=(0, 5))
     
-    down_btn = _create_button(move_frame, "↓", move_down, width=3, font_size=14, button_type="secondary")
+    down_btn = _create_button(move_frame, UISymbols.ARROW_DOWN_ALT, move_down, width=3, font_size=14, button_type="secondary")
     down_btn.pack(pady=(5, 0))
         
     refresh_category_listbox()
@@ -728,7 +728,7 @@ def open_manage_categories_dialog(parent, app):
             app.config_manager.save_categories(app.categories)
             app.save_modlist_config()
             app.display_modlist_info()
-            app.log(f"Renamed category: {old_name} → {new_name}")
+            app.log(f"Renamed category: {old_name} {LogSymbols.ARROW_RIGHT} {new_name}")
     
     def delete_category():
         selection = cat_listbox.curselection()
