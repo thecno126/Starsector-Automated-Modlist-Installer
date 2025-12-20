@@ -121,9 +121,9 @@ class TriOSTheme:
                 "activeforeground": cls.TEXT_PRIMARY,
             },
             "danger": {
-                "bg": cls.BUTTON_DANGER_BG,
+                "bg": "#DC2626",  # Rouge
                 "fg": cls.BUTTON_DANGER_FG,
-                "activebackground": "#D95500",
+                "activebackground": "#B91C1C",  # Rouge plus foncé au hover
                 "activeforeground": cls.BUTTON_DANGER_FG,
             },
             "success": {
@@ -133,10 +133,10 @@ class TriOSTheme:
                 "activeforeground": cls.BUTTON_PRIMARY_FG,
             },
             "warning": {
-                "bg": cls.WARNING,
-                "fg": cls.BUTTON_PRIMARY_FG,
-                "activebackground": "#F1C40F",
-                "activeforeground": cls.BUTTON_PRIMARY_FG,
+                "bg": "#2563EB",  # Bleu foncé
+                "fg": "#FFFFFF",
+                "activebackground": "#1D4ED8",  # Bleu plus foncé au hover
+                "activeforeground": "#FFFFFF",
             },
             "info": {
                 "bg": cls.INFO,
@@ -173,6 +173,12 @@ class TriOSTheme:
                 "fg": cls.BUTTON_PRIMARY_FG,
                 "activebackground": cls.PRIMARY_DARK,
                 "activeforeground": cls.BUTTON_PRIMARY_FG,
+            },
+            "delete_purple": {
+                "bg": "#7C3AED",  # Violet vif
+                "fg": "#FFFFFF",
+                "activebackground": "#6D28D9",  # Violet plus foncé au hover
+                "activeforeground": "#FFFFFF",
             }
         }
         return styles.get(button_type, styles["primary"])

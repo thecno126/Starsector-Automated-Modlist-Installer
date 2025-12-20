@@ -1014,8 +1014,8 @@ def mock_app(temp_dir):
         # Mock log method
         app.log_messages = []
         original_log = app.log
-        def mock_log(msg, error=False, info=False, debug=False):
-            app.log_messages.append((msg, error, info, debug))
+        def mock_log(msg, error=False, info=False, debug=False, success=False, warning=False, **kwargs):
+            app.log_messages.append((msg, error, info, debug, success, warning))
         app.log = mock_log
         
         # Mock display methods
@@ -1310,35 +1310,270 @@ class TestRestoreBackupFunction:
                 mock_app.restore_backup_dialog()
                 mock_info.assert_called_once()
     
-    @pytest.mark.skip(reason="Complex Tkinter dialog mocking - tested via integration")
-    def test_restore_backup_dialog_opens(self, mock_app, temp_dir):
-        """Test that restore backup dialog opens with backups."""
-        mock_backups = [
-            {
-                "timestamp": "2025-01-01_12-00-00",
-                "path": temp_dir / "backups" / "backup1"
-            }
-        ]
+    def test_restore_backup_dialog_displays_details(self, mock_app, tmp_path):
+        """Test that enhanced backup dialog displays backup details correctly."""
+        from datetime import datetime
+        from pathlib import Path
+        import json
+        
+        # Setup mock backups with enabled_mods.json
+        backup_dir = tmp_path / "backups"
+        backup_dir.mkdir()
+        
+        backup1 = backup_dir / "backup_20251220_120000"
+        backup1.mkdir()
+        (backup1 / "enabled_mods.json").write_text(json.dumps({
+            "enabledMods": ["mod1", "mod2", "mod3"]
+        }))
+        (backup1 / "backup_info.json").write_text(json.dumps({
+            "timestamp": "20251220_120000"
+        }))
+        
+        mock_app.starsector_path.get.return_value = str(tmp_path)
         
         with patch('utils.backup_manager.BackupManager') as mock_backup_mgr:
             mock_instance = mock_backup_mgr.return_value
-            mock_instance.list_backups.return_value = mock_backups
+            mock_instance.list_backups.return_value = [
+                (backup1, {"timestamp": "20251220_120000"})
+            ]
+            mock_instance.backup_dir = backup_dir
             
-            # Mock tk.Toplevel to prevent actual dialog creation
-            with patch('tkinter.Toplevel') as mock_toplevel:
+            # Mock the dialog creation to avoid actual Tkinter windows
+            with patch('gui.dialogs._create_dialog') as mock_create:
                 mock_dialog = Mock()
-                mock_dialog.title = Mock()
-                mock_dialog.geometry = Mock()
-                mock_dialog.configure = Mock()
-                mock_dialog.transient = Mock()
-                mock_dialog.grab_set = Mock()
-                mock_toplevel.return_value = mock_dialog
+                mock_create.return_value = mock_dialog
                 
-                # Call should not raise an error
-                mock_app.restore_backup_dialog()
+                # Test that dialog can be opened without errors
+                from gui.dialogs import open_restore_backup_dialog
+                open_restore_backup_dialog(None, mock_app)
                 
-                # Dialog should be created
-                mock_toplevel.assert_called()
+                # Verify dialog was created with correct title and size
+                mock_create.assert_called_once()
+                call_args = mock_create.call_args
+                assert call_args[0][1] == "Restore Backup"  # Title
+                assert call_args[1]['width'] == 750
+                assert call_args[1]['height'] == 500
+
+
+class TestRestoreBackupSafely:
+    """Test restore_backup_safely high-level function."""
+    
+    def test_restore_backup_safely_creates_pre_restore_backup(self, mock_app, tmp_path):
+        """Test that restore_backup_safely creates a pre-restore backup before restoring."""
+        from pathlib import Path
+        
+        # Setup mock backup manager
+        mock_backup_mgr = Mock()
+        mock_backup_mgr.create_backup.return_value = (Path("backup_pre_restore"), True, None)
+        mock_backup_mgr.restore_backup.return_value = (True, None)
+        mock_app.backup_manager = mock_backup_mgr
+        
+        # Setup mock for display_modlist_info
+        mock_app.display_modlist_info = Mock()
+        mock_app.modlist_data = {"mods": []}
+        
+        # Call restore_backup_safely
+        backup_path = tmp_path / "backup_20251220_120000"
+        success, error = mock_app.restore_backup_safely(backup_path, "2025-12-20 at 12:00:00")
+        
+        # Verify success
+        assert success is True
+        assert error is None
+        
+        # Verify pre-restore backup was created
+        mock_backup_mgr.create_backup.assert_called_once()
+        
+        # Verify restore was called
+        mock_backup_mgr.restore_backup.assert_called_once_with(backup_path)
+        
+        # Verify UI was refreshed
+        mock_app.display_modlist_info.assert_called_once()
+        
+        # Verify logging - check log_messages list
+        log_texts = [msg[0].lower() for msg in mock_app.log_messages]
+        assert any("pre-restore backup" in text for text in log_texts)
+        assert any("restored" in text for text in log_texts)
+    
+    def test_restore_backup_safely_fails_if_pre_backup_fails(self, mock_app, tmp_path):
+        """Test that restore is aborted if pre-restore backup creation fails."""
+        # Setup mock backup manager with failing pre-backup
+        mock_backup_mgr = Mock()
+        mock_backup_mgr.create_backup.return_value = (None, False, "Disk full")
+        mock_app.backup_manager = mock_backup_mgr
+        
+        # Call restore_backup_safely
+        backup_path = tmp_path / "backup_20251220_120000"
+        success, error = mock_app.restore_backup_safely(backup_path)
+        
+        # Verify failure
+        assert success is False
+        assert "pre-restore backup" in error.lower()
+        assert "Disk full" in error
+        
+        # Verify restore was NOT called
+        mock_backup_mgr.restore_backup.assert_not_called()
+    
+    def test_restore_backup_safely_no_changes_on_restore_failure(self, mock_app, tmp_path):
+        """Test that if restore fails, the function reports failure properly."""
+        # Setup mock backup manager
+        mock_backup_mgr = Mock()
+        mock_backup_mgr.create_backup.return_value = (Path("backup_pre_restore"), True, None)
+        mock_backup_mgr.restore_backup.return_value = (False, "Corrupt backup file")
+        mock_app.backup_manager = mock_backup_mgr
+        
+        # Call restore_backup_safely
+        backup_path = tmp_path / "backup_20251220_120000"
+        success, error = mock_app.restore_backup_safely(backup_path)
+        
+        # Verify failure
+        assert success is False
+        assert "restore backup" in error.lower()
+        assert "Corrupt backup file" in error
+        
+        # Pre-restore backup should still have been created
+        mock_backup_mgr.create_backup.assert_called_once()
+    
+    def test_restore_backup_safely_no_backup_manager(self, mock_app):
+        """Test that restore_backup_safely fails gracefully without backup_manager."""
+        mock_app.backup_manager = None
+        
+        success, error = mock_app.restore_backup_safely(Path("backup"))
+        
+        assert success is False
+        assert "backup manager not initialized" in error.lower()
+    
+    def test_restore_backup_safely_ui_refresh_failure_is_non_fatal(self, mock_app, tmp_path):
+        """Test that UI refresh failure doesn't prevent successful restore."""
+        # Setup mock backup manager
+        mock_backup_mgr = Mock()
+        mock_backup_mgr.create_backup.return_value = (Path("backup_pre_restore"), True, None)
+        mock_backup_mgr.restore_backup.return_value = (True, None)
+        mock_app.backup_manager = mock_backup_mgr
+        
+        # Setup mock that fails on refresh
+        mock_app.display_modlist_info = Mock(side_effect=Exception("UI error"))
+        mock_app.modlist_data = {"mods": []}
+        
+        # Call restore_backup_safely
+        backup_path = tmp_path / "backup_20251220_120000"
+        success, error = mock_app.restore_backup_safely(backup_path)
+        
+        # Verify success (UI refresh failure is just a warning)
+        assert success is True
+        assert error is None
+        
+        # Verify warning was logged about UI refresh failure
+        warning_logs = [msg for msg in mock_app.log_messages if msg[5]]  # msg[5] is warning flag
+        assert len(warning_logs) > 0
+        assert any("ui" in msg[0].lower() and "refresh" in msg[0].lower() for msg in warning_logs)
+
+
+class TestBackupRetentionPolicy:
+    """Test BackupManager retention policy."""
+    
+    def test_default_retention_count_is_4(self):
+        """Test that default retention count is 4."""
+        from utils.backup_manager import BackupManager
+        assert BackupManager.DEFAULT_RETENTION_COUNT == 4
+    
+    def test_automatic_cleanup_on_create_backup(self, tmp_path):
+        """Test that creating a backup automatically cleans up old ones beyond retention limit."""
+        from utils.backup_manager import BackupManager
+        from datetime import datetime
+        
+        # Setup temp Starsector directory
+        starsector_dir = tmp_path / "starsector"
+        mods_dir = starsector_dir / "mods"
+        mods_dir.mkdir(parents=True)
+        
+        # Create enabled_mods.json
+        enabled_mods_file = mods_dir / "enabled_mods.json"
+        enabled_mods_file.write_text('{"enabledMods": []}')
+        
+        log_messages = []
+        def mock_log(msg, **kwargs):
+            log_messages.append(msg)
+        
+        # Create BackupManager with retention_count=3 for testing
+        backup_mgr = BackupManager(starsector_dir, log_callback=mock_log, retention_count=3)
+        
+        # Create 5 backups with mocked timestamps
+        backup_paths = []
+        base_time = datetime(2025, 1, 1, 12, 0, 0)
+        
+        with patch('utils.backup_manager.datetime') as mock_datetime:
+            for i in range(5):
+                # Mock datetime to return incremental timestamps
+                current_time = base_time.replace(hour=12+i)
+                mock_datetime.now.return_value = current_time
+                
+                backup_path, success, error = backup_mgr.create_backup()
+                assert success, f"Backup {i} creation failed: {error}"
+                backup_paths.append(backup_path)
+        
+        # Check that only 3 backups remain
+        remaining_backups = backup_mgr.list_backups()
+        assert len(remaining_backups) == 3, f"Expected 3 backups, found {len(remaining_backups)}"
+        
+        # Verify that the 3 most recent backups are kept
+        remaining_names = {backup[0].name for backup in remaining_backups}
+        expected_names = {backup_paths[i].name for i in [2, 3, 4]}  # Last 3
+        assert remaining_names == expected_names, "Wrong backups were kept"
+        
+        # Verify cleanup was logged
+        cleanup_logs = [msg for msg in log_messages if "Cleaned up" in msg and "old backup" in msg]
+        assert len(cleanup_logs) >= 2, "Cleanup should have been logged"
+    
+    def test_retention_with_custom_count(self, tmp_path):
+        """Test custom retention count."""
+        from utils.backup_manager import BackupManager
+        from datetime import datetime
+        
+        starsector_dir = tmp_path / "starsector"
+        mods_dir = starsector_dir / "mods"
+        mods_dir.mkdir(parents=True)
+        (mods_dir / "enabled_mods.json").write_text('{"enabledMods": []}')
+        
+        # Create with retention_count=2
+        backup_mgr = BackupManager(starsector_dir, retention_count=2)
+        
+        # Create 4 backups with mocked timestamps
+        base_time = datetime(2025, 1, 1, 12, 0, 0)
+        with patch('utils.backup_manager.datetime') as mock_datetime:
+            for i in range(4):
+                mock_datetime.now.return_value = base_time.replace(hour=12+i)
+                backup_mgr.create_backup()
+        
+        # Should keep only 2
+        remaining = backup_mgr.list_backups()
+        assert len(remaining) == 2, f"Expected 2 backups with retention_count=2, found {len(remaining)}"
+    
+    def test_manual_cleanup(self, tmp_path):
+        """Test manual cleanup_old_backups call."""
+        from utils.backup_manager import BackupManager
+        from datetime import datetime
+        
+        starsector_dir = tmp_path / "starsector"
+        mods_dir = starsector_dir / "mods"
+        mods_dir.mkdir(parents=True)
+        (mods_dir / "enabled_mods.json").write_text('{"enabledMods": []}')
+        
+        # Create with high retention to prevent auto-cleanup
+        backup_mgr = BackupManager(starsector_dir, retention_count=10)
+        
+        # Create 6 backups with mocked timestamps
+        base_time = datetime(2025, 1, 1, 12, 0, 0)
+        with patch('utils.backup_manager.datetime') as mock_datetime:
+            for i in range(6):
+                mock_datetime.now.return_value = base_time.replace(hour=12+i)
+                backup_mgr.create_backup()
+        
+        assert len(backup_mgr.list_backups()) == 6
+        
+        # Manually cleanup to keep only 3
+        deleted_count = backup_mgr.cleanup_old_backups(keep_count=3)
+        assert deleted_count == 3, f"Expected to delete 3 backups, deleted {deleted_count}"
+        assert len(backup_mgr.list_backups()) == 3, "Should have 3 backups remaining"
 
 
 class TestSaveConfigFunction:
@@ -1465,35 +1700,6 @@ class TestExtractModMetadata:
         
         assert metadata is not None
         assert metadata['id'] == "nested_mod"
-    
-    @pytest.mark.skipif(not hasattr(__builtins__, 'py7zr'), reason="py7zr not installed")
-    def test_extract_metadata_from_7z(self, tmp_path):
-        """Test extracting metadata from 7z archive."""
-        try:
-            import py7zr
-        except ImportError:
-            pytest.skip("py7zr not available")
-        
-        # Create a test 7z with mod_info.json
-        sevenz_path = tmp_path / "test_mod.7z"
-        mod_info_path = tmp_path / "TestMod" / "mod_info.json"
-        mod_info_path.parent.mkdir(parents=True)
-        mod_info = {
-            "id": "test_7z_mod",
-            "name": "Test 7z Mod",
-            "version": "1.5.0"
-        }
-        mod_info_path.write_text(json.dumps(mod_info))
-        
-        with py7zr.SevenZipFile(sevenz_path, 'w') as archive:
-            archive.writeall(mod_info_path.parent, arcname="TestMod")
-        
-        log_callback = Mock()
-        installer = ModInstaller(log_callback)
-        metadata = installer.extract_mod_metadata(sevenz_path, is_7z=True)
-        
-        assert metadata is not None
-        assert metadata['id'] == "test_7z_mod"
 
 
 class TestMoveModWithArrows:

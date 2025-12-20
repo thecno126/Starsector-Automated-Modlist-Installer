@@ -85,9 +85,11 @@ class ModlistInstaller:
         self.mod_installer = ModInstaller(self.log)
         self.installation_controller = None
         self.log_level = 'INFO'
+        self.backup_manager = None  # Initialized after starsector_path is set
         
         self.load_preferences()
         self.auto_detect_starsector()
+        self._initialize_backup_manager()
         self.create_ui()
         
         self.category_navigator = CategoryNavigator(self.mod_listbox)
@@ -900,6 +902,14 @@ class ModlistInstaller:
         if 'theme' in prefs:
             self.current_theme = prefs['theme']
     
+    def _initialize_backup_manager(self):
+        """Initialize BackupManager if starsector_path is set."""
+        starsector_dir = self.starsector_path.get()
+        if starsector_dir and Path(starsector_dir).exists():
+            self.backup_manager = BackupManager(starsector_dir, log_callback=self.log)
+        else:
+            self.backup_manager = None
+    
     def save_preferences(self):
         """Save user preferences."""
         prefs = {
@@ -963,6 +973,7 @@ class ModlistInstaller:
             if is_valid:
                 self.starsector_path.set(folder)
                 self.save_preferences()
+                self._initialize_backup_manager()  # Reinitialize backup manager with new path
                 self.update_path_status()
                 self.log(f"Starsector path set to: {folder}")
             else:
@@ -1111,6 +1122,79 @@ class ModlistInstaller:
         from .dialogs import open_restore_backup_dialog
         open_restore_backup_dialog(self.root, self)
     
+    def restore_backup_safely(self, backup_path, backup_timestamp=None):
+        """Safely restore a backup with pre-restore backup and confirmation.
+        
+        This high-level function handles the complete restore workflow:
+        1. Creates a backup of the current state (pre-restore backup)
+        2. Restores the selected backup
+        3. Refreshes the UI to reflect changes
+        4. Logs all operations
+        
+        Args:
+            backup_path: Path to the backup to restore
+            backup_timestamp: Optional formatted timestamp for logging (e.g., "2025-12-20 at 14:30")
+        
+        Returns:
+            tuple: (success: bool, error_message: str or None)
+        """
+        if not self.backup_manager:
+            error_msg = "Backup manager not initialized. Please set Starsector path."
+            self.log(f"✗ {error_msg}", error=True)
+            return False, error_msg
+        
+        formatted_ts = backup_timestamp or str(backup_path)
+        
+        try:
+            # Step 1: Create pre-restore backup of current state
+            self.log(f"Creating pre-restore backup of current state...", info=True)
+            pre_backup_path, pre_success, pre_error = self.backup_manager.create_backup()
+            
+            if not pre_success:
+                error_msg = f"Failed to create pre-restore backup: {pre_error}"
+                self.log(f"✗ {error_msg}", error=True)
+                return False, error_msg
+            
+            self.log(f"✓ Pre-restore backup created: {pre_backup_path.name}", success=True)
+            
+            # Step 2: Restore the selected backup
+            self.log(f"Restoring backup from {formatted_ts}...", info=True)
+            success, error = self.backup_manager.restore_backup(backup_path)
+            
+            if not success:
+                error_msg = f"Failed to restore backup: {error}"
+                self.log(f"✗ {error_msg}", error=True)
+                return False, error_msg
+            
+            self.log(f"✓ Backup restored from {formatted_ts}", success=True)
+            
+            # Step 3: Refresh UI to reflect restored state
+            self.log("Refreshing UI...", info=True)
+            self._refresh_after_restore()
+            
+            return True, None
+            
+        except Exception as e:
+            error_msg = f"Unexpected error during restore: {e}"
+            self.log(f"✗ {error_msg}", error=True)
+            return False, error_msg
+    
+    def _refresh_after_restore(self):
+        """Refresh UI components after backup restoration.
+        
+        This internal method updates all UI elements that might be affected
+        by restoring a backup (modlist info, enabled mods count, etc.).
+        """
+        try:
+            # Reload modlist config if it exists
+            if hasattr(self, 'modlist_data') and self.modlist_data:
+                self.display_modlist_info()
+            
+            self.log("✓ UI refreshed successfully", success=True)
+            
+        except Exception as e:
+            self.log(f"⚠ Warning: Failed to refresh UI: {e}", warning=True)
+    
     def check_disk_space(self):
         """Check if there's enough disk space."""
         if not self.starsector_path.get():
@@ -1182,6 +1266,7 @@ class ModlistInstaller:
                     if is_valid:
                         self.starsector_path.set(folder)
                         self.save_preferences()
+                        self._initialize_backup_manager()  # Reinitialize backup manager with new path
                         self.log(f"Starsector path set: {folder}")
                     else:
                         custom_dialogs.showerror("Invalid Path", message)

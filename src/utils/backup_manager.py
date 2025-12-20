@@ -5,11 +5,28 @@ from datetime import datetime
 
 
 class BackupManager:
+    """Manages backup and restore of enabled_mods.json with automatic retention policy."""
     
-    def __init__(self, starsector_path):
+    DEFAULT_RETENTION_COUNT = 4
+    
+    def __init__(self, starsector_path, log_callback=None, retention_count=None):
+        """Initialize BackupManager.
+        
+        Args:
+            starsector_path: Path to Starsector installation
+            log_callback: Optional callback function for logging (signature: log(message, **kwargs))
+            retention_count: Number of backups to keep (default: 4)
+        """
         self.starsector_path = Path(starsector_path)
         self.backup_dir = self.starsector_path / "modlist_backups"
         self.backup_dir.mkdir(exist_ok=True)
+        self.log_callback = log_callback
+        self.retention_count = retention_count if retention_count is not None else self.DEFAULT_RETENTION_COUNT
+    
+    def _log(self, message, **kwargs):
+        """Internal logging helper."""
+        if self.log_callback:
+            self.log_callback(message, **kwargs)
     
     def create_backup(self, backup_mods=False):
         """Backup enabled_mods.json and optionally list installed mods. Returns (path, success, error)."""
@@ -45,9 +62,17 @@ class BackupManager:
             with open(backup_path / "backup_info.json", 'w', encoding='utf-8') as f:
                 json.dump(metadata, f, indent=2)
             
+            self._log(f"✓ Created backup: {backup_path.name}", success=True)
+            
+            # Automatically cleanup old backups
+            deleted_count = self.cleanup_old_backups(keep_count=self.retention_count)
+            if deleted_count > 0:
+                self._log(f"  Cleaned up {deleted_count} old backup(s) (keeping last {self.retention_count})", info=True)
+            
             return backup_path, True, None
             
         except Exception as e:
+            self._log(f"✗ Backup creation failed: {e}", error=True)
             return None, False, str(e)
     
     def list_backups(self):
@@ -78,6 +103,7 @@ class BackupManager:
         backup_path = Path(backup_path)
         
         if not backup_path.exists():
+            self._log(f"✗ Backup not found: {backup_path}", error=True)
             return False, "Backup directory not found"
         
         try:
@@ -86,28 +112,41 @@ class BackupManager:
             if enabled_mods_backup.exists():
                 enabled_mods_dest = self.starsector_path / "mods" / "enabled_mods.json"
                 shutil.copy2(enabled_mods_backup, enabled_mods_dest)
+                self._log(f"✓ Restored backup: {backup_path.name}", success=True)
             else:
+                self._log(f"✗ enabled_mods.json not found in backup", error=True)
                 return False, "enabled_mods.json not found in backup"
             
             return True, None
             
         except Exception as e:
+            self._log(f"✗ Restore failed: {e}", error=True)
             return False, str(e)
     
     def delete_backup(self, backup_path):
+        """Delete a specific backup. Returns (success, error)."""
         backup_path = Path(backup_path)
         
         try:
             if backup_path.exists() and backup_path.parent == self.backup_dir:
                 shutil.rmtree(backup_path)
+                self._log(f"✓ Deleted backup: {backup_path.name}", info=True)
                 return True, None
             else:
                 return False, "Invalid backup path"
         except Exception as e:
+            self._log(f"✗ Delete backup failed: {e}", error=True)
             return False, str(e)
     
-    def cleanup_old_backups(self, keep_count=5):
-        """Delete old backups, keeping most recent. Returns deleted count."""
+    def cleanup_old_backups(self, keep_count=None):
+        """Delete old backups, keeping most recent. Returns deleted count.
+        
+        Args:
+            keep_count: Number of backups to keep (default: use retention_count from init)
+        """
+        if keep_count is None:
+            keep_count = self.retention_count
+            
         backups = self.list_backups()
         
         if len(backups) <= keep_count:

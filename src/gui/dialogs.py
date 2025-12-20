@@ -1124,7 +1124,7 @@ def show_google_drive_confirmation_dialog(parent, failed_mods, on_confirm_callba
 
 
 def open_restore_backup_dialog(parent, app):
-    """Show dialog to restore a backup.
+    """Show enhanced dialog to restore a backup with detailed information.
     
     Args:
         parent: Parent window
@@ -1132,6 +1132,7 @@ def open_restore_backup_dialog(parent, app):
     """
     from datetime import datetime
     from utils.backup_manager import BackupManager
+    import json
     
     starsector_dir = app.starsector_path.get()
     if not starsector_dir:
@@ -1146,36 +1147,144 @@ def open_restore_backup_dialog(parent, app):
             showinfo("No Backups", "No backups found. Backups are created automatically before installation.", parent)
             return
         
-        # Create dialog
-        dialog = _create_dialog(parent, "Restore Backup", width=500, height=400)
+        # Create dialog with larger size for details panel
+        dialog = _create_dialog(parent, "Restore Backup", width=750, height=500)
         
-        tk.Label(dialog, text="Select a backup to restore:", font=("Arial", 12), 
-                bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY).pack(pady=10)
+        # Title
+        title_label = tk.Label(dialog, text="Select a backup to restore", font=("Arial", 13, "bold"), 
+                bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY)
+        title_label.pack(pady=(10, 5))
         
-        # Listbox with scrollbar
-        frame = tk.Frame(dialog, bg=TriOSTheme.SURFACE)
-        frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        # Main content frame (horizontal split)
+        content_frame = tk.Frame(dialog, bg=TriOSTheme.SURFACE)
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=10)
         
-        scrollbar = tk.Scrollbar(frame)
+        # Left panel: Backup list
+        left_frame = tk.Frame(content_frame, bg=TriOSTheme.SURFACE)
+        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=False, padx=(0, 10))
+        
+        tk.Label(left_frame, text="Available Backups:", font=("Arial", 10, "bold"),
+                bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY).pack(anchor=tk.W, pady=(0, 5))
+        
+        list_frame = tk.Frame(left_frame, bg=TriOSTheme.SURFACE)
+        list_frame.pack(fill=tk.BOTH, expand=True)
+        
+        scrollbar = tk.Scrollbar(list_frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        listbox = tk.Listbox(frame, yscrollcommand=scrollbar.set,
+        listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set, width=28,
                             bg=TriOSTheme.SURFACE_DARK, fg=TriOSTheme.TEXT_PRIMARY,
                             selectbackground=TriOSTheme.PRIMARY, selectforeground=TriOSTheme.SURFACE_DARK,
-                            font=("Arial", 10))
+                            font=("Courier", 10), activestyle='none')
         listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=listbox.yview)
         
-        # Populate list
+        # Right panel: Backup details
+        right_frame = tk.Frame(content_frame, bg=TriOSTheme.SURFACE_DARK, relief=tk.FLAT, bd=1)
+        right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        
+        # Details header
+        details_header = tk.Label(right_frame, text="Backup Details", font=("Arial", 11, "bold"),
+                                 bg=TriOSTheme.SURFACE_DARK, fg=TriOSTheme.PRIMARY, anchor=tk.W)
+        details_header.pack(fill=tk.X, padx=12, pady=(10, 8))
+        
+        # Details text widget with scrollbar
+        details_frame = tk.Frame(right_frame, bg=TriOSTheme.SURFACE_DARK)
+        details_frame.pack(fill=tk.BOTH, expand=True, padx=12, pady=(0, 10))
+        
+        details_scroll = tk.Scrollbar(details_frame)
+        details_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        details_text = tk.Text(details_frame, yscrollcommand=details_scroll.set, height=15,
+                              bg=TriOSTheme.SURFACE_DARK, fg=TriOSTheme.TEXT_PRIMARY,
+                              font=("Arial", 10), wrap=tk.WORD, relief=tk.FLAT, bd=0,
+                              cursor="arrow", state=tk.DISABLED)
+        details_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        details_scroll.config(command=details_text.yview)
+        
+        # Helper function to extract mod count from backup
+        def get_backup_details(backup_path):
+            """Extract detailed information from a backup."""
+            details = {}
+            
+            # Read enabled_mods.json
+            enabled_mods_file = backup_path / "enabled_mods.json"
+            if enabled_mods_file.exists():
+                try:
+                    with open(enabled_mods_file, 'r', encoding='utf-8') as f:
+                        enabled_data = json.load(f)
+                        details['mod_count'] = len(enabled_data.get('enabledMods', []))
+                        details['enabled_mods'] = enabled_data.get('enabledMods', [])
+                except:
+                    details['mod_count'] = 'Unknown'
+                    details['enabled_mods'] = []
+            else:
+                details['mod_count'] = 'Unknown'
+                details['enabled_mods'] = []
+            
+            return details
+        
+        # Populate backup list
         for backup_path, metadata in backups:
             timestamp = metadata.get('timestamp', 'Unknown')
-            # Format timestamp
             try:
                 dt = datetime.strptime(timestamp, "%Y%m%d_%H%M%S")
-                formatted = dt.strftime("%Y-%m-%d %H:%M:%S")
+                formatted = dt.strftime("%Y-%m-%d %H:%M")
             except:
                 formatted = timestamp
             listbox.insert(tk.END, formatted)
+        
+        # Update details panel when selection changes
+        def on_select(event):
+            selection = listbox.curselection()
+            if not selection:
+                return
+            
+            idx = selection[0]
+            backup_path, metadata = backups[idx]
+            timestamp = metadata.get('timestamp', 'Unknown')
+            
+            # Get additional details
+            backup_details = get_backup_details(backup_path)
+            
+            # Format timestamp nicely
+            try:
+                dt = datetime.strptime(timestamp, "%Y%m%d_%H%M%S")
+                formatted_date = dt.strftime("%A, %B %d, %Y")
+                formatted_time = dt.strftime("%I:%M:%S %p")
+            except:
+                formatted_date = timestamp
+                formatted_time = ""
+            
+            # Build details text
+            details_str = f"📅 Date: {formatted_date}\n"
+            if formatted_time:
+                details_str += f"🕐 Time: {formatted_time}\n"
+            details_str += f"\n📊 Number of Mods: {backup_details['mod_count']}\n"
+            
+            # Show first few mods if available
+            if backup_details['enabled_mods'] and isinstance(backup_details['mod_count'], int):
+                details_str += f"\n📦 Enabled Mods:\n"
+                max_show = min(15, len(backup_details['enabled_mods']))
+                for i, mod_id in enumerate(backup_details['enabled_mods'][:max_show]):
+                    details_str += f"  • {mod_id}\n"
+                
+                if len(backup_details['enabled_mods']) > max_show:
+                    remaining = len(backup_details['enabled_mods']) - max_show
+                    details_str += f"  ... and {remaining} more mod(s)\n"
+            
+            # Update details panel
+            details_text.config(state=tk.NORMAL)
+            details_text.delete("1.0", tk.END)
+            details_text.insert("1.0", details_str)
+            details_text.config(state=tk.DISABLED)
+        
+        listbox.bind('<<ListboxSelect>>', on_select)
+        
+        # Select first backup by default
+        if backups:
+            listbox.selection_set(0)
+            listbox.event_generate('<<ListboxSelect>>')
         
         def on_restore():
             selection = listbox.curselection()
@@ -1185,16 +1294,26 @@ def open_restore_backup_dialog(parent, app):
             
             idx = selection[0]
             backup_path, metadata = backups[idx]
+            timestamp = metadata.get('timestamp', 'Unknown')
+            
+            # Format timestamp for confirmation
+            try:
+                dt = datetime.strptime(timestamp, "%Y%m%d_%H%M%S")
+                formatted = dt.strftime("%Y-%m-%d at %H:%M:%S")
+            except:
+                formatted = timestamp
             
             # Confirm restore
-            timestamp = metadata.get('timestamp', 'Unknown')
-            if not askyesno("Confirm Restore", f"Restore backup from {timestamp}?\n\nThis will replace your current enabled_mods.json file.", parent):
+            if not askyesno("Confirm Restore", 
+                          f"Restore backup from {formatted}?\n\n" +
+                          "This will replace your current enabled_mods.json file.\n" +
+                          "A backup of the current state will be created automatically.", parent):
                 return
             
-            # Perform restore
-            success, error = backup_manager.restore_backup(backup_path)
+            # Use the safe restore function from app
+            success, error = app.restore_backup_safely(backup_path, formatted)
+            
             if success:
-                app.log(f"✓ Backup restored from {timestamp}")
                 showsuccess("Success", "Backup restored successfully!\n\nYour mod configuration has been restored.", parent)
                 dialog.destroy()
             else:
@@ -1210,31 +1329,51 @@ def open_restore_backup_dialog(parent, app):
             backup_path, metadata = backups[idx]
             timestamp = metadata.get('timestamp', 'Unknown')
             
-            if not askyesno("Confirm Delete", f"Delete backup from {timestamp}?", parent):
+            # Format timestamp for confirmation
+            try:
+                dt = datetime.strptime(timestamp, "%Y%m%d_%H%M%S")
+                formatted = dt.strftime("%Y-%m-%d at %H:%M:%S")
+            except:
+                formatted = timestamp
+            
+            if not askyesno("Confirm Delete", 
+                          f"Delete backup from {formatted}?\n\n" +
+                          "This action cannot be undone.", parent):
                 return
             
             success, error = backup_manager.delete_backup(backup_path)
             if success:
-                app.log(f"✓ Deleted backup: {timestamp}")
+                app.log(f"✓ Deleted backup: {formatted}")
                 listbox.delete(idx)
                 backups.pop(idx)
-                if not backups:
+                
+                # Clear details panel
+                details_text.config(state=tk.NORMAL)
+                details_text.delete("1.0", tk.END)
+                details_text.config(state=tk.DISABLED)
+                
+                # Select next or previous backup
+                if backups:
+                    new_idx = min(idx, len(backups) - 1)
+                    listbox.selection_set(new_idx)
+                    listbox.event_generate('<<ListboxSelect>>')
+                else:
                     showinfo("No Backups", "All backups deleted.", parent)
                     dialog.destroy()
             else:
                 showerror("Delete Failed", f"Failed to delete backup:\n{error}", parent)
         
-        # Buttons
+        # Buttons frame
         btn_frame = tk.Frame(dialog, bg=TriOSTheme.SURFACE)
-        btn_frame.pack(pady=10)
+        btn_frame.pack(pady=(5, 15))
         
-        restore_btn = _create_button(btn_frame, "Restore", on_restore, button_type="success")
+        restore_btn = _create_button(btn_frame, "Restore Backup", on_restore, width=16, button_type="success")
         restore_btn.pack(side=tk.LEFT, padx=5)
         
-        delete_btn = _create_button(btn_frame, "Delete", on_delete, button_type="danger")
+        delete_btn = _create_button(btn_frame, "Delete Backup", on_delete, width=16, button_type="danger")
         delete_btn.pack(side=tk.LEFT, padx=5)
         
-        cancel_btn = _create_button(btn_frame, "Cancel", dialog.destroy, button_type="plain")
+        cancel_btn = _create_button(btn_frame, "Cancel", dialog.destroy, width=12, button_type="secondary")
         cancel_btn.pack(side=tk.LEFT, padx=5)
         
         _center_dialog(dialog, parent)

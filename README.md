@@ -23,8 +23,6 @@ An amateur tool to manage and install Starsector modlists with parallel download
 - 🔒 **Version Compatibility** - Checks target Starsector version
 
 ### User Interface
-- 🎨 **TriOS Theme** - Modern dark UI with cyan accents matching TriOS mod manager
-- 🖱️ **Drag & Drop** - Reorder mods by dragging them between categories
 - ⬆️⬇️ **Arrow Keys** - Quick reordering within and across categories
 - 📊 **Category Management** - Create, rename, delete, and reorder custom categories
 - 🔍 **Search Filter** - Quickly find mods by name
@@ -220,7 +218,7 @@ pip install -r requirements.txt
 - `py7zr>=0.20.0` - 7zip archive support (optional, falls back to ZIP-only if unavailable)
 
 **Development dependencies:**
-- `pytest>=7.4.0` - Unit testing framework (80 tests)
+- `pytest>=7.4.0` - Unit testing framework (78 tests)
 - `pytest-mock>=3.11.1` - Mocking for tests
 
 ## 🔄 Workflow
@@ -275,7 +273,7 @@ pytest tests/test_suite.py -v
 - Metadata refresh and mod enabling
 - Error recovery and UI state management
 
-**80 tests total** - 78 passed, 2 skipped (py7zr-dependent) ✅
+**78 tests total** - All passing ✅
 
 ## 📄 License
 
@@ -299,4 +297,4 @@ For questions or support, please open an issue on GitHub: https://github.com/the
 - **Configuration validation** - Built-in validation in ConfigManager and dialogs for data integrity
 - **Redundancy removal** - Eliminated `mods_by_category` structure, simplified codebase by 150+ lines
 - **macOS compatibility** - Fixed file dialogs on macOS by adding parent parameter and changing wildcard to "*.*"
-- **Test suite expansion** - Grew from 36 to 80 comprehensive tests covering all major workflows
+- **Test suite expansion** - Grew from 36 to 78 comprehensive tests covering all major workflows

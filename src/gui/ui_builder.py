@@ -247,29 +247,29 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
         button_container.pack(side=tk.RIGHT)
         
         if edit_metadata_callback:
-            # Unicode: U+1F4DD (📝) - memo icon
-            edit_metadata_btn = _create_button(button_container, "📝", edit_metadata_callback, width=3, font_size=14, button_type="secondary")
+            # Unicode: U+22EF (⋯) - Points horizontaux
+            edit_metadata_btn = _create_button(button_container, "⋯", edit_metadata_callback, width=3, font_size=17, button_type="secondary")
             edit_metadata_btn.pack(side=tk.LEFT, padx=(0, 8))
             ToolTip(edit_metadata_btn, "Edit modlist metadata (name, version, description)")
             header_buttons['edit_metadata'] = edit_metadata_btn
         
         if refresh_callback:
-            # Unicode: U+1F504 (🔄) - meilleur symbole de refresh
-            refresh_btn = _create_button(button_container, "🔄", refresh_callback, width=3, font_size=14, button_type="secondary")
+            # Unicode: U+21BB (↻) - Flèche circulaire antihoraire
+            refresh_btn = _create_button(button_container, "↻", refresh_callback, width=3, font_size=17, button_type="secondary")
             refresh_btn.pack(side=tk.LEFT, padx=(0, 8))
             ToolTip(refresh_btn, "Refresh mod metadata from installed mods")
             header_buttons['refresh'] = refresh_btn
         
         if import_callback:
-            # Unicode: U+1F4E5 (📥) or U+2B07 (⬇) or U+21E9 (⇩)
-            import_btn = _create_button(button_container, "📥", import_callback, width=3, font_size=16, button_type="secondary")
+            # Unicode: U+2913 (⤓) - Flèche bas avec crochet
+            import_btn = _create_button(button_container, "⤓", import_callback, width=3, font_size=17, button_type="secondary")
             import_btn.pack(side=tk.LEFT, padx=(0, 5))
             ToolTip(import_btn, "Import mods from CSV file")
             header_buttons['import'] = import_btn
         
         if export_callback:
-            # Unicode: U+1F4E4 (📤) or U+2B06 (⬆) or U+21E7 (⇧)
-            export_btn = _create_button(button_container, "📤", export_callback, width=3, font_size=16, button_type="secondary")
+            # Unicode: U+2912 (⤒) - Flèche haut avec crochet
+            export_btn = _create_button(button_container, "⤒", export_callback, width=3, font_size=17, button_type="secondary")
             export_btn.pack(side=tk.LEFT)
             ToolTip(export_btn, "Export modlist to CSV file")
             header_buttons['export'] = export_btn
@@ -286,7 +286,7 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
     # Header text - uses system theme colors
     header_text = tk.Text(
         left_container, 
-        height=4, 
+        height=5, 
         wrap=tk.WORD, 
         state=tk.DISABLED,
         bg=TriOSTheme.SURFACE,
@@ -403,17 +403,17 @@ def create_modlist_section(main_frame, mod_click_callback, pane_resize_callback,
         action_container.pack(side=tk.RIGHT)
         
         if clear_callback:
-            # Unicode: U+2421 (␡) - delete character
-            clear_all_btn = _create_button(action_container, "␡", clear_callback, width=3, font_size=16, button_type="danger")
+            # Unicode: U+2421 (␡) - DEL (symbole texte)
+            clear_all_btn = _create_button(action_container, "␡", clear_callback, width=3, font_size=17, button_type="delete_purple")
             clear_all_btn.pack(side=tk.RIGHT, padx=(3, 0))
             ToolTip(clear_all_btn, "Clear all mods from the list")
             header_buttons['clear'] = clear_all_btn
         
         if restore_callback:
-            # Unicode: U+21BB (↻) - clockwise arrow, consistent with refresh theme
-            restore_backup_btn = _create_button(action_container, "↻", restore_callback, width=3, font_size=16, button_type="warning")
+            # Unicode: U+1F4BE (💾) - Disquette (backup/restore classique)
+            restore_backup_btn = _create_button(action_container, "💾", restore_callback, width=3, font_size=17, button_type="secondary")
             restore_backup_btn.pack(side=tk.RIGHT)
-            ToolTip(restore_backup_btn, "Restore enabled_mods.json from backup")
+            ToolTip(restore_backup_btn, "Select a backup to restore")
             header_buttons['restore'] = restore_backup_btn
     
     # Return container and left_container so buttons can be added first
@@ -446,7 +446,7 @@ def create_log_section(main_frame, current_mod_var=None, pause_callback=None, en
     pause_btn = None
     if pause_callback:
         pause_btn = _create_button(top_bar, "⏸", pause_callback, width=4, font_size=14, 
-                                   state=tk.DISABLED, button_type="warning")
+                                   state=tk.DISABLED, button_type="secondary")
         pause_btn.pack(side=tk.RIGHT)
         ToolTip(pause_btn, "Pause installation")
     

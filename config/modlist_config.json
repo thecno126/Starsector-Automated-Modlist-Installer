@@ -3,22 +3,23 @@
   "version": "1.0",
   "starsector_version": "0.98a-RC8",
   "description": "Starsector Modlist",
+  "author": "thecno126",
   "mods": [
     {
-      "mod_id": "roider",
-      "name": "Roider Union",
-      "download_url": "https://github.com/SafariJohn/Roider-Union/raw/refs/heads/main/Roider%20Union%202.2.6.zip",
-      "mod_version": "2.2.6",
-      "game_version": "0.98a-RC8",
-      "category": "Factions"
+      "mod_id": "sun_nomadic_survival",
+      "name": "Nomadic Survival",
+      "download_url": "https://github.com/NateNBJ/NomadicSurvival/releases/latest/download/Nomadic.Survival.zip",
+      "mod_version": "1.5.0",
+      "game_version": "0.98a-RC7",
+      "category": "Gameplay"
     },
     {
-      "mod_id": "timid_xiv",
-      "name": "Iron Shell",
-      "download_url": "https://github.com/TechpriestEnginseer/solid-winner4/releases/download/1.1813aj/Iron.Shell.zip",
-      "mod_version": "1.18.3aj",
-      "game_version": "0.97a-RC10",
-      "category": "Factions"
+      "mod_id": "GrandColonies",
+      "name": "Grand.Colonies",
+      "download_url": "https://github.com/SirHartley/Grand.Colonies/releases/download/2.1.b/Grand.Colonies2.1.b.zip",
+      "mod_version": "2.1.b",
+      "game_version": "0.98a",
+      "category": "Gameplay"
     },
     {
       "mod_id": "shaderLib",
@@ -101,20 +102,12 @@
       "category": "Bonuses"
     },
     {
-      "mod_id": "sun_nomadic_survival",
-      "name": "Nomadic Survival",
-      "download_url": "https://github.com/NateNBJ/NomadicSurvival/releases/latest/download/Nomadic.Survival.zip",
-      "mod_version": "1.5.0",
-      "game_version": "0.98a-RC7",
-      "category": "Gameplay"
-    },
-    {
-      "mod_id": "GrandColonies",
-      "name": "Grand.Colonies",
-      "download_url": "https://github.com/SirHartley/Grand.Colonies/releases/download/2.1.b/Grand.Colonies2.1.b.zip",
-      "mod_version": "2.1.b",
-      "game_version": "0.98a",
-      "category": "Gameplay"
+      "mod_id": "timid_xiv",
+      "name": "Iron Shell",
+      "download_url": "https://github.com/TechpriestEnginseer/solid-winner4/releases/download/1.1813aj/Iron.Shell.zip",
+      "mod_version": "1.18.3aj",
+      "game_version": "0.97a-RC10",
+      "category": "Factions"
     },
     {
       "mod_id": "PAGSM",
@@ -131,7 +124,14 @@
       "mod_version": "1.4",
       "game_version": "0.98a",
       "category": "Factions"
+    },
+    {
+      "mod_id": "roider",
+      "name": "Roider Union",
+      "download_url": "https://github.com/SafariJohn/Roider-Union/raw/refs/heads/main/Roider%20Union%202.2.6.zip",
+      "mod_version": "2.2.6",
+      "game_version": "0.98a-RC8",
+      "category": "Factions"
     }
-  ],
-  "author": "thecno126"
+  ]
 }
