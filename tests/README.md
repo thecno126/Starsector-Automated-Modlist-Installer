@@ -71,5 +71,6 @@ tests/
 ├── test_import_modlist.json
 ├── test_invalid_preset.json
 ├── test_lunalib_patch.json
-└── test_import_lunalib.json
+├── test_import_lunalib.json
+└── test_lunasettings.py
 ```
