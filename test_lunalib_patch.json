@@ -1,24 +1,23 @@
 {
-  "enabled": true,
-  "version": "2.0.5",
-  "settings": {
-    "maxCacheSize": 150,
-    "enableDebugLogging": true,
-    "autoSaveInterval": 300,
-    "uiTheme": "dark"
+  "lunalib": {
+    "luna_DebugEntries": 25,
+    "luna_DebugKeybind_new": 62,
+    "luna_DevmodeKeybind": 0,
+    "luna_SettingsKeybind_new": 61,
+    "luna_UIDebugKeybind": 0,
+    "luna_enableVC": true,
+    "luna_exampleBoolean": true,
+    "luna_exampleDouble": 10.2,
+    "luna_exampleInt": 100
   },
-  "modSettings": {
-    "exampleMod": {
-      "enabled": true,
-      "difficulty": "hard",
-      "customOptions": {
-        "feature1": true,
-        "feature2": false
-      }
-    }
+  "nexerelin": {
+    "nex_enableInvasions": true,
+    "nex_raidDifficulty": "normal",
+    "nex_diplomacyMode": "player"
   },
-  "advanced": {
-    "memoryLimit": 2048,
-    "threadCount": 4
+  "testMod": {
+    "testSetting1": "value1",
+    "testSetting2": true,
+    "testSetting3": 42
   }
 }

@@ -1,11 +1,13 @@
 {
-  "enabled": true,
-  "settings": {
+  "lunalib": {
+    "luna_DebugEntries": 10,
+    "luna_enableVC": false,
+    "luna_exampleBoolean": false
+  },
+  "testMod": {
     "testSetting1": "value1",
     "testSetting2": true,
-    "testSetting3": 42
-  },
-  "advanced": {
+    "testSetting3": 42,
     "debug": false,
     "maxCacheSize": 256
   }
