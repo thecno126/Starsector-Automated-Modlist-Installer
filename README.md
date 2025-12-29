@@ -17,8 +17,10 @@ GUI tool for managing and installing Starsector modlists, featuring intelligent 
 - "Enable All Mods" button activates **only** the installed mods present in the current modlist
 - LunaLib patch: writes to `saves/common/LunaSettings/`
  Fast, reliable modlist downloader and manager for Starsector.
-**User Interface:**
+
+ **User Interface:**
  Starsector Automated Modlist Installer helps players quickly install curated modlists, validate download links, extract essential metadata straight from archives, and enable the right mods automatically. It focuses on safety, clarity, and minimal friction so you can spend more time playing.
+ 
 ## Prerequisites
 
 python3 -m venv .venv
