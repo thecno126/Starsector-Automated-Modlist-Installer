@@ -1,69 +1,71 @@
 # Tests
 
-Documentation de la suite de tests pour Starsector Automated Modlist Installer.
+**Important**: All application content, UI elements, tests, and documentation must be in **English only**.
 
-## Lancer les tests
+Test suite documentation for Starsector Automated Modlist Installer.
+
+## Running Tests
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
 
-# Exécuter le runner principal
+# Run the main test runner
 pytest tests/test_suite.py -v
 
-# Ou exécuter directement via Python
+# Or run directly via Python
 .venv/bin/python tests/test_suite.py
 ```
 
-## Couverture des tests
+## Test Coverage
 
-### Import/Export de presets
-- Validation de la structure JSON (`modlist_config.json`, `lunalib_config.json`)
-- Chargement et sauvegarde depuis/vers `config/presets/<name>/`
-- Détection d'erreurs (presets invalides, chemins manquants)
+### Import/Export Presets
+- JSON structure validation (`modlist_config.json`, `lunalib_config.json`)
+- Loading and saving from/to `config/presets/<name>/`
+- Error detection (invalid presets, missing paths)
 
-### Correction d'URL Google Drive
-- Formats supportés: `/file/d/<ID>/view`, `?id=<ID>`
-- Correction automatique vers `drive.usercontent.google.com`
-- Détection des réponses HTML (page d'avertissement virus scan)
-- Dialogue de confirmation pour fichiers volumineux
+### Google Drive URL Correction
+- Supported formats: `/file/d/<ID>/view`, `?id=<ID>`
+- Automatic correction to `drive.usercontent.google.com`
+- HTML response detection (virus scan warning page)
+- Confirmation dialog for large files
 
-### Détection d'archives 7z
-- Détection via `Content-Disposition: filename=...` (priorité sur `Content-Type`)
-- Support des noms de fichiers avec extension `.7z`
-- Fallback robuste si `Content-Type` est ambigu
+### 7z Archive Detection
+- Detection via `Content-Disposition: filename=...` (priority over `Content-Type`)
+- Support for filenames with `.7z` extension
+- Robust fallback if `Content-Type` is ambiguous
 
-### Extraction `mod_info.json`
-- Extraction **sans décompression complète** (ZIP et 7z)
-- Support `py7zr` pour archives 7z
-- Lecture directe depuis l'archive avec `zipfile` et `py7zr`
-- Économie de temps et d'espace disque
+### `mod_info.json` Extraction
+- Extraction **without full decompression** (ZIP and 7z)
+- `py7zr` support for 7z archives
+- Direct reading from archive with `zipfile` and `py7zr`
+- Saves time and disk space
 
-### Activation "modlist-only"
-- Mise à jour de `enabled_mods.json` pour activer **uniquement** les mods:
-  - Présents dans la modlist courante
-  - **ET** installés dans le dossier `mods/`
-- Vérification des `mod_id` pour correspondance exacte
-- Résout le problème "20 mods activés pour 19 listés"
+### "Modlist-only" Activation
+- Update `enabled_mods.json` to activate **only** mods that are:
+  - Present in the current modlist
+  - **AND** installed in the `mods/` folder
+- Verification of `mod_id` for exact match
+- Solves the "20 mods activated for 19 listed" issue
 
-### Validations et messages d'erreur
-- Dialogs (confirmations, erreurs, succès)
-- Validations de chemins (Starsector install, mod folders)
-- Permissions d'écriture (config, mods, saves)
+### Validations and Error Messages
+- Dialogs (confirmations, errors, success)
+- Path validations (Starsector install, mod folders)
+- Write permissions (config, mods, saves)
 
-### Fichiers de test JSON
+### Test JSON Files
 
-Des fichiers de test sont fournis **à la racine du projet**:
-- `test_import_modlist.json` — modlist de test pour import
-- `test_invalid_preset.json` — preset invalide (validation d'erreur)
-- `test_lunalib_patch.json` — configuration LunaLib de test
-- `test_import_lunalib.json` — preset avec LunaLib config
+Test files are provided **at the project root**:
+- `test_import_modlist.json` — test modlist for import
+- `test_invalid_preset.json` — invalid preset (error validation)
+- `test_lunalib_patch.json` — test LunaLib configuration
+- `test_import_lunalib.json` — preset with LunaLib config
 
-Ces fichiers permettent de valider les flux complets d'import/export et de patch LunaLib.
+These files allow validation of complete import/export and LunaLib patch workflows.
 
 ## Structure
 ```
 tests/
-├── README.md       # Ce fichier
-└── test_suite.py   # Runner de tests principal
+├── README.md       # This file
+└── test_suite.py   # Main test runner
 ```

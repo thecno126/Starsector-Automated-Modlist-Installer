@@ -1,7 +1,14 @@
-Enlever les CSV et leur implémentation
-Ajouter un fichier preset avec un sous-dossier les modlist_congig.json (ils n'auront pas ce nom la car ils auront le noms de la modlist) et un autre pour les lunalib_config.json (patch lunalib)
-Ajouter une icone "file" pour importer un modlist_congig et/ou un patch lunalib dans les dossiers dédiés
-Changer la fonction backup en gardant l'icone disque dur, elle sert désormais à exporter/sauvegarder un preset de modlist_.json dans le dossier preset
-Ajouter le bouton + fonction d'un patch lunalib_config
-Ajuster le bas de la fenetre pour toujours afficher les boutons du bas et les rendre irréductibles
-L'aide au bouton "DEL" indique plutot dans les lignes de "wipe modlist"
+INSTRUCTIONS IMPORTANTES:
+======================
+- L'application doit être ENTIÈREMENT en anglais (interface, messages, boutons, tooltips, etc.)
+- Tous les README, documentation et commentaires de code doivent être en anglais
+- Les messages d'erreur et de succès doivent être en anglais
+- Toute nouvelle fonctionnalité doit respecter cette règle
+
+INSTRUCTIONS D'INTERFACE:
+========================
+"DEL" prend le symbole de remove mod sur le meme fond rouge
+remove selected mods a l'icone "-" dans le meme style du "+" de add mods
+Les symboles de remove et add mod prennent un fond bleu classique comme les autres boutons
+"patch luna setting from preset" se renomme en "Lunalib Patch" et devient un bouton à coté de "enable all mods", cette fois ci sur fond violet
+A l'ancienne emplacement de "patch luna setting from preset" on peut mettre le bouton export modlist

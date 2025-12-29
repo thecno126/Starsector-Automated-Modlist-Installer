@@ -1,5 +1,7 @@
 # Build Scripts
 
+**Important**: All application content, UI elements, and documentation must be in **English only**.
+
 ## Automated Builds via GitHub Actions
 
 This project uses **GitHub Actions** for automated builds across all platforms:
