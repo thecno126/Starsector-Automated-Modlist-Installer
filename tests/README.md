@@ -55,17 +55,21 @@ pytest tests/test_suite.py -v
 
 ### Test JSON Files
 
-Test files are provided **at the project root**:
-- `test_import_modlist.json` — test modlist for import
-- `test_invalid_preset.json` — invalid preset (error validation)
-- `test_lunalib_patch.json` — test LunaLib configuration
-- `test_import_lunalib.json` — preset with LunaLib config
+Test files are provided under the `tests/` folder:
+- `tests/test_import_modlist.json` — test modlist for import
+- `tests/test_invalid_preset.json` — invalid preset (error validation)
+- `tests/test_lunalib_patch.json` — test LunaLib configuration
+- `tests/test_import_lunalib.json` — preset with LunaLib config
 
 These files allow validation of complete import/export and LunaLib patch workflows.
 
 ## Structure
 ```
 tests/
-├── README.md       # This file
-└── test_suite.py   # Main test runner
+├── README.md                # This file
+├── test_suite.py            # Main test runner
+├── test_import_modlist.json
+├── test_invalid_preset.json
+├── test_lunalib_patch.json
+└── test_import_lunalib.json
 ```
