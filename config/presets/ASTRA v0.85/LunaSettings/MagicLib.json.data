@@ -1,0 +1,15 @@
+{
+   "magiclib_enableAchievements": true,
+   "magiclib_enableBountyDeadlines": false,
+   "magiclib_enablePaintjobs": true,
+   "magiclib_subsystems_InfoKeyBind": 23,
+   "magiclib_subsystems_KeyBind1": 56,
+   "magiclib_subsystems_KeyBind2": 48,
+   "magiclib_subsystems_KeyBind3": 35,
+   "magiclib_subsystems_KeyBind4": 36,
+   "magiclib_subsystems_KeyBind5": 49,
+   "magiclib_subsystems_infoTextFadeout": 0,
+   "magiclib_subsystems_showInfoDefault": true,
+   "magiclib_subsystems_widgetOffsetX": 0,
+   "magiclib_subsystems_widgetOffsetY": 0
+}

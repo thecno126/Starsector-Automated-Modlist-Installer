@@ -1,0 +1,23 @@
+{
+   "sun_ns_additionalMissionPayPerLyFromCoreWorlds": 0,
+   "sun_ns_allowDriveFieldAnomalyToggle": true,
+   "sun_ns_allowRemoteManagementOfColonyItems": true,
+   "sun_ns_conversionRateMult": 1,
+   "sun_ns_enableDriveFieldAnomaly": true,
+   "sun_ns_enableSkillRequirements": false,
+   "sun_ns_fuelConsumptionMult": 1,
+   "sun_ns_fuelPriceMult": 1,
+   "sun_ns_highDensityConversionRatio": 1,
+   "sun_ns_lowDensityConversionRatio": 0.75,
+   "sun_ns_markNewOperationIntelAsNew": true,
+   "sun_ns_maxIntelIconsVisibleAtOnce": 100,
+   "sun_ns_maxTravelRangeForShipsWithProtectedFuel": 100,
+   "sun_ns_sensorProfileIncreasePercent": 300,
+   "sun_ns_showExtraInfoAboutProfitability": false,
+   "sun_ns_showOperationTypeFilters": true,
+   "sun_ns_showOpsWhenRequiredSkillIsUnknown": true,
+   "sun_ns_showSortOptions": true,
+   "sun_ns_surveyorBarEventFrequencyMult": 1,
+   "sun_ns_veteranMode": false,
+   "sun_ns_xpPerDataEarnedFromTravel": 100
+}

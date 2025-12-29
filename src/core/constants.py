@@ -21,9 +21,11 @@ else:
     BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # Paths
-CONFIG_FILE = BASE_DIR / "config" / "modlist_config.json"
-CATEGORIES_FILE = BASE_DIR / "config" / "categories.json"
-PREFS_FILE = BASE_DIR / "config" / "installer_prefs.json"
+CONFIG_DIR = BASE_DIR / "config"
+CONFIG_FILE = CONFIG_DIR / "modlist_config.json"
+CATEGORIES_FILE = CONFIG_DIR / "categories.json"
+PREFS_FILE = CONFIG_DIR / "installer_prefs.json"
+PRESETS_DIR = CONFIG_DIR / "presets"
 LOG_FILE = BASE_DIR / "modlist_installer.log"
 CACHE_DIR = BASE_DIR / "mod_cache"
 

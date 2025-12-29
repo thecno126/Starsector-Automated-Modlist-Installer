@@ -23,8 +23,6 @@ from utils.network_utils import validate_mod_urls
 from .dialogs import (
     open_add_mod_dialog,
     open_manage_categories_dialog,
-    open_import_csv_dialog,
-    open_export_csv_dialog,
     show_google_drive_confirmation_dialog
 )
 from .installation_controller import InstallationController
@@ -36,7 +34,7 @@ from .ui_builder import (
     create_enable_mods_section,
     create_bottom_buttons
 )
-from utils.theme import TriOSTheme
+from utils.theme import AppTheme
 from utils.mod_utils import (
     normalize_mod_name,
     is_mod_name_match,
@@ -44,15 +42,15 @@ from utils.mod_utils import (
     check_missing_dependencies,
     refresh_mod_metadata,
     enable_all_installed_mods,
+    enable_modlist_mods,
     check_mod_dependencies
 )
-from utils.backup_manager import BackupManager
 from utils.validators import StarsectorPathValidator, URLValidator
 from utils.error_messages import get_user_friendly_error
 from utils import installation_checks
 from utils import listbox_helpers
 from utils.category_navigator import CategoryNavigator
-from utils.symbols import LogSymbols
+from utils.symbols import LogSymbols, UISymbols
 
 
 
@@ -64,9 +62,9 @@ class ModlistInstaller:
         self.root.resizable(True, True)
         self.root.minsize(UI_MIN_WINDOW_WIDTH, UI_MIN_WINDOW_HEIGHT)
         
-        self.root.configure(bg=TriOSTheme.SURFACE_DARK)
+        self.root.configure(bg=AppTheme.SURFACE_DARK)
         self.style = ttk.Style()
-        TriOSTheme.configure_ttk_styles(self.style)
+        AppTheme.configure_ttk_styles(self.style)
         
         self.config_manager = ConfigManager()
         
@@ -90,7 +88,6 @@ class ModlistInstaller:
         self.load_preferences()
         self.create_ui()
         self.auto_detect_starsector()
-        self._initialize_backup_manager()
         
         self.category_navigator = CategoryNavigator(self.mod_listbox)
         self.installation_controller = InstallationController(self)
@@ -275,7 +272,6 @@ class ModlistInstaller:
         self.export_btn = header_buttons.get('export')
         self.refresh_btn = header_buttons.get('refresh')
         self.clear_all_btn = header_buttons.get('clear')
-        self.restore_backup_btn = header_buttons.get('restore')
         self.edit_metadata_btn = header_buttons.get('edit_metadata')
         self.up_btn = header_buttons.get('up')
         self.down_btn = header_buttons.get('down')
@@ -289,10 +285,10 @@ class ModlistInstaller:
         create_header(self.root)
         
         main_container = tk.PanedWindow(self.root, orient=tk.HORIZONTAL, sashwidth=12, sashpad=8, sashrelief=tk.RAISED,
-                                       bg=TriOSTheme.SURFACE)
+                           bg=AppTheme.SURFACE)
         main_container.pack(fill=tk.BOTH, expand=True)
         
-        left_frame = tk.Frame(main_container, bg=TriOSTheme.SURFACE)
+        left_frame = tk.Frame(main_container, bg=AppTheme.SURFACE)
         left_frame.pack_configure(padx=10, pady=10)
         main_container.add(left_frame, minsize=550, stretch="always")
         
@@ -303,17 +299,26 @@ class ModlistInstaller:
         self.starsector_path.trace_add('write', lambda *args: self.on_path_changed())
         self.update_path_status()
         
-        info_frame, left_container, self.header_text, self.mod_listbox, self.search_var, mod_action_buttons, header_buttons = create_modlist_section(
+        # Create bottom buttons FIRST (before expandable sections) to ensure they stay visible
+        button_frame, self.install_modlist_btn, self.quit_btn = create_bottom_buttons(
+            left_frame,
+            self.start_installation,
+            self.safe_quit
+        )
+        
+        info_frame, left_container, self.header_text, self.mod_listbox, self.search_var, mod_action_buttons, header_buttons, self.modlist_title_var = create_modlist_section(
             left_frame,
             self.on_mod_click,
             lambda e: None,  # No resize callback needed anymore
             self.on_search_mods,
-            self.open_import_csv_dialog,
-            self.open_export_csv_dialog,
+            None,  # import_callback removed (CSV deprecated)
+            None,  # export_callback removed (CSV deprecated)
             self.refresh_mod_metadata,
-            self.restore_backup_dialog,
+            self.open_export_preset_dialog,
             self.reset_modlist_config,
-            self.edit_modlist_metadata
+            self.edit_modlist_metadata,
+            self.open_import_preset_dialog,
+            self.open_patch_lunalib_dialog
         )
         
         self.selected_mod_line = None
@@ -322,19 +327,15 @@ class ModlistInstaller:
         self._configure_mod_action_buttons(mod_action_buttons)
         self._configure_header_buttons(header_buttons)
         
-        button_frame, self.install_modlist_btn, self.quit_btn = create_bottom_buttons(
-            left_frame,
-            self.start_installation,
-            self.safe_quit
-        )
-        
-        right_frame = tk.Frame(main_container, bg=TriOSTheme.SURFACE)
+        right_frame = tk.Frame(main_container, bg=AppTheme.SURFACE)
         right_frame.pack_configure(padx=10, pady=10)
         main_container.add(right_frame, minsize=700, stretch="always")
         
-        enable_frame, self.enable_mods_btn = create_enable_mods_section(
+        # Create enable mods button FIRST (before expandable log section) to ensure it stays visible
+        enable_frame, self.enable_mods_btn, self.patch_lunalib_btn = create_enable_mods_section(
             right_frame,
-            self.enable_all_installed_mods
+            self.enable_all_installed_mods,
+            self.open_patch_lunalib_dialog
         )
         
         log_frame, self.install_progress_bar, self.log_text, self.pause_install_btn = create_log_section(
@@ -408,11 +409,14 @@ class ModlistInstaller:
     def open_manage_categories_dialog(self):
         open_manage_categories_dialog(self.root, self)
     
-    def open_import_csv_dialog(self):
-        open_import_csv_dialog(self.root, self)
+    def open_import_preset_dialog(self):
+        from .dialogs import open_import_preset_dialog
+        open_import_preset_dialog(self.root, self)
     
-    def open_export_csv_dialog(self):
-        open_export_csv_dialog(self.root, self)
+    def open_patch_lunalib_dialog(self):
+        """Show dialog to patch LunaSettings from a preset."""
+        from .dialogs import open_patch_lunalib_dialog
+        open_patch_lunalib_dialog(self.root, self)
     
     def validate_url(self, url: str, use_cache: bool = True) -> bool:
         """Validate URL using URLValidator.
@@ -678,12 +682,12 @@ class ModlistInstaller:
     
     def _configure_listbox_tags(self):
         """Configure Tkinter tags for listbox (category, selection, status)."""
-        self.mod_listbox.tag_configure('category', background=TriOSTheme.CATEGORY_BG, 
-            foreground=TriOSTheme.CATEGORY_FG, justify='center')
-        self.mod_listbox.tag_configure('selected', background=TriOSTheme.ITEM_SELECTED_BG, 
-            foreground=TriOSTheme.ITEM_SELECTED_FG)
-        self.mod_listbox.tag_configure('installed', foreground=TriOSTheme.SUCCESS)
-        self.mod_listbox.tag_configure('not_installed', foreground=TriOSTheme.TEXT_SECONDARY)
+        self.mod_listbox.tag_configure('category', background=AppTheme.CATEGORY_BG, 
+            foreground=AppTheme.CATEGORY_FG, justify='center')
+        self.mod_listbox.tag_configure('selected', background=AppTheme.ITEM_SELECTED_BG, 
+            foreground=AppTheme.ITEM_SELECTED_FG)
+        self.mod_listbox.tag_configure('installed', foreground=AppTheme.SUCCESS)
+        self.mod_listbox.tag_configure('not_installed', foreground=AppTheme.TEXT_SECONDARY)
         self.mod_listbox.tag_configure('outdated', foreground='#e67e22')
     
     def _group_mods_by_category(self, mods):
@@ -730,6 +734,10 @@ class ModlistInstaller:
         """Display the modlist information."""
         if not self.modlist_data:
             return
+        
+        # Update mod counter
+        mod_count = len(self.modlist_data.get('mods', []))
+        self.modlist_title_var.set(f"{mod_count} mod{'s' if mod_count != 1 else ''}")
         
         self._update_header_text()
         
@@ -849,11 +857,11 @@ class ModlistInstaller:
             tag: Tag name (error, warning, info, debug, success, normal)
         """
         tag_colors = {
-            'error': TriOSTheme.LOG_ERROR,
-            'warning': TriOSTheme.LOG_WARNING,
-            'success': TriOSTheme.LOG_SUCCESS,
-            'info': TriOSTheme.LOG_INFO,
-            'debug': TriOSTheme.LOG_DEBUG
+            'error': AppTheme.LOG_ERROR,
+            'warning': AppTheme.LOG_WARNING,
+            'success': AppTheme.LOG_SUCCESS,
+            'info': AppTheme.LOG_INFO,
+            'debug': AppTheme.LOG_DEBUG
         }
         if tag in tag_colors:
             self.log_text.tag_config(tag, foreground=tag_colors[tag])
@@ -899,14 +907,6 @@ class ModlistInstaller:
                 self.starsector_path.set(str(path))
         if 'theme' in prefs:
             self.current_theme = prefs['theme']
-    
-    def _initialize_backup_manager(self):
-        """Initialize BackupManager if starsector_path is set."""
-        starsector_dir = self.starsector_path.get()
-        if starsector_dir and Path(starsector_dir).exists():
-            self.backup_manager = BackupManager(starsector_dir, log_callback=self.log)
-        else:
-            self.backup_manager = None
     
     def save_preferences(self):
         """Save user preferences."""
@@ -971,7 +971,6 @@ class ModlistInstaller:
             if is_valid:
                 self.starsector_path.set(folder)
                 self.save_preferences()
-                self._initialize_backup_manager()  # Reinitialize backup manager with new path
                 self.update_path_status()
                 self.log(f"Starsector path set to: {folder}")
             else:
@@ -1051,9 +1050,6 @@ class ModlistInstaller:
         has_space, space_msg = self.check_disk_space()
         self.log(f"Disk space: {space_msg}")
         
-        if self.refresh_btn:
-            self.refresh_btn.config(state=tk.DISABLED)
-        
         self.log("=" * 50)
         self.log("Refreshing mod metadata from installed mods...")
         
@@ -1070,16 +1066,13 @@ class ModlistInstaller:
             self.save_modlist_config()
             self.display_modlist_info()
             self.log(f"{LogSymbols.SUCCESS} Metadata refresh complete! Updated {updated_count} mod(s)")
-            custom_dialogs.showsuccess("Success", f"Refreshed metadata for {updated_count} mod(s)")
+            custom_dialogs.showsuccess("Success", f"Refreshed metadata for {updated_count} mod(s)", parent=self.root)
         except Exception as e:
             self.log(f"{LogSymbols.ERROR} Error refreshing metadata: {e}", error=True)
-            custom_dialogs.showerror("Error", f"Failed to refresh metadata: {e}")
-        finally:
-            if self.refresh_btn:
-                self.refresh_btn.config(state=tk.NORMAL)
+            custom_dialogs.showerror("Error", f"Failed to refresh metadata: {e}", parent=self.root)
     
     def enable_all_installed_mods(self):
-        """Enable all currently installed mods in Starsector by updating enabled_mods.json."""
+        """Enable mods from the current modlist that are installed (updates enabled_mods.json)."""
         starsector_dir = self.starsector_path.get()
         
         if not starsector_dir:
@@ -1095,8 +1088,8 @@ class ModlistInstaller:
         self.log("=" * 50)
         
         try:
-            enabled_count, error = enable_all_installed_mods(
-                mods_dir, self.mod_installer, log_callback=self.log
+            enabled_count, error = enable_modlist_mods(
+                mods_dir, self.mod_installer, self.modlist_data, log_callback=self.log
             )
             
             if error:
@@ -1106,87 +1099,15 @@ class ModlistInstaller:
                     custom_dialogs.showerror("Error", error)
                 return
             
-            custom_dialogs.showsuccess("Success", f"Successfully enabled {enabled_count} mod(s).\n\nYour mods should now be active when you start Starsector.")
+            custom_dialogs.showsuccess("Success", f"Successfully enabled {enabled_count} mod(s) from the current modlist.\n\nYour mods should now be active when you start Starsector.")
         except Exception as e:
             self.log(f"{LogSymbols.ERROR} Error enabling mods: {e}", error=True)
             custom_dialogs.showerror("Error", f"Failed to enable mods: {e}")
     
-    def restore_backup_dialog(self):
-        """Show dialog to restore a backup."""
-        from .dialogs import open_restore_backup_dialog
-        open_restore_backup_dialog(self.root, self)
-    
-    def restore_backup_safely(self, backup_path, backup_timestamp=None):
-        """Safely restore a backup with pre-restore backup and confirmation.
-        
-        This high-level function handles the complete restore workflow:
-        1. Creates a backup of the current state (pre-restore backup)
-        2. Restores the selected backup
-        3. Refreshes the UI to reflect changes
-        4. Logs all operations
-        
-        Args:
-            backup_path: Path to the backup to restore
-            backup_timestamp: Optional formatted timestamp for logging (e.g., "2025-12-20 at 14:30")
-        
-        Returns:
-            tuple: (success: bool, error_message: str or None)
-        """
-        if not self.backup_manager:
-            error_msg = "Backup manager not initialized. Please set Starsector path."
-            self.log(f"{LogSymbols.ERROR} {error_msg}", error=True)
-            return False, error_msg
-        
-        formatted_ts = backup_timestamp or str(backup_path)
-        
-        try:
-            self.log(f"Creating pre-restore backup of current state...", info=True)
-            result = self.backup_manager.create_backup()
-            
-            if not result.success:
-                error_msg = f"Failed to create pre-restore backup: {result.error}"
-                self.log(f"{LogSymbols.ERROR} {error_msg}", error=True)
-                return False, error_msg
-            
-            self.log(f"{LogSymbols.SUCCESS} Pre-restore backup created: {result.path.name}", success=True)
-            
-            # Step 2: Restore the selected backup
-            self.log(f"Restoring backup from {formatted_ts}...", info=True)
-            success, error = self.backup_manager.restore_backup(backup_path)
-            
-            if not success:
-                error_msg = f"Failed to restore backup: {error}"
-                self.log(f"{LogSymbols.ERROR} {error_msg}", error=True)
-                return False, error_msg
-            
-            self.log(f"{LogSymbols.SUCCESS} Backup restored from {formatted_ts}", success=True)
-            
-            # Step 3: Refresh UI to reflect restored state
-            self.log("Refreshing UI...", info=True)
-            self._refresh_after_restore()
-            
-            return True, None
-            
-        except Exception as e:
-            error_msg = f"Unexpected error during restore: {e}"
-            self.log(f"{LogSymbols.ERROR} {error_msg}", error=True)
-            return False, error_msg
-    
-    def _refresh_after_restore(self):
-        """Refresh UI components after backup restoration.
-        
-        This internal method updates all UI elements that might be affected
-        by restoring a backup (modlist info, enabled mods count, etc.).
-        """
-        try:
-            # Reload modlist config if it exists
-            if hasattr(self, 'modlist_data') and self.modlist_data:
-                self.display_modlist_info()
-            
-            self.log(f"{LogSymbols.SUCCESS} UI refreshed successfully", success=True)
-            
-        except Exception as e:
-            self.log(f"{LogSymbols.WARNING} Warning: Failed to refresh UI: {e}", warning=True)
+    def open_export_preset_dialog(self):
+        """Show dialog to export current modlist as a preset."""
+        from .dialogs import open_export_preset_dialog
+        open_export_preset_dialog(self.root, self)
     
     def check_disk_space(self):
         """Check if there's enough disk space."""
@@ -1259,7 +1180,6 @@ class ModlistInstaller:
                     if is_valid:
                         self.starsector_path.set(folder)
                         self.save_preferences()
-                        self._initialize_backup_manager()  # Reinitialize backup manager with new path
                         self.log(f"Starsector path set: {folder}")
                     else:
                         custom_dialogs.showerror("Invalid Path", message)
@@ -1398,17 +1318,19 @@ class ModlistInstaller:
         """
         github_mods = results['github']
         gdrive_mods = results['google_drive']
+        mediafire_mods = results['mediafire']
         other_domains = results['other']
         failed_list = results['failed']
         
         total_other = sum(len(mods) for mods in other_domains.values())
-        self.log(f"GitHub: {len(github_mods)}, Google Drive: {len(gdrive_mods)}, Other: {total_other}, Failed: {len(failed_list)}")
+        self.log(f"GitHub: {len(github_mods)}, Google Drive: {len(gdrive_mods)}, Mediafire: {len(mediafire_mods)}, Other: {total_other}, Failed: {len(failed_list)}")
         
-        if github_mods or gdrive_mods or other_domains or failed_list:
+        if github_mods or gdrive_mods or mediafire_mods or other_domains or failed_list:
             action = custom_dialogs.show_validation_report(
                 self.root,
                 github_mods,
                 gdrive_mods,
+                mediafire_mods,
                 other_domains,
                 failed_list
             )

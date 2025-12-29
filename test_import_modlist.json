@@ -1,0 +1,25 @@
+{
+  "modlist_name": "Test Import Preset",
+  "version": "1.5",
+  "starsector_version": "0.97a-RC11",
+  "description": "Test preset for manual import testing",
+  "author": "Test User",
+  "mods": [
+    {
+      "mod_id": "test_mod_1",
+      "name": "Test Mod Alpha",
+      "download_url": "https://example.com/test_alpha.zip",
+      "mod_version": "1.0",
+      "game_version": "0.97a",
+      "category": "Test"
+    },
+    {
+      "mod_id": "test_mod_2",
+      "name": "Test Mod Beta",
+      "download_url": "https://example.com/test_beta.zip",
+      "mod_version": "2.0",
+      "game_version": "0.97a",
+      "category": "Test"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "enabled": true,
+  "version": "2.0.5",
+  "settings": {
+    "maxCacheSize": 150,
+    "enableDebugLogging": true,
+    "autoSaveInterval": 300,
+    "uiTheme": "dark"
+  },
+  "modSettings": {
+    "exampleMod": {
+      "enabled": true,
+      "difficulty": "hard",
+      "customOptions": {
+        "feature1": true,
+        "feature2": false
+      }
+    }
+  },
+  "advanced": {
+    "memoryLimit": 2048,
+    "threadCount": 4
+  }
+}

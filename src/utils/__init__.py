@@ -2,6 +2,6 @@
 Utility modules for the Starsector Automated Modlist Installer.
 """
 
-from .theme import TriOSTheme
+from .theme import AppTheme
 
-__all__ = ['TriOSTheme']
+__all__ = ['AppTheme']

@@ -13,10 +13,3 @@ class ModVersionCheck(NamedTuple):
     """Result of mod version comparison check."""
     is_current: bool
     installed_version: Optional[str]
-
-
-class BackupResult(NamedTuple):
-    """Result of backup creation/restore operation."""
-    path: Optional[Path]
-    success: bool
-    error: Optional[str]

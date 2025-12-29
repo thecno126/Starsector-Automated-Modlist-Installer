@@ -42,8 +42,12 @@ class UISymbols:
     SEARCH = "🔍"        # U+1F50D - Magnifying glass
     CLEAR = "✕"          # U+2715 - Multiplication X (clear)
     REMOVE = "✖"         # U+2716 - Heavy multiplication X (remove)
+    MINUS = "−"          # U+2212 - Minus sign (remove selected)
     ADD = "➕"           # U+2795 - Heavy plus sign (add)
+    PLUS = "+"           # U+002B - Plus sign (add mod)
     SETTINGS = "⚙"       # U+2699 - Gear (settings/categories)
     EDIT = "✏️"          # U+270F - Pencil (edit)
     DELETE = "␡"         # U+2421 - Delete symbol
     SAVE = "💾"          # U+1F4BE - Floppy disk (save/restore backup)
+    OPEN_FOLDER = "📂"   # U+1F4C2 - Open folder (import preset)
+    FILE = "📄"          # U+1F4C4 - File document (import preset)

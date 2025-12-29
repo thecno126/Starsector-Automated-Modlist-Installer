@@ -1,0 +1,7 @@
+Enlever les CSV et leur implémentation
+Ajouter un fichier preset avec un sous-dossier les modlist_congig.json (ils n'auront pas ce nom la car ils auront le noms de la modlist) et un autre pour les lunalib_config.json (patch lunalib)
+Ajouter une icone "file" pour importer un modlist_congig et/ou un patch lunalib dans les dossiers dédiés
+Changer la fonction backup en gardant l'icone disque dur, elle sert désormais à exporter/sauvegarder un preset de modlist_.json dans le dossier preset
+Ajouter le bouton + fonction d'un patch lunalib_config
+Ajuster le bas de la fenetre pour toujours afficher les boutons du bas et les rendre irréductibles
+L'aide au bouton "DEL" indique plutot dans les lignes de "wipe modlist"

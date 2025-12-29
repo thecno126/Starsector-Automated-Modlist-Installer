@@ -198,6 +198,62 @@ def test_save_and_load_roundtrip(tmp_path, monkeypatch):
 
 def test_categories_roundtrip(tmp_path):
     cm = ConfigManager()
+    cm.categories_file = tmp_path / "categories.json"
+
+    cats = ["Required", "Gameplay", "Graphics"]
+    cm.save_categories(cats)
+    loaded = cm.load_categories()
+    assert loaded == cats
+
+
+# ============================================================================
+# Test CSV Removal
+# ============================================================================
+
+def test_no_csv_imports_in_codebase():
+    """Verify that no CSV imports or references exist in the source code."""
+    src_dir = Path(__file__).parent.parent / "src"
+    
+    csv_references = []
+    
+    # Check all Python files in src/
+    for py_file in src_dir.rglob("*.py"):
+        content = py_file.read_text(encoding='utf-8')
+        
+        # Check for import csv
+        if 'import csv' in content:
+            csv_references.append(f"{py_file}: contains 'import csv'")
+        
+        # Check for csv. usage (csv.reader, csv.writer, etc.)
+        if 'csv.' in content and 'import csv' not in content:
+            # Exclude comments
+            lines = [l for l in content.split('\n') if not l.strip().startswith('#')]
+            if any('csv.' in line for line in lines):
+                csv_references.append(f"{py_file}: contains 'csv.' usage")
+    
+    assert len(csv_references) == 0, f"CSV references still found:\n" + "\n".join(csv_references)
+
+
+def test_json_only_config_format():
+    """Verify that configuration uses JSON format exclusively."""
+    config_dir = Path(__file__).parent.parent / "config"
+    
+    # List all config files
+    config_files = list(config_dir.glob("*.json"))
+    
+    # Should have at least modlist_config.json and categories.json
+    assert len(config_files) >= 2, "Expected at least 2 JSON config files"
+    
+    # Check that modlist_config.json exists and is valid JSON
+    modlist_config = config_dir / "modlist_config.json"
+    if modlist_config.exists():
+        data = json.loads(modlist_config.read_text(encoding='utf-8'))
+        assert 'mods' in data, "modlist_config.json should contain 'mods' key"
+        assert isinstance(data['mods'], list), "'mods' should be a list"
+
+
+def test_categories_roundtrip(tmp_path):
+    cm = ConfigManager()
     cm.categories_file = tmp_path / "config" / "categories.json"
 
     cats = ["Required", "Gameplay", "QoL"]
@@ -215,6 +271,541 @@ def test_preferences_roundtrip(tmp_path):
     cm.save_preferences(prefs)
     loaded = cm.load_preferences()
     assert loaded == prefs
+
+
+# ============================================================================
+# Test Preset System
+# ============================================================================
+
+def test_create_and_list_presets(tmp_path):
+    """Test creating presets and listing them."""
+    cm = ConfigManager()
+    cm.presets_dir = tmp_path / "presets"
+    
+    # Create first preset
+    modlist_data = {
+        "modlist_name": "Test Preset 1",
+        "version": "1.0",
+        "mods": [
+            {"name": "Mod A", "download_url": "https://example.com/a.zip"}
+        ]
+    }
+    
+    success, error = cm.create_preset("Test_Preset_1", modlist_data)
+    assert success is True
+    assert error is None
+    
+    # Create second preset with LunaLib
+    lunalib_data = {"enabled": True, "settings": {}}
+    success, error = cm.create_preset("Test_Preset_2", modlist_data, lunalib_data)
+    assert success is True
+    
+    # List presets
+    presets = cm.list_presets()
+    assert len(presets) == 2
+    assert presets[0][0] == "Test_Preset_1"  # First by name (sorted)
+    assert presets[0][2] is False  # No LunaLib
+    assert presets[1][0] == "Test_Preset_2"
+    assert presets[1][2] is True  # Has LunaLib
+
+
+def test_load_preset(tmp_path):
+    """Test loading a preset."""
+    cm = ConfigManager()
+    cm.presets_dir = tmp_path / "presets"
+    
+    # Create preset
+    modlist_data = {
+        "modlist_name": "Load Test",
+        "mods": [{"name": "Mod", "download_url": "https://example.com/mod.zip"}]
+    }
+    lunalib_data = {"enabled": True}
+    
+    cm.create_preset("Load_Test", modlist_data, lunalib_data)
+    
+    # Load preset
+    loaded_modlist, loaded_lunalib, error = cm.load_preset("Load_Test")
+    
+    assert error is None
+    assert loaded_modlist["modlist_name"] == "Load Test"
+    assert len(loaded_modlist["mods"]) == 1
+    assert loaded_lunalib["enabled"] is True
+
+
+def test_load_nonexistent_preset(tmp_path):
+    """Test loading a preset that doesn't exist."""
+    cm = ConfigManager()
+    cm.presets_dir = tmp_path / "presets"
+    
+    modlist, lunalib, error = cm.load_preset("NonExistent")
+    
+    assert modlist is None
+    assert lunalib is None
+    assert "not found" in error
+
+
+def test_validate_preset():
+    """Test preset validation."""
+    cm = ConfigManager()
+    
+    # Valid preset
+    valid_data = {
+        "modlist_name": "Valid",
+        "mods": [{"name": "Mod", "download_url": "https://example.com"}]
+    }
+    is_valid, error = cm.validate_preset(valid_data)
+    assert is_valid is True
+    assert error is None
+    
+    # Missing modlist_name
+    invalid_data1 = {"mods": []}
+    is_valid, error = cm.validate_preset(invalid_data1)
+    assert is_valid is False
+    assert "modlist_name" in error
+    
+    # Missing mods
+    invalid_data2 = {"modlist_name": "Test"}
+    is_valid, error = cm.validate_preset(invalid_data2)
+    assert is_valid is False
+    assert "mods" in error
+    
+    # Mods not a list
+    invalid_data3 = {"modlist_name": "Test", "mods": "not a list"}
+    is_valid, error = cm.validate_preset(invalid_data3)
+    assert is_valid is False
+    assert "must be a list" in error
+    
+    # Mod missing name
+    invalid_data4 = {
+        "modlist_name": "Test",
+        "mods": [{"download_url": "https://example.com"}]
+    }
+    is_valid, error = cm.validate_preset(invalid_data4)
+    assert is_valid is False
+    assert "name" in error
+    
+    # Mod missing download_url
+    invalid_data5 = {
+        "modlist_name": "Test",
+        "mods": [{"name": "Mod"}]
+    }
+    is_valid, error = cm.validate_preset(invalid_data5)
+    assert is_valid is False
+    assert "download_url" in error
+
+
+def test_create_preset_with_invalid_name(tmp_path):
+    """Test creating preset with special characters in name."""
+    cm = ConfigManager()
+    cm.presets_dir = tmp_path / "presets"
+    
+    modlist_data = {
+        "modlist_name": "Test",
+        "mods": []
+    }
+    
+    # Name with special characters (should be sanitized)
+    success, error = cm.create_preset("Test<>:\"/\\|?*Name", modlist_data)
+    assert success is True
+    
+    # Verify sanitized name exists
+    presets = cm.list_presets()
+    assert len(presets) == 1
+    assert "<" not in presets[0][0]
+    assert ">" not in presets[0][0]
+
+
+def test_create_preset_validates_data(tmp_path):
+    """Test that create_preset validates data before saving."""
+    cm = ConfigManager()
+    cm.presets_dir = tmp_path / "presets"
+    
+    # Invalid data (missing mods)
+    invalid_data = {"modlist_name": "Test"}
+    success, error = cm.create_preset("Invalid", invalid_data)
+    
+    assert success is False
+    assert "Invalid modlist data" in error
+
+
+def test_delete_preset(tmp_path):
+    """Test deleting a preset."""
+    cm = ConfigManager()
+    cm.presets_dir = tmp_path / "presets"
+    
+    # Create preset
+    modlist_data = {"modlist_name": "Delete Me", "mods": []}
+    cm.create_preset("Delete_Me", modlist_data)
+    
+    # Verify exists
+    presets = cm.list_presets()
+    assert len(presets) == 1
+    
+    # Delete
+    success, error = cm.delete_preset("Delete_Me")
+    assert success is True
+    assert error is None
+    
+    # Verify deleted
+    presets = cm.list_presets()
+    assert len(presets) == 0
+
+
+def test_delete_nonexistent_preset(tmp_path):
+    """Test deleting a preset that doesn't exist."""
+    cm = ConfigManager()
+    cm.presets_dir = tmp_path / "presets"
+    
+    success, error = cm.delete_preset("NonExistent")
+    assert success is False
+    assert "not found" in error
+
+
+def test_preset_with_empty_mods_list(tmp_path):
+    """Test creating preset with empty mods list (should be valid)."""
+    cm = ConfigManager()
+    cm.presets_dir = tmp_path / "presets"
+    
+    modlist_data = {"modlist_name": "Empty", "mods": []}
+    success, error = cm.create_preset("Empty", modlist_data)
+    
+    assert success is True
+    
+    # Load and verify
+    loaded, _, error = cm.load_preset("Empty")
+    assert error is None
+    assert len(loaded["mods"]) == 0
+
+
+def test_export_current_modlist_as_preset(tmp_path):
+    """Test exporting current modlist_config.json as a preset."""
+    # Setup config manager with temp paths
+    cm = ConfigManager()
+    cm.config_dir = tmp_path / "config"
+    cm.presets_dir = tmp_path / "config" / "presets"
+    cm.modlist_config_path = tmp_path / "config" / "modlist_config.json"
+    cm.config_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Create a sample modlist_config.json
+    sample_modlist = {
+        "modlist_name": "Current Modlist",
+        "version": "1.0",
+        "mods": [
+            {"name": "Test Mod", "download_url": "https://example.com/test.zip"}
+        ]
+    }
+    
+    with open(cm.modlist_config_path, 'w', encoding='utf-8') as f:
+        json.dump(sample_modlist, f, indent=2)
+    
+    # Export as preset
+    success, error = cm.export_current_modlist_as_preset("Exported_Preset")
+    
+    assert success is True
+    assert error is None
+    
+    # Verify preset was created
+    preset_path = cm.presets_dir / "Exported_Preset"
+    assert preset_path.exists()
+    
+    modlist_file = preset_path / "modlist_config.json"
+    assert modlist_file.exists()
+    
+    # Verify content
+    with open(modlist_file, 'r', encoding='utf-8') as f:
+        loaded_data = json.load(f)
+    
+    assert loaded_data["modlist_name"] == "Current Modlist"
+    assert len(loaded_data["mods"]) == 1
+    assert loaded_data["mods"][0]["name"] == "Test Mod"
+
+
+def test_export_with_empty_name(tmp_path):
+    """Test that export fails with empty preset name."""
+    cm = ConfigManager()
+    cm.config_dir = tmp_path / "config"
+    cm.presets_dir = tmp_path / "config" / "presets"
+    cm.modlist_config_path = tmp_path / "config" / "modlist_config.json"
+    cm.config_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Create sample config
+    with open(cm.modlist_config_path, 'w', encoding='utf-8') as f:
+        json.dump({"modlist_name": "Test", "mods": []}, f)
+    
+    success, error = cm.export_current_modlist_as_preset("")
+    
+    assert success is False
+    assert "empty" in error.lower()
+
+
+def test_export_with_existing_preset_name(tmp_path):
+    """Test that export fails if preset name already exists."""
+    cm = ConfigManager()
+    cm.config_dir = tmp_path / "config"
+    cm.presets_dir = tmp_path / "config" / "presets"
+    cm.modlist_config_path = tmp_path / "config" / "modlist_config.json"
+    cm.config_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Create sample config
+    sample_config = {"modlist_name": "Test", "mods": []}
+    with open(cm.modlist_config_path, 'w', encoding='utf-8') as f:
+        json.dump(sample_config, f)
+    
+    # Create first preset
+    success, error = cm.export_current_modlist_as_preset("Duplicate")
+    assert success is True
+    
+    # Try to create with same name
+    success, error = cm.export_current_modlist_as_preset("Duplicate")
+    assert success is False
+    assert "already exists" in error
+
+
+def test_export_without_modlist_config(tmp_path):
+    """Test that export fails if modlist_config.json doesn't exist."""
+    cm = ConfigManager()
+    cm.config_dir = tmp_path / "config"
+    cm.presets_dir = tmp_path / "config" / "presets"
+    cm.modlist_config_path = tmp_path / "config" / "modlist_config.json"
+    cm.config_dir.mkdir(parents=True, exist_ok=True)
+    
+    # No modlist_config.json created
+    success, error = cm.export_current_modlist_as_preset("Test")
+    
+    assert success is False
+    assert "modlist_config.json" in error and "found" in error.lower()
+
+
+def test_merge_lunalib_config_basic():
+    """Test basic LunaLib config merge."""
+    cm = ConfigManager()
+    
+    existing = {
+        "enabled": True,
+        "settings": {
+            "setting1": "value1",
+            "setting2": "value2"
+        }
+    }
+    
+    preset = {
+        "settings": {
+            "setting2": "newValue2",  # Override
+            "setting3": "value3"      # Add new
+        }
+    }
+    
+    merged = cm.merge_lunalib_config(preset, existing)
+    
+    assert merged["enabled"] is True  # Preserved from existing
+    assert merged["settings"]["setting1"] == "value1"  # Preserved
+    assert merged["settings"]["setting2"] == "newValue2"  # Overridden by preset
+    assert merged["settings"]["setting3"] == "value3"  # Added from preset
+
+
+def test_merge_lunalib_config_deep_nesting():
+    """Test deep nested dictionary merge."""
+    cm = ConfigManager()
+    
+    existing = {
+        "level1": {
+            "level2": {
+                "key1": "value1",
+                "key2": "value2"
+            }
+        }
+    }
+    
+    preset = {
+        "level1": {
+            "level2": {
+                "key2": "newValue2",
+                "key3": "value3"
+            }
+        }
+    }
+    
+    merged = cm.merge_lunalib_config(preset, existing)
+    
+    assert merged["level1"]["level2"]["key1"] == "value1"  # Preserved
+    assert merged["level1"]["level2"]["key2"] == "newValue2"  # Overridden
+    assert merged["level1"]["level2"]["key3"] == "value3"  # Added
+
+
+def test_merge_lunalib_config_preset_priority():
+    """Test that preset values always take priority."""
+    cm = ConfigManager()
+    
+    existing = {
+        "enabled": True,
+        "maxValue": 100,
+        "name": "Existing"
+    }
+    
+    preset = {
+        "enabled": False,
+        "maxValue": 200,
+        "name": "Preset"
+    }
+    
+    merged = cm.merge_lunalib_config(preset, existing)
+    
+    # All values should be from preset
+    assert merged["enabled"] is False
+    assert merged["maxValue"] == 200
+    assert merged["name"] == "Preset"
+
+
+def test_merge_lunalib_config_empty_existing():
+    """Test merge with empty existing config."""
+    cm = ConfigManager()
+    
+    preset = {
+        "enabled": True,
+        "settings": {"key": "value"}
+    }
+    
+    merged = cm.merge_lunalib_config(preset, {})
+    
+    assert merged == preset
+
+
+def test_merge_lunalib_config_no_mutation():
+    """Test that merge doesn't mutate original data."""
+    cm = ConfigManager()
+    
+    existing = {"key": "value"}
+    preset = {"key": "newValue"}
+    
+    merged = cm.merge_lunalib_config(preset, existing)
+    
+    # Original data should not be modified
+    assert existing["key"] == "value"
+    assert preset["key"] == "newValue"
+    assert merged["key"] == "newValue"
+
+
+def test_patch_lunalib_config_success(tmp_path):
+    """Test successful LunaLib config patching."""
+    cm = ConfigManager()
+    cm.presets_dir = tmp_path / "presets"
+    
+    # Create preset with LunaLib config
+    preset_name = "Test_LunaLib"
+    preset_path = cm.presets_dir / preset_name
+    preset_path.mkdir(parents=True, exist_ok=True)
+    
+    lunalib_preset_data = {
+        "enabled": True,
+        "settings": {
+            "newSetting": "newValue"
+        }
+    }
+    
+    with open(preset_path / "lunalib_config.json", 'w', encoding='utf-8') as f:
+        json.dump(lunalib_preset_data, f)
+    
+    # Create fake Starsector installation
+    starsector_path = tmp_path / "starsector"
+    lunalib_path = starsector_path / "mods" / "LunaLib"
+    lunalib_path.mkdir(parents=True, exist_ok=True)
+    
+    lunalib_file = lunalib_path / "lunalib_settings.json"
+    existing_data = {
+        "enabled": False,
+        "settings": {
+            "oldSetting": "oldValue"
+        }
+    }
+    
+    with open(lunalib_file, 'w', encoding='utf-8') as f:
+        json.dump(existing_data, f)
+    
+    # Patch
+    success, error, backup_path = cm.patch_lunalib_config(preset_name, starsector_path)
+    
+    assert success is True
+    assert error is None
+    assert backup_path is not None
+    assert backup_path.exists()
+    
+    # Verify merged result
+    with open(lunalib_file, 'r', encoding='utf-8') as f:
+        patched_data = json.load(f)
+    
+    assert patched_data["enabled"] is True  # From preset
+    assert patched_data["settings"]["oldSetting"] == "oldValue"  # Preserved
+    assert patched_data["settings"]["newSetting"] == "newValue"  # From preset
+
+
+def test_patch_lunalib_config_no_existing_file(tmp_path):
+    """Test patching when no existing LunaLib config exists."""
+    cm = ConfigManager()
+    cm.presets_dir = tmp_path / "presets"
+    
+    # Create preset
+    preset_name = "Test_LunaLib"
+    preset_path = cm.presets_dir / preset_name
+    preset_path.mkdir(parents=True, exist_ok=True)
+    
+    lunalib_preset_data = {"enabled": True, "settings": {}}
+    
+    with open(preset_path / "lunalib_config.json", 'w', encoding='utf-8') as f:
+        json.dump(lunalib_preset_data, f)
+    
+    # Create Starsector path but no existing LunaLib config
+    starsector_path = tmp_path / "starsector"
+    starsector_path.mkdir(parents=True, exist_ok=True)
+    
+    # Patch should succeed and create new file
+    success, error, backup_path = cm.patch_lunalib_config(preset_name, starsector_path)
+    
+    assert success is True
+    assert error is None
+    # No backup since no existing file
+    
+    # Verify file was created
+    lunalib_file = starsector_path / "mods" / "LunaLib" / "lunalib_settings.json"
+    assert lunalib_file.exists()
+
+
+def test_patch_lunalib_config_missing_preset(tmp_path):
+    """Test patching with nonexistent preset."""
+    cm = ConfigManager()
+    cm.presets_dir = tmp_path / "presets"
+    cm.presets_dir.mkdir(parents=True, exist_ok=True)
+    
+    starsector_path = tmp_path / "starsector"
+    starsector_path.mkdir(parents=True, exist_ok=True)
+    
+    success, error, backup_path = cm.patch_lunalib_config("NonExistent", starsector_path)
+    
+    assert success is False
+    assert "does not contain lunalib_config.json" in error
+
+
+def test_patch_lunalib_config_invalid_json(tmp_path):
+    """Test patching with invalid JSON in preset."""
+    cm = ConfigManager()
+    cm.presets_dir = tmp_path / "presets"
+    
+    preset_name = "Invalid_LunaLib"
+    preset_path = cm.presets_dir / preset_name
+    preset_path.mkdir(parents=True, exist_ok=True)
+    
+    # Write invalid JSON
+    with open(preset_path / "lunalib_config.json", 'w', encoding='utf-8') as f:
+        f.write("{invalid json")
+    
+    starsector_path = tmp_path / "starsector"
+    starsector_path.mkdir(parents=True, exist_ok=True)
+    
+    success, error, backup_path = cm.patch_lunalib_config(preset_name, starsector_path)
+    
+    assert success is False
+    assert "Invalid JSON" in error
+
+
 import io
 import zipfile
 from pathlib import Path
@@ -437,51 +1028,32 @@ def temp_workspace():
 
 
 @pytest.fixture
-def sample_csv():
-    """Sample CSV content for import testing."""
-    return """Test Modlist,1.0,0.97a-RC11,Integration test modlist
-name,category,download_url,version
-LazyLib,Required,https://example.com/lazylib.zip,2.8
-GraphicsLib,Required,https://example.com/graphicslib.zip,1.0
-Nexerelin,Gameplay,https://example.com/nexerelin.7z,0.11.2b
-"""
+def sample_modlist_data():
+    """Sample modlist data structure for import testing (JSON format)."""
+    return {
+        'modlist_name': 'Test Modlist',
+        'version': '1.0',
+        'starsector_version': '0.97a-RC11',
+        'description': 'Integration test modlist',
+        'mods': [
+            {'name': 'LazyLib', 'category': 'Required', 'download_url': 'https://example.com/lazylib.zip', 'version': '2.8'},
+            {'name': 'GraphicsLib', 'category': 'Required', 'download_url': 'https://example.com/graphicslib.zip', 'version': '1.0'},
+            {'name': 'Nexerelin', 'category': 'Gameplay', 'download_url': 'https://example.com/nexerelin.7z', 'version': '0.11.2b'}
+        ]
+    }
 
 
 class TestCompleteWorkflows:
     """Test complete user workflows from start to finish."""
     
-    def test_csv_import_to_installation(self, temp_workspace, sample_csv):
-        """Test: Import CSV → Validate → Install → Verify files."""
+    def test_json_import_to_installation(self, temp_workspace, sample_modlist_data):
+        """Test: Import JSON → Validate → Install → Verify files."""
         config_file = temp_workspace['config'] / "modlist_config.json"
         
-        # Step 1: Parse CSV (simulated import)
-        lines = sample_csv.strip().split('\n')
-        metadata_line = lines[0].split(',')
-        # Skip header line at index 1, mods start at index 2
-        mod_lines = lines[2:]
+        # Step 1: Save modlist data as JSON (replaces CSV import)
+        config_file.write_text(json.dumps(sample_modlist_data, indent=2))
         
-        # Build modlist structure
-        modlist_data = {
-            'modlist_name': metadata_line[0],
-            'version': metadata_line[1],
-            'starsector_version': metadata_line[2],
-            'description': metadata_line[3],
-            'mods': []
-        }
-        
-        for line in mod_lines:
-            parts = line.split(',')
-            modlist_data['mods'].append({
-                'name': parts[0],
-                'category': parts[1],
-                'download_url': parts[2],
-                'version': parts[3] if len(parts) > 3 else ''
-            })
-        
-        # Step 2: Save configuration
-        config_file.write_text(json.dumps(modlist_data, indent=2))
-        
-        # Step 3: Verify saved data
+        # Step 2: Verify loaded data
         loaded = json.loads(config_file.read_text())
         assert loaded['modlist_name'] == 'Test Modlist'
         assert len(loaded['mods']) == 3
@@ -506,7 +1078,7 @@ class TestCompleteWorkflows:
             assert Path(temp_file).exists()
     
     def test_manual_mod_addition_workflow(self, temp_workspace):
-        """Test: Add mods manually → Reorganize → Save → Export CSV."""
+        """Test: Add mods manually → Reorganize → Save → Export JSON."""
         config_file = temp_workspace['config'] / "modlist_config.json"
         
         # Step 1: Create empty modlist
@@ -536,28 +1108,16 @@ class TestCompleteWorkflows:
         modlist_data['mods'][idx_a], modlist_data['mods'][idx_c] = \
             modlist_data['mods'][idx_c], modlist_data['mods'][idx_a]
         
-        # Step 4: Save
+        # Step 4: Save as JSON
         config_file.write_text(json.dumps(modlist_data, indent=2))
         
-        # Step 5: Export to CSV format
-        csv_lines = [
-            f"{modlist_data['modlist_name']},{modlist_data['version']},"
-            f"{modlist_data['starsector_version']},{modlist_data['description']}",
-            "name,category,download_url,version"
-        ]
-        
-        for mod in modlist_data['mods']:
-            csv_lines.append(
-                f"{mod['name']},{mod['category']},{mod['download_url']},"
-                f"{mod.get('version', '')}"
-            )
-        
-        csv_content = '\n'.join(csv_lines)
+        # Step 5: Verify JSON export
+        exported = json.loads(config_file.read_text())
         
         # Verify export
-        assert 'Mod C' in csv_content
-        assert csv_content.count('Gameplay') == 2
-        assert 'My Custom Modlist' in csv_content
+        assert exported['modlist_name'] == 'My Custom Modlist'
+        assert len([m for m in exported['mods'] if m['category'] == 'Gameplay']) == 2
+        assert exported['mods'][0]['name'] == 'Mod C'  # Mod C should be first after swap
 
 
 class TestInstallationScenarios:

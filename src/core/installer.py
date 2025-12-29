@@ -105,12 +105,13 @@ class ModInstaller:
             
             url_lower = mod['download_url'].lower()
             content_type = response.headers.get('Content-Type', '').lower()
+            content_disposition = response.headers.get('Content-Disposition', '').lower()
             
             if not skip_gdrive_check and ('drive.google.com' in url_lower or 'drive.usercontent.google.com' in url_lower):
                 if 'text/html' in content_type:
                     return DownloadResult('GDRIVE_HTML', False)
             
-            is_7z = '.7z' in url_lower or '7z' in content_type
+            is_7z = '.7z' in url_lower or '7z' in content_type or '.7z' in content_disposition
             temp_fd, temp_path = tempfile.mkstemp(suffix='.7z' if is_7z else '.zip', prefix='modlist_')
             
             with os.fdopen(temp_fd, 'wb') as f:

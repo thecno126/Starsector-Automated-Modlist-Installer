@@ -1,73 +1,69 @@
 # Tests
 
-Comprehensive test suite for Starsector Automated Modlist Installer (30 tests total).
+Documentation de la suite de tests pour Starsector Automated Modlist Installer.
 
-## Running Tests
-
+## Lancer les tests
 ```bash
-# Install dependencies
+python3 -m venv .venv
+. .venv/bin/activate
 pip install -r requirements.txt
 
-# Run all tests
-pytest
+# Exécuter le runner principal
+pytest tests/test_suite.py -v
 
-# With verbose output
-pytest -v
-
-# Run specific test
-pytest tests/test_all.py::test_extract_zip_success -v
+# Ou exécuter directement via Python
+.venv/bin/python tests/test_suite.py
 ```
 
-## Test Coverage
+## Couverture des tests
 
-**Configuration Management (4 tests):**
-- ConfigManager: load/save/reset for modlist, categories, preferences
-- Default config generation when files missing
-- Roundtrip save/load validation
+### Import/Export de presets
+- Validation de la structure JSON (`modlist_config.json`, `lunalib_config.json`)
+- Chargement et sauvegarde depuis/vers `config/presets/<name>/`
+- Détection d'erreurs (presets invalides, chemins manquants)
 
-**Core Installation (6 tests):**
-- ZIP and 7z extraction
-- Zip-slip security protection
-- Already-installed mod detection
-- Network error handling
-- File overlap detection
+### Correction d'URL Google Drive
+- Formats supportés: `/file/d/<ID>/view`, `?id=<ID>`
+- Correction automatique vers `drive.usercontent.google.com`
+- Détection des réponses HTML (page d'avertissement virus scan)
+- Dialogue de confirmation pour fichiers volumineux
 
-**Google Drive Integration (4 tests):**
-- URL fixing for /file/d/ID/view format
-- URL fixing for ?id=ID format  
-- Non-Google Drive URL preservation
-- Invalid URL handling
+### Détection d'archives 7z
+- Détection via `Content-Disposition: filename=...` (priorité sur `Content-Type`)
+- Support des noms de fichiers avec extension `.7z`
+- Fallback robuste si `Content-Type` est ambigu
 
-**Download Scenarios (6 tests):**
-- Parallel downloads (3 concurrent workers)
-- Timeout and retry logic
-- 404 error handling
-- 7z format detection
-- Google Drive HTML response detection
-- Non-Google Drive HTML handling
+### Extraction `mod_info.json`
+- Extraction **sans décompression complète** (ZIP et 7z)
+- Support `py7zr` pour archives 7z
+- Lecture directe depuis l'archive avec `zipfile` et `py7zr`
+- Économie de temps et d'espace disque
 
-**URL Validation (5 tests):**
-- Mixed URL sources (GitHub, Google Drive, other)
-- Retry logic with exponential backoff
-- 403 fallback to GET request
-- Empty URL validation
-- Domain categorization
+### Activation "modlist-only"
+- Mise à jour de `enabled_mods.json` pour activer **uniquement** les mods:
+  - Présents dans la modlist courante
+  - **ET** installés dans le dossier `mods/`
+- Vérification des `mod_id` pour correspondance exacte
+- Résout le problème "20 mods activés pour 19 listés"
 
-**Concurrent Operations (2 tests):**
-- ThreadPoolExecutor max_workers limit
-- Executor cancellation
+### Validations et messages d'erreur
+- Dialogs (confirmations, erreurs, succès)
+- Validations de chemins (Starsector install, mod folders)
+- Permissions d'écriture (config, mods, saves)
 
-**Integration Workflows (3 tests):**
-- CSV import → validation → installation
-- Manual mod addition → reorganization → export
-- Installation with pre-installed mods
+### Fichiers de test JSON
+
+Des fichiers de test sont fournis **à la racine du projet**:
+- `test_import_modlist.json` — modlist de test pour import
+- `test_invalid_preset.json` — preset invalide (validation d'erreur)
+- `test_lunalib_patch.json` — configuration LunaLib de test
+- `test_import_lunalib.json` — preset avec LunaLib config
+
+Ces fichiers permettent de valider les flux complets d'import/export et de patch LunaLib.
 
 ## Structure
-
 ```
 tests/
-├── README.md      # This file
-└── test_all.py    # All 30 tests consolidated
+├── README.md       # Ce fichier
+└── test_suite.py   # Runner de tests principal
 ```
-
-All tests are consolidated into a single file for easier maintenance.

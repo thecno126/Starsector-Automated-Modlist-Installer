@@ -1,300 +1,130 @@
-# Starsector Automated Modlist Installer (SAMI)
+# Starsector Automated Modlist Installer
 
-![Tests](https://github.com/thecno126/Starsector-Automated-Modlist-Installer/workflows/Tests/badge.svg)
-![Build](https://github.com/thecno126/Starsector-Automated-Modlist-Installer/workflows/Build%20and%20Release/badge.svg)
+Outil GUI pour gérer et installer des modlists Starsector, avec détection intelligente des liens (GitHub, Mediafire, Google Drive), extraction de métadonnées sans décompression complète, et interface soignée.
 
-An amateur tool to manage and install Starsector modlists with parallel downloads, intelligent caching, and an intuitive graphical interface.
+## Aperçu
 
-## ✨ Key Features
+**Gestion de liens intelligente:**
+- Catégorisation automatique: GitHub, **Mediafire** (affiché en priorité), Google Drive, Autres
+- **Google Drive**: correction d'URL automatique (`drive.usercontent.google.com`) et contournement de l'avertissement "virus scan" pour les fichiers volumineux
+- **Détection 7z robuste**: via l'en-tête `Content-Disposition` (nom de fichier), indépendamment du `Content-Type`
 
-### Smart Installation
-- 🎯 **Intelligent installation** - installs only missing or outdated mods
-- 🔍 **Auto-detection** - Finds Starsector installation automatically on startup
-- ⚡ **Parallel Downloads** - 3 concurrent workers for faster installation
-- ✅ **Status Indicators** - Visual markers (✓ installed, ○ not installed, ↑ update available)
-- 💾 **Automatic Backups** - Creates backup of enabled_mods.json before installation (keeps last 5)
-- 🔄 **Restore Backups** - One-click restore to previous mod configurations
+**Extraction intelligente:**
+- Lecture de `mod_info.json` **sans extraction complète** des archives (ZIP/7z)
+- Gain de temps et d'espace disque
 
-### Pre-Installation Checks
-- 💿 **Disk Space** - Verifies sufficient free space before downloading (5GB minimum)
-- 🌐 **Internet Connection** - Quick connectivity test
-- 📝 **Write Permissions** - Ensures mod folder is writable
-- 🔗 **Dependency Detection** - Warns about missing mod dependencies
-- 🔒 **Version Compatibility** - Checks target Starsector version
+**Gestion de modlists:**
+- Export de modlist/preset via l'UI (les backups automatiques ont été retirés)
+- Activation "modlist-only": le bouton "Enable All Mods" active **uniquement** les mods installés présents dans la modlist courante
+- Patch LunaLib: écrit dans `saves/common/LunaSettings/`
 
-### User Interface
-- ⬆️⬇️ **Arrow Keys** - Quick reordering within and across categories
-- 📊 **Category Management** - Create, rename, delete, and reorder custom categories
-- 🔍 **Search Filter** - Quickly find mods by name
-- 📋 **CSV Import/Export** - Share modlists with metadata (author field supported)
-- 📝 **Modlist Metadata** - Edit name, author, version, Starsector version, and description
+**Interface utilisateur:**
+- Bouton **Refresh** déplacé en bas, à gauche du bouton **Wipe**
+- Contours colorés: **bleu** (Refresh), **rouge** (Wipe)
+- **Tooltips persistants**: restent visibles après utilisation des boutons
+- **Compteur de mods**: overlay en haut à droite, sans perte d'espace vertical
+- Thème: `AppTheme` (nomenclature neutre)
 
-### Advanced Features
-- 🌐 **Google Drive Support** - Automatic HTML detection and confirmation dialog for large files
-- 🔒 **Security** - Zip-slip protection and archive integrity validation
-- 🔁 **Retry Logic** - Automatic retry with exponential backoff on network failures
-- 🎯 **Enable All Mods** - One-click activation of all installed mods
-- ⏸️ **Pause/Resume** - Control installation flow
-- 🪵 **Colored Logs** - Easy-to-read installation progress with color-coded messages
-- 🧪 **Headless Testing** - MockTk fixtures for GUI-free test execution
+## Prérequis
 
-## 🚀 Quick Start
+- **Python 3.10+**
+- **Tkinter** (inclus par défaut sur macOS et la plupart des distributions Linux)
+- **Dépendances Python**: `requests`, `py7zr` (optionnel pour archives 7z)
 
-### Install Dependencies
+## Installation
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate  # ou '. .venv/bin/activate'
 pip install -r requirements.txt
 ```
 
-### Usage
+## Lancement
 
 ```bash
+source .venv/bin/activate  # Activer l'environnement virtuel
 python src/modlist_installer.py
 ```
 
-**First Launch:**
-1. The app will auto-detect your Starsector installation (or prompt you to select it)
-2. Configure your modlist: add mods, organize categories, reorder as needed
-3. Click **"Install Modlist"** - only missing/outdated mods will be downloaded
-4. All installed mods are automatically activated in Starsector
-
-**Managing Mods:**
-- **Add Mod** - Add mods individually with URL validation
-- **Edit Mod** - Modify mod name, URL, or category
-- **Import CSV** - Bulk import from CSV files (replace or merge mode)
-- **Export CSV** - Export with metadata (name, author, version, description)
-- **Categories** - Create, rename, delete, and reorder custom categories
-- **Reorder** - Use ↑↓ buttons or drag & drop to rearrange mods
-- **Enable All Mods** - Activate all installed mods in one click
-- **Restore Backup** - Rollback to a previous mod configuration
-- **Refresh Metadata** - Update mod versions from installed mods
-- **Edit Metadata** - Update modlist name, author, version, and description
-
-### 📦 Building Executables
-
-**On macOS/Linux:**
+Ou en une seule commande:
 ```bash
-cd build_scripts
-chmod +x build.sh  # First time only
-./build.sh
+.venv/bin/python src/modlist_installer.py
 ```
 
-**On Windows:**
-```cmd
-cd build_scripts
-build.bat
-```
+## Fonctionnalités
 
-Executables will be created in the `dist/` folder
+### Validation et catégorisation d'URL
+- Détection automatique: **GitHub**, **Mediafire**, **Google Drive**, Autres
+- Mediafire affiché **avant** Google Drive dans l'interface
 
-For more details, see [build_scripts/BUILD.md](build_scripts/BUILD.md)
+### Google Drive
+- Dialogue de confirmation pour les fichiers volumineux
+- Correction d'URL vers `drive.usercontent.google.com` pour téléchargement direct
 
-### 🤖 Automated Builds with GitHub Actions
+### Archives
+- Support **ZIP** et **7z**
+- Extraction de `mod_info.json` **sans extraction complète** (économie de temps/espace)
+- Détection 7z via `Content-Disposition: filename=...` (robuste même si `Content-Type` incorrect)
 
-**For each release (tag `v*`)**:
-1. Create a tag: `git tag v1.0.0 && git push origin v1.0.0`
-2. GitHub Actions automatically compiles for:
-   - 🍎 macOS (.app)
-   - 🪟 Windows (.exe)
-   - 🐧 Linux (binary)
-3. Executables are attached to the GitHub release
+### Modlists et Presets
+- **Export**: sauvegarde de votre modlist actuelle
+- **Import**: chargement de presets depuis `config/presets/`
+- **Activation modlist-only**: "Enable All Mods" active uniquement les mods listés et installés
 
-**Automated tests**: Each push to `main` or `develop` runs tests.
+### LunaLib
+- Patch des configurations vers `saves/common/LunaSettings/`
+- Application globale au profil de jeu
 
-## 📁 Project Structure
+### Interface
+- **Tooltips persistants**: informations au survol stables
+- **Compteur de mods**: affichage overlay dynamique en haut à droite
+- **Boutons stylisés**: Refresh (contour bleu) et Wipe (contour rouge) côte à côte en bas
 
-```
-Starsector-Automated-Modlist-Installer/
-├── .github/
-│   └── workflows/            # Automated CI/CD
-│       ├── build-release.yml # Multi-platform builds
-│       └── tests.yml         # Automated tests
-├── src/                      # Source code
-│   ├── modlist_installer.py  # Entry point
-│   ├── core/                 # Business logic
-│   │   ├── __init__.py       # Core exports
-│   │   ├── constants.py      # Constants and paths
-│   │   ├── config_manager.py # Config management (atomic saves)
-│   │   ├── archive_extractor.py # ZIP/7z extraction
-│   │   └── installer.py      # Download and installation logic
-│   ├── gui/                  # User interface
-│   │   ├── __init__.py
-│   │   ├── main_window.py    # Main application window
-│   │   ├── dialogs.py        # All dialog functions
-│   │   ├── ui_builder.py     # UI component builders
-│   │   └── installation_controller.py # Installation flow control
-│   └── utils/                # Utilities
-│       ├── __init__.py
-│       ├── theme.py          # TriOS theme colors
-│       ├── backup_manager.py # Backup creation/restore
-│       ├── mod_utils.py      # Mod detection and metadata
-│       ├── network_utils.py  # URL validation and downloads
-│       ├── validators.py     # Path and URL validators
-│       ├── error_messages.py # User-friendly error messages
-│       ├── installation_checks.py # Pre-installation checks
-│       ├── listbox_helpers.py # Listbox utilities
-│       └── category_navigator.py # Category navigation
-├── tests/                    # Unit tests
-│   ├── test_suite.py         # 80 comprehensive tests
-│   └── README.md             # Test documentation
-├── build_scripts/            # Build scripts
-│   ├── modlist_installer.spec
-│   ├── build.sh / build.bat
-│   └── BUILD.md
-├── config/                   # Configuration files
-│   ├── modlist_config.json
-│   ├── categories.json
-│   └── installer_prefs.json
-└── requirements.txt          # Python dependencies
-```
+## Configuration
 
-## 📚 Documentation
+- **Fichiers de configuration**: [config](config)
+- **Presets**: [config/presets](config/presets)
+- **Chemin LunaLib**: `saves/common/LunaSettings/`
 
-- **README.md** (this file) - Quick start guide
-- **build_scripts/BUILD.md** - Build and distribution guide
-- **tests/README.md** - Test documentation
+## Dépannage
 
-## 💡 Usage Examples
+### Google Drive
+- **Problème**: Fichier trop volumineux, avertissement "virus scan"
+- **Solution**: Un dialogue s'affiche; l'URL est automatiquement corrigée pour téléchargement direct
 
-**Managing Mods:**
-- Use the GUI to add mods individually with automatic URL validation
-- Import mods in bulk from CSV files (replace or merge mode)
-- Edit mod properties (name, URL, category)
-- Organize mods by categories (create, rename, delete, reorder)
-- Reorder mods within categories using arrows or drag & drop
-- Export your modlist to CSV with full metadata
+### Fichiers 7z
+- **Problème**: `Content-Type` ambigu ou incorrect
+- **Solution**: La détection se base sur `Content-Disposition: filename=...` (nom de fichier)
 
-**CSV Import Format** (via GUI):
-```csv
-mod_id,name,download_url,mod_version,game_version,category
-lazylib,LazyLib,https://example.com/lazylib.zip,3.0.0,0.98a-RC5,Libs
-nexerelin,Nexerelin,https://example.com/nexerelin.zip,0.12.1b,0.98a-RC8,Megamods
-```
-- `mod_version`, `game_version`, and `category` are optional
-- Also supports `url` or `version` as alternate column names
+### Chemin Starsector
+- **Problème**: Installation Starsector non détectée
+- **Solution**: Sélectionnez manuellement le chemin via l'interface
 
-**Modlist metadata** (optional CSV header):
-```csv
-modlist_name,author,starsector_version,modlist_description,modlist_version
-My Modlist,YourName,0.98a-RC8,My custom modlist,1.0
-mod_id,name,download_url,mod_version,game_version,category
-lazylib,LazyLib,https://example.com/lazylib.zip,3.0.0,0.98a-RC5,Libs
-```
+## FAQ
 
-The first two lines can contain modlist metadata (detected if first line lacks a `download_url` field).
+**Q: Pourquoi je peux activer 20 mods alors que seulement 19 sont listés?**  
+R: Désormais corrigé — l'activation cible **uniquement** les mods présents dans la modlist courante.
 
-## ⚙️ Configuration
+**Q: Où sont les backups automatiques?**  
+R: Les backups automatiques ont été retirés. Utilisez la fonction **Export** pour sauvegarder votre modlist.
 
-Mods are stored in `modlist_config.json`:
+**Q: Comment exporter ma modlist?**  
+R: Utilisez le bouton 💾 **SAVE** pour exporter vers `config/presets/<nom>/`.
 
-```json
-{
-  "modlist_name": "ASTRA",
-  "version": "1.0",
-  "starsector_version": "0.98a-RC8",
-  "author": "thecno126",
-  "description": "Starsector Modlist",
-  "mods": [
-    {
-      "mod_id": "lazylib",
-      "name": "LazyLib",
-      "download_url": "https://github.com/LazyWizard/lazylib/releases/download/3.0/LazyLib.3.0.zip",
-      "mod_version": "3.0.0",
-      "game_version": "0.98a-RC5",
-      "category": "Libs"
-    }
-  ]
-}
-```
-## 📦 Dependencies
+## Tests
 
-Install required libraries:
 ```bash
-pip install -r requirements.txt
-```
-
-**Required libraries:**
-- `requests>=2.31.0` - HTTP downloads, URL validation, and retry logic
-- `py7zr>=0.20.0` - 7zip archive support (optional, falls back to ZIP-only if unavailable)
-
-**Development dependencies:**
-- `pytest>=7.4.0` - Unit testing framework (78 tests)
-- `pytest-mock>=3.11.1` - Mocking for tests
-
-## 🔄 Workflow
-
-1. **Configure your modlist** - Use the GUI to build your modlist
-   - Add mods individually via "Add Mod" button with automatic URL validation
-   - Or bulk import from CSV file ("Import CSV") with replace or merge mode
-   - Edit modlist metadata (name, author, version, description)
-   - Organize mods by categories and reorder with arrow buttons or drag-and-drop
-2. **Install mods** - Click "Install Modlist" to download and install everything
-   - Automatic Starsector path detection on first launch
-   - Pre-installation checks (disk space, permissions, dependencies)
-   - Parallel downloads (3 workers) with progress tracking
-   - ZIP and 7z support with integrity validation
-   - Duplicate and already-installed mod detection
-   - Automatic backup of enabled_mods.json
-3. **Manage your installation** - Post-installation tools
-   - **Enable All Mods** - Activate all installed mods in one click
-   - **Refresh Metadata** - Update mod versions from installed mod_info.json files
-   - **Restore Backup** - Rollback to previous configuration
-   - Use **TriOS** mod manager for advanced version compatibility and conflict resolution
-## 📝 Notes
-
-- **Smart duplicate prevention** - Mods checked by `mod_id`, name, and URL
-- **Automatic format detection** - ZIP/7z detected from URL or Content-Type header
-- **Intelligent installation** - Mods with single top-level folders installed as-is
-- **Google Drive handling** - Detects HTML responses, shows confirmation dialog for large files
-- **Auto-save** - Configuration saved on exit and after changes (Ctrl+S for manual save)
-- **Error recovery** - Retry logic with exponential backoff (0s → 2s → 4s) handles transient failures
-- **Skip duplicates** - Already-installed mods detected by mod_info.json and skipped automatically
-- **Category-based organization** - Mods grouped by custom categories, maintained on save
-- **No mods_by_category** - Removed redundant structure, categories computed dynamically
-- **macOS file dialog fix** - Parent parameter added to all filedialog calls for compatibility
-
-## 🧪 Testing
-
-Run the test suite:
-```bash
+source .venv/bin/activate
 pytest tests/test_suite.py -v
 ```
 
-**Test coverage:**
-- Configuration management (save/load/reset)
-- Archive extraction (ZIP/7z with py7zr)
-- Version comparison and mod detection
-- Google Drive URL fixing
-- Download scenarios (parallel, timeout, errors, retry logic)
-- URL validation and caching (1-hour cache)
-- Complete workflows (CSV import, manual mod addition)
-- GUI functions (add, edit, remove, reorder, drag & drop)
-- Backup management (create, restore, cleanup)
-- Metadata refresh and mod enabling
-- Error recovery and UI state management
+Ou exécution directe:
+```bash
+.venv/bin/python tests/test_suite.py
+```
 
-**78 tests total** - All passing ✅
+**Couverture**: import/export presets, correction URL Google Drive, détection 7z, extraction `mod_info.json`, activation modlist-only.
 
-## 📄 License
+## Licence et Contrib
 
-This project is open source. See LICENSE file for details.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit pull requests or open issues.
-
-## 📧 Contact
-
-For questions or support, please open an issue on GitHub: https://github.com/thecno126/Starsector-Automated-Modlist-Installer/issues
-
----
-
-### 🔧 Recent Improvements
-
-- **Author field synchronization** - Author field now fully synchronized across metadata dialog, JSON config, CSV export/import, and header display
-- **Headless testing** - MockTk/MockToplevel fixtures prevent GUI windows during test execution
-- **NameError fixes** - Fixed dialog callback references for proper error handling
-- **Configuration validation** - Built-in validation in ConfigManager and dialogs for data integrity
-- **Redundancy removal** - Eliminated `mods_by_category` structure, simplified codebase by 150+ lines
-- **macOS compatibility** - Fixed file dialogs on macOS by adding parent parameter and changing wildcard to "*.*"
-- **Test suite expansion** - Grew from 36 to 78 comprehensive tests covering all major workflows
+Projet open-source — contributions bienvenues.

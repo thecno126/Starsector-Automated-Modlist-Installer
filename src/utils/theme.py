@@ -1,18 +1,18 @@
 """
-TriOS-inspired theme for Starsector Automated Modlist Installer.
-Color palette and styling inspired by TriOS (https://github.com/wispborne/TriOS).
+Application theme for Starsector Automated Modlist Installer.
+Neutral palette and styling without external app naming.
 """
 
 
-class TriOSTheme:
-    """Theme configuration inspired by TriOS with Starsector-themed colors."""
+class AppTheme:
+    """Theme configuration with Starsector-themed colors (neutral naming)."""
     
-    # Primary colors (Cyan/Turquoise from TriOS)
+    # Primary colors (Cyan/Turquoise)
     PRIMARY = "#49FCFF"  # Bright cyan
     PRIMARY_DARK = "#3BCBE8"  # Darker cyan
     SECONDARY = "#3BCBE8"  # Secondary cyan
     
-    # Surface/Background colors (Dark blue inspired by TriOS)
+    # Surface/Background colors (Dark blue)
     SURFACE_DARK = "#0E162B"  # Very dark blue background
     SURFACE = "#202941"  # Dark blue surface
     SURFACE_LIGHT = "#2A3552"  # Slightly lighter surface
@@ -22,9 +22,9 @@ class TriOSTheme:
     TEXT_SECONDARY = "#9CA3AF"  # Muted text
     TEXT_DISABLED = "#6B7280"  # Disabled text
     
-    # State colors (matching TriOS)
-    ERROR = "#FC6300"  # Orange-red (TriOS vanillaErrorColor)
-    WARNING = "#FDD418"  # Yellow (TriOS vanillaWarningColor)
+    # State colors
+    ERROR = "#FC6300"  # Orange-red
+    WARNING = "#FDD418"  # Yellow
     SUCCESS = "#2ECC71"  # Green (standard success color)
     INFO = "#49FCFF"  # Cyan info color
     
@@ -55,21 +55,23 @@ class TriOSTheme:
     LOG_NORMAL = TEXT_PRIMARY
     
     # Validation report colors (keeping existing style but with theme colors)
-    GITHUB_BG = "#1A4A4A"  # Dark green-ish
+    GITHUB_BG = "#1A3A5A"  # Dark blue
     GITHUB_FG = SUCCESS
     GDRIVE_BG = "#1A3A5A"  # Dark blue
-    GDRIVE_FG = INFO
+    GDRIVE_FG = SUCCESS
+    MEDIAFIRE_BG = "#1A3A5A"  # Dark blue
+    MEDIAFIRE_FG = SUCCESS
     OTHER_BG = "#4A3A1A"  # Dark yellow-ish
     OTHER_FG = WARNING
     FAILED_BG = "#4A1A1A"  # Dark red-ish
     FAILED_FG = ERROR
     
     # Constants
-    CORNER_RADIUS = 6  # Matching TriOS cornerRadius
+    CORNER_RADIUS = 6
     
     @classmethod
     def configure_ttk_styles(cls, style):
-        """Configure ttk widget styles to match TriOS theme."""
+        """Configure ttk widget styles to match the app theme."""
         # Configure Combobox
         style.theme_use('clam')  # Use clam theme as base for customization
         

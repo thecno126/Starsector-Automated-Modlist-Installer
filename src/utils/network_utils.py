@@ -23,10 +23,11 @@ def retry_with_backoff(func, max_retries=3, delay=1, backoff=2,
 
 
 def validate_mod_urls(mods, progress_callback=None, timeout=3, max_workers=10):
-    """Validate URLs in parallel, categorize by domain (github/gdrive/other/failed)."""
+    """Validate URLs in parallel, categorize by domain (github/gdrive/mediafire/other/failed)."""
     results = {
         'github': [],
         'google_drive': [],
+        'mediafire': [],
         'other': {},
         'failed': []
     }
@@ -48,6 +49,7 @@ def validate_mod_urls(mods, progress_callback=None, timeout=3, max_workers=10):
         
         is_github = 'github.com' in domain
         is_gdrive = 'drive.google.com' in domain or 'drive.usercontent.google.com' in domain
+        is_mediafire = 'mediafire.com' in domain
         
         try:
             try:
@@ -68,6 +70,8 @@ def validate_mod_urls(mods, progress_callback=None, timeout=3, max_workers=10):
                 return (index, 'github', mod, domain, response.status_code, None)
             if is_gdrive:
                 return (index, 'google_drive', mod, domain, response.status_code, None)
+            if is_mediafire:
+                return (index, 'mediafire', mod, domain, response.status_code, None)
             return (index, 'other', mod, domain, response.status_code, None)
         except requests.exceptions.Timeout:
             return (index, 'failed', mod, domain, 0, 'Timeout (3s)')
@@ -87,6 +91,8 @@ def validate_mod_urls(mods, progress_callback=None, timeout=3, max_workers=10):
                 results['github'].append(mod)
             elif category == 'google_drive':
                 results['google_drive'].append(mod)
+            elif category == 'mediafire':
+                results['mediafire'].append(mod)
             elif category == 'other':
                 if domain not in results['other']:
                     results['other'][domain] = []
@@ -125,6 +131,8 @@ def validate_mod_urls(mods, progress_callback=None, timeout=3, max_workers=10):
                         results['github'].append(mod)
                     elif category == 'google_drive':
                         results['google_drive'].append(mod)
+                    elif category == 'mediafire':
+                        results['mediafire'].append(mod)
                     elif category == 'other':
                         if domain not in results['other']:
                             results['other'][domain] = []

@@ -406,3 +406,51 @@ def enable_all_installed_mods(mods_dir, mod_installer, log_callback=None):
         return (len(all_installed_folders), None)
     else:
         return (0, "Failed to update enabled_mods.json")
+
+
+def enable_modlist_mods(mods_dir, mod_installer, modlist_data, log_callback=None):
+    """Enable only mods present in the current modlist and installed.
+    
+    Args:
+        mods_dir: Path to mods directory
+        mod_installer: ModInstaller instance
+        modlist_data: Dict containing current modlist (expects 'mods' with 'mod_id')
+        log_callback: Optional callback for logging messages
+        
+    Returns:
+        tuple: (enabled_count: int, error_message: str or None)
+    """
+    def log(msg, **kwargs):
+        if log_callback:
+            log_callback(msg, **kwargs)
+    
+    log("Enabling mods from current modlist...")
+    
+    # Build set of desired mod IDs from modlist
+    desired_ids = set()
+    for entry in (modlist_data or {}).get("mods", []):
+        mod_id = entry.get("mod_id") or entry.get("id")
+        if mod_id:
+            desired_ids.add(mod_id.lower())
+    
+    if not desired_ids:
+        return (0, "No mods found in current modlist")
+    
+    # Scan installed mods and map IDs to folder names
+    selected_folders = []
+    for folder, metadata in scan_installed_mods(mods_dir):
+        installed_id = metadata.get("id")
+        if installed_id and installed_id.lower() in desired_ids:
+            selected_folders.append(folder.name)
+            log(f"  Selected: {folder.name} (ID: {installed_id})", debug=True)
+    
+    if not selected_folders:
+        return (0, "No matching mods from modlist are installed")
+    
+    # Update enabled_mods.json with only selected mods (no merge)
+    success = mod_installer.update_enabled_mods(mods_dir, selected_folders, merge=False)
+    if success:
+        log(f"{LogSymbols.SUCCESS} Enabled {len(selected_folders)} mod(s) from modlist in enabled_mods.json")
+        return (len(selected_folders), None)
+    else:
+        return (0, "Failed to update enabled_mods.json")

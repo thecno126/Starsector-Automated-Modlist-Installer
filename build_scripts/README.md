@@ -23,12 +23,22 @@ The build process is defined in `.github/workflows/build-release.yml` and uses t
 If you need to build locally for testing:
 
 ```bash
+# Activate virtual environment if present
+source .venv/bin/activate  # or '. .venv/bin/activate'
+
 # Install dependencies
 pip install -r requirements.txt
 pip install pyinstaller
 
-# Build
+# Build with clean and no confirmation
 pyinstaller build_scripts/modlist_installer.spec --clean --noconfirm
 ```
+
+**Options explained:**
+- `--clean`: Remove previous build artifacts before building
+- `--noconfirm`: Skip confirmation prompts (useful for automation)
+
+**Output:**
+- Executable will be created in `dist/` folder
 
 **Note:** Local builds are only needed for testing. All official releases are built by GitHub Actions.

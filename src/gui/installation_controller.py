@@ -6,7 +6,6 @@ from pathlib import Path
 from core import InstallationReport, MAX_DOWNLOAD_WORKERS
 from utils.mod_utils import is_mod_up_to_date, resolve_mod_dependencies
 from utils.mod_utils import scan_installed_mods, is_mod_name_match
-from utils.backup_manager import BackupManager
 from utils.symbols import LogSymbols, UISymbols
 
 
@@ -77,22 +76,8 @@ class InstallationController:
         
         mods_dir = Path(self.window.starsector_path.get()) / "mods"
         total_mods = len(mods_to_install)
-
         self.window.log(f"\nStarting installation of {total_mods} mod{'s' if total_mods > 1 else ''}...")
         self.window.log(LogSymbols.SEPARATOR * 60)
-        
-        self.window.log("Creating backup of enabled_mods.json...")
-        try:
-            if self.window.backup_manager:
-                result = self.window.backup_manager.create_backup(backup_mods=False)
-                if result.success:
-                    self.window.log(f"{LogSymbols.SUCCESS} Backup created: {result.path.name}")
-                else:
-                    self.window.log(f"{LogSymbols.WARNING} Backup failed: {result.error}", warning=True)
-            else:
-                self.window.log(f"{LogSymbols.WARNING} Backup manager not initialized", warning=True)
-        except Exception as e:
-            self.window.log(f"{LogSymbols.WARNING} Could not create backup: {e}", warning=True)
 
         # Update metadata from installed mods for accurate version checking
         self.window.log("Scanning installed mods for metadata...")

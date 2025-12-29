@@ -1,0 +1,12 @@
+{
+  "enabled": true,
+  "settings": {
+    "testSetting1": "value1",
+    "testSetting2": true,
+    "testSetting3": 42
+  },
+  "advanced": {
+    "debug": false,
+    "maxCacheSize": 256
+  }
+}

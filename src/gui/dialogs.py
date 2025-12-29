@@ -1,11 +1,10 @@
 import tkinter as tk
 from tkinter import ttk, filedialog
-import csv
 import threading
 import re
 from pathlib import Path
 from .ui_builder import _create_button
-from utils.theme import TriOSTheme
+from utils.theme import AppTheme
 from utils.symbols import LogSymbols, UISymbols
 
 
@@ -27,7 +26,7 @@ def _create_dialog(parent, title, width=None, height=None, resizable=False):
     if width and height:
         dialog.geometry(f"{width}x{height}")
     dialog.resizable(resizable, resizable)
-    dialog.configure(bg=TriOSTheme.SURFACE)
+    dialog.configure(bg=AppTheme.SURFACE)
     dialog.transient(parent)
     dialog.grab_set()
     return dialog
@@ -62,19 +61,19 @@ def _create_form_field(parent, row, label_text, widget_type='entry', width=45, *
     Returns:
         tuple: (label, widget)
     """
-    label = tk.Label(parent, text=label_text, bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY, font=('Arial', 10, 'bold'))
+    label = tk.Label(parent, text=label_text, bg=AppTheme.SURFACE, fg=AppTheme.TEXT_PRIMARY, font=('Arial', 10, 'bold'))
     label.grid(row=row, column=0, sticky="e", padx=8, pady=6)
     
     if widget_type == 'combobox':
         widget = ttk.Combobox(parent, width=width-3, **widget_kwargs)
     else:
-        widget_kwargs.setdefault('bg', TriOSTheme.SURFACE_DARK)
-        widget_kwargs.setdefault('fg', TriOSTheme.TEXT_PRIMARY)
-        widget_kwargs.setdefault('insertbackground', TriOSTheme.PRIMARY)
+        widget_kwargs.setdefault('bg', AppTheme.SURFACE_DARK)
+        widget_kwargs.setdefault('fg', AppTheme.TEXT_PRIMARY)
+        widget_kwargs.setdefault('insertbackground', AppTheme.PRIMARY)
         widget_kwargs.setdefault('relief', tk.FLAT)
         widget_kwargs.setdefault('highlightthickness', 1)
-        widget_kwargs.setdefault('highlightbackground', TriOSTheme.BORDER)
-        widget_kwargs.setdefault('highlightcolor', TriOSTheme.PRIMARY)
+        widget_kwargs.setdefault('highlightbackground', AppTheme.BORDER)
+        widget_kwargs.setdefault('highlightcolor', AppTheme.PRIMARY)
         widget = tk.Entry(parent, width=width, **widget_kwargs)
     
     widget.grid(row=row, column=1, padx=8, pady=6)
@@ -88,27 +87,27 @@ class StyledDialog:
         self.dialog.transient(parent)
         self.dialog.grab_set()
         self.dialog.resizable(False, False)
-        self.dialog.configure(bg=TriOSTheme.SURFACE)
+        self.dialog.configure(bg=AppTheme.SURFACE)
         
         # Main content frame
-        content_frame = tk.Frame(self.dialog, bg=TriOSTheme.SURFACE)
+        content_frame = tk.Frame(self.dialog, bg=AppTheme.SURFACE)
         content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
         # Icon and message
-        message_frame = tk.Frame(content_frame, bg=TriOSTheme.SURFACE)
+        message_frame = tk.Frame(content_frame, bg=AppTheme.SURFACE)
         message_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
         
         # Icon
         icons = {"info": LogSymbols.INFO, "success": LogSymbols.SUCCESS, "warning": LogSymbols.WARNING, "error": LogSymbols.ERROR, "question": LogSymbols.QUESTION}
         tk.Label(message_frame, text=icons.get(dialog_type, LogSymbols.INFO), 
-                font=("Arial", 36, "bold"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.PRIMARY).pack(side=tk.LEFT, padx=(0, 15))
+            font=("Arial", 36, "bold"), bg=AppTheme.SURFACE, fg=AppTheme.PRIMARY).pack(side=tk.LEFT, padx=(0, 15))
         
         # Message
         tk.Label(message_frame, text=message, font=("Arial", 11),
-                wraplength=350, justify=tk.LEFT, bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY).pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            wraplength=350, justify=tk.LEFT, bg=AppTheme.SURFACE, fg=AppTheme.TEXT_PRIMARY).pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
         # Buttons
-        button_frame = tk.Frame(content_frame, bg=TriOSTheme.SURFACE)
+        button_frame = tk.Frame(content_frame, bg=AppTheme.SURFACE)
         button_frame.pack(fill=tk.X)
         
         # Default buttons
@@ -116,7 +115,7 @@ class StyledDialog:
             buttons = [("Yes", True), ("No", False)] if dialog_type == "question" else [("OK", True)]
         
         # Center button container
-        button_container = tk.Frame(button_frame, bg=TriOSTheme.SURFACE)
+        button_container = tk.Frame(button_frame, bg=AppTheme.SURFACE)
         button_container.pack(expand=True)
         
         # Create buttons
@@ -191,61 +190,81 @@ def ask_version_action(title, message, parent=None):
                        [("Force Update", "force_update"), ("Continue", "continue"), ("Cancel", "cancel")])
 
 
-def show_validation_report(parent, github_mods, gdrive_mods, other_domains, failed_list):
+def show_validation_report(parent, github_mods, gdrive_mods, mediafire_mods, other_domains, failed_list):
     result = {'action': 'cancel'}
     
     dialog = _create_dialog(parent, "Download Sources Analysis")
     
-    main_frame = tk.Frame(dialog, bg=TriOSTheme.SURFACE)
+    main_frame = tk.Frame(dialog, bg=AppTheme.SURFACE)
     main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
     
     tk.Label(main_frame, text="Download Sources Analysis", 
-             font=("Arial", 14, "bold"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY).pack(pady=(0, 15))
+             font=("Arial", 14, "bold"), bg=AppTheme.SURFACE, fg=AppTheme.TEXT_PRIMARY).pack(pady=(0, 15))
     
     # Summary frame
-    summary_frame = tk.Frame(main_frame, bg=TriOSTheme.SURFACE)
+    summary_frame = tk.Frame(main_frame, bg=AppTheme.SURFACE)
     summary_frame.pack(fill=tk.X, pady=(0, 15))
     
     # GitHub mods
     if len(github_mods) > 0:
-        github_frame = tk.Frame(summary_frame, bg=TriOSTheme.SURFACE)
+        github_frame = tk.Frame(summary_frame, bg=AppTheme.SURFACE)
         github_frame.pack(fill=tk.X, pady=(0, 8))
         
         tk.Label(github_frame, text=f"{LogSymbols.SUCCESS} {len(github_mods)} mod(s) from GitHub", 
-                font=("Arial", 11, "bold"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.GITHUB_FG).pack(anchor=tk.W)
+                font=("Arial", 11, "bold"), bg=AppTheme.SURFACE, fg=AppTheme.GITHUB_FG).pack(anchor=tk.W)
         
         # List GitHub mods
-        github_list_frame = tk.Frame(github_frame, bg=TriOSTheme.GITHUB_BG)
+        github_list_frame = tk.Frame(github_frame, bg=AppTheme.GITHUB_BG)
         github_list_frame.pack(fill=tk.X, padx=(20, 0), pady=(4, 0))
         
         github_text = tk.Text(github_list_frame, height=min(4, len(github_mods)), width=55,
-                             font=("Courier", 9), wrap=tk.WORD, bg=TriOSTheme.GITHUB_BG, fg=TriOSTheme.TEXT_PRIMARY, 
+                     font=("Courier", 9), wrap=tk.WORD, bg=AppTheme.GITHUB_BG, fg=AppTheme.TEXT_PRIMARY, 
                              relief=tk.FLAT, highlightthickness=0, borderwidth=0)
         for mod in github_mods:
             github_text.insert(tk.END, f"  • {mod.get('name', 'Unknown')}\n")
         github_text.config(state=tk.DISABLED)
         github_text.pack(padx=5, pady=5)
     
+    # Mediafire mods
+    if len(mediafire_mods) > 0:
+        mediafire_frame = tk.Frame(summary_frame, bg=AppTheme.SURFACE)
+        mediafire_frame.pack(fill=tk.X, pady=(0, 8))
+        
+        tk.Label(mediafire_frame, text=f"{LogSymbols.SUCCESS} {len(mediafire_mods)} mod(s) from Mediafire", 
+            font=("Arial", 11, "bold"), bg=AppTheme.SURFACE, fg=AppTheme.MEDIAFIRE_FG).pack(anchor=tk.W)
+        
+        # List Mediafire mods
+        mediafire_list_frame = tk.Frame(mediafire_frame, bg=AppTheme.MEDIAFIRE_BG)
+        mediafire_list_frame.pack(fill=tk.X, padx=(20, 0), pady=(4, 0))
+        
+        mediafire_text = tk.Text(mediafire_list_frame, height=min(4, len(mediafire_mods)), width=55,
+                     font=("Courier", 9), wrap=tk.WORD, bg=AppTheme.MEDIAFIRE_BG, fg=AppTheme.TEXT_PRIMARY, 
+                             relief=tk.FLAT, highlightthickness=0, borderwidth=0)
+        for mod in mediafire_mods:
+            mediafire_text.insert(tk.END, f"  • {mod.get('name', 'Unknown')}\n")
+        mediafire_text.config(state=tk.DISABLED)
+        mediafire_text.pack(padx=5, pady=5)
+    
     # Google Drive mods with info
     if len(gdrive_mods) > 0:
-        gdrive_frame = tk.Frame(summary_frame, bg=TriOSTheme.SURFACE)
+        gdrive_frame = tk.Frame(summary_frame, bg=AppTheme.SURFACE)
         gdrive_frame.pack(fill=tk.X, pady=(0, 8))
         
         tk.Label(gdrive_frame, text=f"{LogSymbols.SUCCESS} {len(gdrive_mods)} mod(s) from Google Drive", 
-                font=("Arial", 11, "bold"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.GDRIVE_FG).pack(anchor=tk.W)
+            font=("Arial", 11, "bold"), bg=AppTheme.SURFACE, fg=AppTheme.GDRIVE_FG).pack(anchor=tk.W)
         
         # Info about large files
         info_text = tk.Label(gdrive_frame, 
             text="Large files bypass Google's virus scan and may need a second confirmation to download.",
-            font=("Arial", 9, "italic"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_SECONDARY, wraplength=450, justify=tk.LEFT)
+            font=("Arial", 9, "italic"), bg=AppTheme.SURFACE, fg=AppTheme.OTHER_FG, wraplength=450, justify=tk.LEFT)
         info_text.pack(anchor=tk.W, padx=(20, 0), pady=(2, 0))
         
         # List Google Drive mods
-        gdrive_list_frame = tk.Frame(gdrive_frame, bg=TriOSTheme.GDRIVE_BG)
+        gdrive_list_frame = tk.Frame(gdrive_frame, bg=AppTheme.GDRIVE_BG)
         gdrive_list_frame.pack(fill=tk.X, padx=(20, 0), pady=(4, 0))
         
         gdrive_text = tk.Text(gdrive_list_frame, height=min(4, len(gdrive_mods)), width=55,
-                             font=("Courier", 9), wrap=tk.WORD, bg=TriOSTheme.GDRIVE_BG, fg=TriOSTheme.TEXT_PRIMARY, 
+                     font=("Courier", 9), wrap=tk.WORD, bg=AppTheme.GDRIVE_BG, fg=AppTheme.TEXT_PRIMARY, 
                              relief=tk.FLAT, highlightthickness=0, borderwidth=0)
         for mod in gdrive_mods:
             gdrive_text.insert(tk.END, f"  • {mod.get('name', 'Unknown')}\n")
@@ -254,19 +273,19 @@ def show_validation_report(parent, github_mods, gdrive_mods, other_domains, fail
     
     # Other domains
     if other_domains:
-        other_frame = tk.Frame(summary_frame, bg=TriOSTheme.SURFACE)
+        other_frame = tk.Frame(summary_frame, bg=AppTheme.SURFACE)
         other_frame.pack(fill=tk.X, pady=(0, 8))
         
         total_other = sum(len(mods) for mods in other_domains.values())
         tk.Label(other_frame, text=f"{LogSymbols.WARNING} {total_other} mod(s) from other sources", 
-                font=("Arial", 11, "bold"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.OTHER_FG).pack(anchor=tk.W)
+            font=("Arial", 11, "bold"), bg=AppTheme.SURFACE, fg=AppTheme.OTHER_FG).pack(anchor=tk.W)
         
         # List each domain with its mods
-        other_list_frame = tk.Frame(other_frame, bg=TriOSTheme.OTHER_BG)
+        other_list_frame = tk.Frame(other_frame, bg=AppTheme.OTHER_BG)
         other_list_frame.pack(fill=tk.X, padx=(20, 0), pady=(4, 0))
         
         other_text = tk.Text(other_list_frame, height=min(5, total_other), width=55,
-                            font=("Courier", 9), wrap=tk.WORD, bg=TriOSTheme.OTHER_BG, fg=TriOSTheme.TEXT_PRIMARY, 
+                    font=("Courier", 9), wrap=tk.WORD, bg=AppTheme.OTHER_BG, fg=AppTheme.TEXT_PRIMARY, 
                             relief=tk.FLAT, highlightthickness=0, borderwidth=0)
         
         for domain, mods in sorted(other_domains.items()):
@@ -278,22 +297,22 @@ def show_validation_report(parent, github_mods, gdrive_mods, other_domains, fail
     
     # Failed mods
     if failed_list:
-        failed_frame = tk.Frame(summary_frame, bg=TriOSTheme.SURFACE)
+        failed_frame = tk.Frame(summary_frame, bg=AppTheme.SURFACE)
         failed_frame.pack(fill=tk.X, pady=(0, 0))
         
         tk.Label(failed_frame, text=f"{LogSymbols.ERROR} {len(failed_list)} mod(s) inaccessible", 
-                font=("Arial", 11, "bold"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.FAILED_FG).pack(anchor=tk.W, pady=(0, 2))
+            font=("Arial", 11, "bold"), bg=AppTheme.SURFACE, fg=AppTheme.FAILED_FG).pack(anchor=tk.W, pady=(0, 2))
         
         tk.Label(failed_frame, 
             text="These mods cannot be downloaded. Check URLs or contact mod authors.",
-            font=("Arial", 9, "italic"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_SECONDARY, wraplength=450, justify=tk.LEFT).pack(anchor=tk.W, padx=(20, 0), pady=(2, 0))
+            font=("Arial", 9, "italic"), bg=AppTheme.SURFACE, fg=AppTheme.TEXT_SECONDARY, wraplength=450, justify=tk.LEFT).pack(anchor=tk.W, padx=(20, 0), pady=(2, 0))
         
         # Scrollable list of failed mods
-        failed_list_frame = tk.Frame(failed_frame, bg=TriOSTheme.FAILED_BG)
+        failed_list_frame = tk.Frame(failed_frame, bg=AppTheme.FAILED_BG)
         failed_list_frame.pack(fill=tk.X, padx=(20, 0), pady=(4, 0))
         
         failed_text = tk.Text(failed_list_frame, height=min(5, len(failed_list)), width=55, 
-                             font=("Courier", 9), wrap=tk.WORD, bg=TriOSTheme.FAILED_BG, fg=TriOSTheme.TEXT_PRIMARY, 
+                     font=("Courier", 9), wrap=tk.WORD, bg=AppTheme.FAILED_BG, fg=AppTheme.TEXT_PRIMARY, 
                              relief=tk.FLAT, highlightthickness=0, borderwidth=0)
         
         for fail in failed_list:
@@ -305,7 +324,7 @@ def show_validation_report(parent, github_mods, gdrive_mods, other_domains, fail
         failed_text.pack(padx=5, pady=5)
     
     # Buttons frame
-    button_frame = tk.Frame(main_frame, bg=TriOSTheme.SURFACE)
+    button_frame = tk.Frame(main_frame, bg=AppTheme.SURFACE)
     button_frame.pack(fill=tk.X, pady=(15, 0))
     
     def on_continue():
@@ -317,10 +336,10 @@ def show_validation_report(parent, github_mods, gdrive_mods, other_domains, fail
         dialog.destroy()
     
     # Center the buttons
-    button_container = tk.Frame(button_frame, bg=TriOSTheme.SURFACE)
+    button_container = tk.Frame(button_frame, bg=AppTheme.SURFACE)
     button_container.pack(anchor=tk.CENTER)
     
-    if len(github_mods) > 0 or len(gdrive_mods) > 0 or other_domains:
+    if len(github_mods) > 0 or len(gdrive_mods) > 0 or len(mediafire_mods) > 0 or other_domains:
         _create_button(button_container, "Continue", on_continue,
                       width=12, button_type="success").pack(side=tk.LEFT, padx=5)
     
@@ -329,7 +348,7 @@ def show_validation_report(parent, github_mods, gdrive_mods, other_domains, fail
     
     # Keyboard bindings
     dialog.bind("<Escape>", lambda e: on_cancel())
-    dialog.bind("<Return>", lambda e: on_continue() if len(github_mods) > 0 or len(gdrive_mods) > 0 or other_domains else None)
+    dialog.bind("<Return>", lambda e: on_continue() if len(github_mods) > 0 or len(gdrive_mods) > 0 or len(mediafire_mods) > 0 or other_domains else None)
     
     _center_dialog(dialog, parent)
     dialog.wait_window()
@@ -383,13 +402,13 @@ def open_add_mod_dialog(parent, app):
     _, category_combo = _create_form_field(dlg, 1, "Category:", widget_type='combobox', 
                                            textvariable=category_var, values=app.categories, state='readonly')
 
-    status_label = tk.Label(dlg, textvariable=status_var, bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_SECONDARY, wraplength=500)
+    status_label = tk.Label(dlg, textvariable=status_var, bg=AppTheme.SURFACE, fg=AppTheme.TEXT_SECONDARY, wraplength=500)
     status_label.grid(row=2, column=0, columnspan=2, padx=8, pady=6)
 
     def submit():
         url = url_var.get().strip()
         if not url:
-            custom_dialogs.showerror("Error", "Download URL is required")
+            showerror("Error", "Download URL is required")
             return
 
         # Disable buttons during download
@@ -499,7 +518,7 @@ def open_add_mod_dialog(parent, app):
                 if temp_file == 'GDRIVE_HTML':
                     def show_gdrive_dialog():
                         status_var.set("")
-                        result = custom_dialogs.askyesno(
+                        result = askyesno(
                             "Google Drive Confirmation Required",
                             "This file is too large for Google's virus scan.\n\n"
                             "Google Drive requires manual confirmation to download large files.\n"
@@ -531,10 +550,10 @@ def open_add_mod_dialog(parent, app):
         thread = threading.Thread(target=download_and_extract_async, daemon=True)
         thread.start()
 
-    btn_frame = tk.Frame(dlg, bg=TriOSTheme.SURFACE)
+    btn_frame = tk.Frame(dlg, bg=AppTheme.SURFACE)
     btn_frame.grid(row=3, column=0, columnspan=2, pady=12)
     
-    btn_container = tk.Frame(btn_frame, bg=TriOSTheme.SURFACE)
+    btn_container = tk.Frame(btn_frame, bg=AppTheme.SURFACE)
     btn_container.pack(expand=True)
     
     add_button = _create_button(btn_container, "Add Mod", submit, width=12, button_type="success")
@@ -560,19 +579,19 @@ def open_edit_mod_dialog(parent, app, current_mod):
 
     row = 0
     
-    tk.Label(dlg, text="Mod ID:", bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY, font=('Arial', 10, 'bold')).grid(row=row, column=0, sticky="e", padx=8, pady=(12, 6))
-    tk.Label(dlg, text=mod_id_value, bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_SECONDARY, anchor='w').grid(row=row, column=1, sticky="w", padx=8, pady=(12, 6))
+    tk.Label(dlg, text="Mod ID:", bg=AppTheme.SURFACE, fg=AppTheme.TEXT_PRIMARY, font=('Arial', 10, 'bold')).grid(row=row, column=0, sticky="e", padx=8, pady=(12, 6))
+    tk.Label(dlg, text=mod_id_value, bg=AppTheme.SURFACE, fg=AppTheme.TEXT_SECONDARY, anchor='w').grid(row=row, column=1, sticky="w", padx=8, pady=(12, 6))
     row += 1
     
     _, name_entry = _create_form_field(dlg, row, "Display Name:", textvariable=name_var)
     row += 1
     
-    tk.Label(dlg, text="Mod Version:", bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY, font=('Arial', 10, 'bold')).grid(row=row, column=0, sticky="e", padx=8, pady=6)
-    tk.Label(dlg, text=mod_version_value, bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_SECONDARY, anchor='w').grid(row=row, column=1, sticky="w", padx=8, pady=6)
+    tk.Label(dlg, text="Mod Version:", bg=AppTheme.SURFACE, fg=AppTheme.TEXT_PRIMARY, font=('Arial', 10, 'bold')).grid(row=row, column=0, sticky="e", padx=8, pady=6)
+    tk.Label(dlg, text=mod_version_value, bg=AppTheme.SURFACE, fg=AppTheme.TEXT_SECONDARY, anchor='w').grid(row=row, column=1, sticky="w", padx=8, pady=6)
     row += 1
     
-    tk.Label(dlg, text="Game Version:", bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY, font=('Arial', 10, 'bold')).grid(row=row, column=0, sticky="e", padx=8, pady=6)
-    tk.Label(dlg, text=game_version_value, bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_SECONDARY, anchor='w').grid(row=row, column=1, sticky="w", padx=8, pady=6)
+    tk.Label(dlg, text="Game Version:", bg=AppTheme.SURFACE, fg=AppTheme.TEXT_PRIMARY, font=('Arial', 10, 'bold')).grid(row=row, column=0, sticky="e", padx=8, pady=6)
+    tk.Label(dlg, text=game_version_value, bg=AppTheme.SURFACE, fg=AppTheme.TEXT_SECONDARY, anchor='w').grid(row=row, column=1, sticky="w", padx=8, pady=6)
     row += 1
     
     _, category_combo = _create_form_field(dlg, row, "Category:", widget_type='combobox',
@@ -588,11 +607,11 @@ def open_edit_mod_dialog(parent, app, current_mod):
         category = category_var.get().strip()
         
         if not name:
-            custom_dialogs.showerror("Error", "Display name cannot be empty")
+            showerror("Error", "Display name cannot be empty")
             return
         
         if not url:
-            custom_dialogs.showerror("Error", "Download URL is required")
+            showerror("Error", "Download URL is required")
             return
 
         # Update name, URL and category in the modlist
@@ -610,13 +629,13 @@ def open_edit_mod_dialog(parent, app, current_mod):
         app.save_modlist_config()
         app.display_modlist_info()
         app.log(f"Updated mod info for: {name}")
-        custom_dialogs.showsuccess("Success", f"Mod info for '{name}' has been updated")
+        showsuccess("Success", f"Mod info for '{name}' has been updated")
         dlg.destroy()
 
-    btn_frame = tk.Frame(dlg, bg=TriOSTheme.SURFACE)
+    btn_frame = tk.Frame(dlg, bg=AppTheme.SURFACE)
     btn_frame.grid(row=row, column=0, columnspan=2, pady=12)
     
-    btn_container = tk.Frame(btn_frame, bg=TriOSTheme.SURFACE)
+    btn_container = tk.Frame(btn_frame, bg=AppTheme.SURFACE)
     btn_container.pack(expand=True)
     
     _create_button(btn_container, "Save Changes", submit, width=14, button_type="success").pack(side=tk.LEFT, padx=6)
@@ -628,27 +647,27 @@ def open_manage_categories_dialog(parent, app):
     dlg.minsize(400, 350)
     
     tk.Label(dlg, text="Categories (in display order):", font=("Arial", 12, "bold"),
-            bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY).pack(pady=(10, 5))
+            bg=AppTheme.SURFACE, fg=AppTheme.TEXT_PRIMARY).pack(pady=(10, 5))
     
-    main_frame = tk.Frame(dlg, bg=TriOSTheme.SURFACE)
+    main_frame = tk.Frame(dlg, bg=AppTheme.SURFACE)
     main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=5)
     
     # Listbox for categories
-    list_frame = tk.Frame(main_frame, bg=TriOSTheme.SURFACE)
+    list_frame = tk.Frame(main_frame, bg=AppTheme.SURFACE)
     list_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
     
-    scrollbar = tk.Scrollbar(list_frame, bg=TriOSTheme.SURFACE)
+    scrollbar = tk.Scrollbar(list_frame, bg=AppTheme.SURFACE)
     scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
     
     cat_listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set, height=15,
-                            bg=TriOSTheme.SURFACE_DARK, fg=TriOSTheme.TEXT_PRIMARY,
-                            selectbackground=TriOSTheme.PRIMARY, selectforeground=TriOSTheme.SURFACE_DARK,
+                            bg=AppTheme.SURFACE_DARK, fg=AppTheme.TEXT_PRIMARY,
+                            selectbackground=AppTheme.PRIMARY, selectforeground=AppTheme.SURFACE_DARK,
                             relief=tk.FLAT, highlightthickness=0, borderwidth=0)
     cat_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
     scrollbar.config(command=cat_listbox.yview)
     
     # Move buttons (↑↓)
-    move_frame = tk.Frame(main_frame, bg=TriOSTheme.SURFACE)
+    move_frame = tk.Frame(main_frame, bg=AppTheme.SURFACE)
     move_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=(10, 0))
     
     def refresh_category_listbox(selected_idx=None):
@@ -684,7 +703,7 @@ def open_manage_categories_dialog(parent, app):
         
     refresh_category_listbox()
     
-    btn_frame = tk.Frame(dlg, bg=TriOSTheme.SURFACE)
+    btn_frame = tk.Frame(dlg, bg=AppTheme.SURFACE)
     btn_frame.pack(fill=tk.X, padx=20, pady=10)
     
     def add_category():
@@ -697,12 +716,12 @@ def open_manage_categories_dialog(parent, app):
                 app.config_manager.save_categories(app.categories)
                 app.log(f"Added category: {new_cat}")
             else:
-                custom_dialogs.showwarning("Duplicate", f"Category '{new_cat}' already exists", parent=dlg)
+                showwarning("Duplicate", f"Category '{new_cat}' already exists", parent=dlg)
     
     def rename_category():
         selection = cat_listbox.curselection()
         if not selection:
-            custom_dialogs.showwarning("No Selection", "Please select a category to rename", parent=dlg)
+            showwarning("No Selection", "Please select a category to rename", parent=dlg)
             return
         
         idx = selection[0]
@@ -712,7 +731,7 @@ def open_manage_categories_dialog(parent, app):
         if new_name and new_name.strip() and new_name.strip() != old_name:
             new_name = new_name.strip()
             if new_name in app.categories:
-                custom_dialogs.showwarning("Duplicate", f"Category '{new_name}' already exists", parent=dlg)
+                showwarning("Duplicate", f"Category '{new_name}' already exists", parent=dlg)
                 return
             
             # Update category in all mods
@@ -733,7 +752,7 @@ def open_manage_categories_dialog(parent, app):
     def delete_category():
         selection = cat_listbox.curselection()
         if not selection:
-            custom_dialogs.showwarning("No Selection", "Please select a category to delete", parent=dlg)
+            showwarning("No Selection", "Please select a category to delete", parent=dlg)
             return
         
         idx = selection[0]
@@ -743,7 +762,7 @@ def open_manage_categories_dialog(parent, app):
         in_use = any(mod.get('category') == cat_name for mod in app.modlist_data.get('mods', []))
         
         if in_use:
-            response = custom_dialogs.askyesno("Category in Use", 
+            response = askyesno("Category in Use", 
                 f"Category '{cat_name}' is used by some mods.\nMods will be moved to 'Uncategorized'.\nContinue?",
                 parent=dlg)
             if not response:
@@ -761,7 +780,7 @@ def open_manage_categories_dialog(parent, app):
         app.display_modlist_info()
         app.log(f"Deleted category: {cat_name}")
     
-    center_frame = tk.Frame(btn_frame, bg=TriOSTheme.SURFACE)
+    center_frame = tk.Frame(btn_frame, bg=AppTheme.SURFACE)
     center_frame.pack(expand=True)
     
     btn_add = _create_button(center_frame, "Add", add_category, width=10, button_type="success")
@@ -777,269 +796,200 @@ def open_manage_categories_dialog(parent, app):
     btn_close.pack(side=tk.LEFT, padx=5)
 
 
-def open_import_csv_dialog(parent, app):
-    """Open a file dialog to select a CSV file and import mods."""
-    csv_file = filedialog.askopenfilename(
-        parent=parent,
-        title="Select CSV file",
-        filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
-    )
-    if not csv_file:
+def open_import_preset_dialog(parent, app):
+    """Open dialog to load/import an existing preset."""
+    import tkinter as tk
+    from utils.theme import AppTheme
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    # Get available presets
+    presets = app.config_manager.list_presets()
+    
+    if not presets:
+        showinfo(
+            "No Presets",
+            "No presets found in config/presets/\n\n"
+            "Create a preset first by exporting your current modlist.",
+            parent=parent
+        )
         return
     
-    # Ask user if they want to replace or merge
-    response = custom_dialogs.show_import_mode_dialog(parent)
+    # Create selection dialog
+    dialog = tk.Toplevel(parent)
+    dialog.title("Load Preset")
+    dialog.geometry("500x400")
+    dialog.resizable(False, False)
+    dialog.configure(bg=AppTheme.SURFACE)
+    dialog.transient(parent)
+    dialog.grab_set()
     
-    if response == 'cancel':
-        return
+    # Center dialog
+    dialog.update_idletasks()
+    x = (dialog.winfo_screenwidth() // 2) - (500 // 2)
+    y = (dialog.winfo_screenheight() // 2) - (400 // 2)
+    dialog.geometry(f"500x400+{x}+{y}")
     
-    thread = threading.Thread(
-        target=_import_csv_file, 
-        args=(csv_file, app, response == 'replace'), 
-        daemon=True
+    # Main frame
+    main_frame = tk.Frame(dialog, bg=AppTheme.SURFACE, padx=20, pady=20)
+    main_frame.pack(fill=tk.BOTH, expand=True)
+    
+    # Title
+    title_label = tk.Label(
+        main_frame,
+        text="Load Preset",
+        font=("Arial", 12, "bold"),
+        bg=AppTheme.SURFACE,
+        fg=AppTheme.TEXT_PRIMARY
     )
-    thread.start()
-
-
-def open_export_csv_dialog(parent, app):
-    """Open a file dialog to export mods to CSV."""
-    csv_file = filedialog.asksaveasfilename(
-        parent=parent,
-        title="Export modlist to CSV",
-        defaultextension=".csv",
-        filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+    title_label.pack(pady=(0, 10))
+    
+    # Info
+    info_label = tk.Label(
+        main_frame,
+        text="Select a preset to load as your current modlist configuration.",
+        font=("Arial", 9),
+        bg=AppTheme.SURFACE,
+        fg=AppTheme.TEXT_SECONDARY
     )
+    info_label.pack(pady=(0, 15))
     
-    if not csv_file:
-        return
+    # Listbox frame
+    list_frame = tk.Frame(main_frame, bg=AppTheme.SURFACE)
+    list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
     
-    try:
-        with open(csv_file, 'w', newline='', encoding='utf-8') as f:
-            # Write metadata section
-            metadata_writer = csv.writer(f)
-            metadata_writer.writerow(['modlist_name', 'author', 'starsector_version', 'modlist_description', 'modlist_version'])
-            metadata_writer.writerow([
-                app.modlist_data.get('modlist_name', ''),
-                app.modlist_data.get('author', ''),
-                app.modlist_data.get('starsector_version', ''),
-                app.modlist_data.get('description', ''),
-                app.modlist_data.get('version', '')
-            ])
-            
-            # Write mods section
-            writer = csv.DictWriter(f, fieldnames=['mod_id', 'name', 'download_url', 'mod_version', 'game_version', 'category'])
-            writer.writeheader()
-            
-            for mod in app.modlist_data.get('mods', []):
-                # Use game_version, fallback to legacy 'version' field
-                game_ver = mod.get('game_version') or mod.get('version') or ''
-                writer.writerow({
-                    'mod_id': mod.get('mod_id', ''),
-                    'name': mod.get('name', ''),
-                    'download_url': mod.get('download_url', ''),
-                    'mod_version': mod.get('mod_version', ''),
-                    'game_version': game_ver,
-                    'category': mod.get('category', 'Uncategorized')
-                })
-        
-        app.log(f"{LogSymbols.SUCCESS} Exported {len(app.modlist_data.get('mods', []))} mods to {csv_file}", success=True)
-    except Exception as e:
-        app.log(f"{LogSymbols.ERROR} Export error: {e}", error=True)
-
-
-def _import_csv_file(csv_path: str, app, replace_mode: bool = False):
-    """Import CSV logic executed in a background thread.
+    scrollbar = tk.Scrollbar(list_frame, bg=AppTheme.SURFACE)
+    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
     
-    Args:
-        csv_path: Path to the CSV file
-        app: Main application instance
-        replace_mode: If True, clear existing mods before import. If False, merge.
-    """
-    app.root.after(0, lambda: _set_ui_enabled(app, False))
+    preset_listbox = tk.Listbox(
+        list_frame,
+        yscrollcommand=scrollbar.set,
+        font=("Courier", 10),
+        bg=AppTheme.SURFACE_DARK,
+        fg=AppTheme.TEXT_PRIMARY,
+        selectbackground=AppTheme.PRIMARY,
+        selectforeground=AppTheme.SURFACE_DARK,
+        relief=tk.FLAT,
+        highlightthickness=1,
+        highlightbackground=AppTheme.BORDER,
+        highlightcolor=AppTheme.PRIMARY
+    )
+    preset_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    scrollbar.config(command=preset_listbox.yview)
     
-    mode_str = "Replacing" if replace_mode else "Merging"
-    app.log(f"{mode_str} modlist from CSV: {csv_path}...")
+    # Populate listbox and store preset data
+    preset_data = []  # Store (name, path, has_lunalib) for each index
+    for name, path, has_lunalib in presets:
+        lunalib_indicator = "📘 " if has_lunalib else "   "
+        preset_listbox.insert(tk.END, f"{lunalib_indicator}{name}")
+        preset_data.append((name, path, has_lunalib))
     
-    # Clear existing mods if replace mode
-    if replace_mode:
-        original_count = len(app.modlist_data.get('mods', []))
-        app.modlist_data['mods'] = []
-        app.log(f"  Cleared {original_count} existing mod(s)")
+    # Status label
+    status_label = tk.Label(
+        main_frame,
+        text="",
+        font=("Arial", 9),
+        bg=AppTheme.SURFACE,
+        fg=AppTheme.WARNING
+    )
+    status_label.pack(pady=(5, 15))
     
-    try:
-        # Read all lines first to detect metadata
-        with open(csv_path, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
+    def load_selected_preset():
+        selection = preset_listbox.curselection()
+        if not selection:
+            status_label.config(text="⚠ Please select a preset", fg=AppTheme.WARNING)
+            return
         
-        if not lines:
-            raise ValueError("CSV file is empty")
+        # Get preset name from stored data (not from display text)
+        idx = selection[0]
+        preset_name, preset_path, has_lunalib = preset_data[idx]
         
-        # Check if first line contains metadata
-        first_line_headers = [h.strip() for h in lines[0].strip().split(',')]
-        app.log(f"  First line headers: {first_line_headers}")
+        # Load preset
+        modlist_data, lunalib_data, error = app.config_manager.load_preset(preset_name)
         
-        has_metadata = any(h in first_line_headers for h in ['modlist_name', 'starsector_version', 'modlist_description', 'modlist_version'])
-        has_mod_headers = any(h in first_line_headers for h in ['name', 'download_url', 'url'])
+        if error:
+            showerror("Load Failed", f"Could not load preset:\\n\\n{error}", parent=dialog)
+            logger.error(f"Load preset failed: {error}")
+            return
         
-        app.log(f"  Has metadata: {has_metadata}, Has mod headers: {has_mod_headers}")
+        # Ask for confirmation (will overwrite current modlist)
+        confirm = askyesno(
+            "Confirm Load",
+            f"Load preset '{preset_name}'?\\n\\n"
+            f"This will replace your current modlist configuration.",
+            parent=dialog
+        )
         
-        metadata_updated = False
-        start_line = 0
+        if not confirm:
+            return
         
-        # Early return: no metadata section, parse as regular CSV
-        if not (has_metadata and not has_mod_headers):
-            app.log(f"  No metadata section detected, parsing as regular CSV")
-        else:
-            # Parse metadata from first line
-            app.log(f"  Parsing metadata section...")
-            reader = csv.DictReader([lines[0], lines[1]])  # Header + values
-            metadata_row = next(reader)
+        # Apply preset (replace current modlist_config.json)
+        try:
+            # Write new modlist
+            app.config_manager.save_modlist_config(modlist_data)
             
-            app.log(f"  Detected metadata row keys: {list(metadata_row.keys())}")
-            app.log(f"  Detected metadata row values: {list(metadata_row.values())}")
+            # Reload modlist data and UI
+            app.modlist_data = modlist_data
+            app.display_modlist_info()
             
-            # Update modlist metadata using mapping
-            metadata_mapping = {
-                'modlist_name': 'modlist_name',
-                'author': 'author',
-                'starsector_version': 'starsector_version',
-                'modlist_description': 'description',
-                'modlist_version': 'version'
-            }
+            app.log(f"✓ Loaded preset: {preset_name}", success=True)
+            logger.info(f"Loaded preset: {preset_name}")
             
-            for csv_key, data_key in metadata_mapping.items():
-                if csv_key in metadata_row and metadata_row.get(csv_key, '').strip():
-                    app.modlist_data[data_key] = metadata_row[csv_key].strip()
-                    app.log(f"  {data_key}: {app.modlist_data[data_key]}")
-                    metadata_updated = True
+            lunalib_msg = " (includes LunaSettings)" if lunalib_data else ""
+            showsuccess(
+                "Preset Loaded",
+                f"Preset '{preset_name}' loaded successfully{lunalib_msg}!\\n\\n"
+                f"Your modlist has been updated.",
+                parent=parent
+            )
             
-            app.log(f"  Metadata updated: {metadata_updated}")
+            dialog.destroy()
             
-            if metadata_updated:
-                # Save metadata updates using ConfigManager
-                app.log(f"  Saving modlist configuration...")
-                app.config_manager.save_modlist_config(app.modlist_data)
-                app.log(f"  Config file saved successfully")
-                # Refresh display
-                app.root.after(0, app.display_modlist_info)
-            
-            # Skip metadata lines (header + value)
-            start_line = 2
-        
-        # Now parse mods starting from the appropriate line
-        if start_line < len(lines):
-            # Read mods section
-            with open(csv_path, 'r', encoding='utf-8') as f:
-                # Skip to mod section
-                for _ in range(start_line):
-                    f.readline()
-                
-                reader = csv.DictReader(f)
-                # Clean up fieldnames (remove leading/trailing spaces)
-                reader.fieldnames = [field.strip() if field else field for field in reader.fieldnames]
-                rows = list(reader)
-            
-            added_count = 0
-            new_categories = []
-            
-            for r in rows:
-                mod_id = (r.get('mod_id') or '').strip()
-                name = (r.get('name') or '').strip()
-                url = (r.get('download_url') or r.get('url') or '').strip()
-                # Support both 'game_version' and legacy 'version' field in CSV
-                mod_version = (r.get('mod_version') or '').strip()
-                game_version = (r.get('game_version') or r.get('version') or '').strip()
-                category = (r.get('category') or '').strip()
-
-                if not url:
-                    app.log(f"  ℹ Skipped: Row {r} (missing URL)", info=True)
-                    continue
-
-                if not app.validate_url(url):
-                    app.log(f"  ℹ Skipped: URL not reachable - {url}", info=True)
-                    continue
-
-                # If mod_id is missing but name/URL present, try to extract metadata from URL
-                if not mod_id or not name:
-                    app.log(f"  ⚠ CSV missing mod_id/name for {url}, attempting auto-detection...", info=True)
-                    try:
-                        result = app.mod_installer.download_archive({'download_url': url, 'name': 'temp'})
-                        temp_file, is_7z = result.temp_path, result.is_7z
-                        if temp_file:
-                            try:
-                                from pathlib import Path
-                                metadata = app.mod_installer.extract_mod_metadata(temp_file, is_7z)
-                                if metadata:
-                                    mod_id = metadata.get('id', mod_id)
-                                    name = metadata.get('name', name) or mod_id
-                                    if not mod_version:
-                                        mod_version = metadata.get('version', '')
-                                    if not game_version:
-                                        game_version = metadata.get('gameVersion', '')
-                                    app.log(f"  {LogSymbols.SUCCESS} Auto-detected: {name} (ID: {mod_id})", info=True)
-                            finally:
-                                Path(temp_file).unlink()
-                    except Exception as e:
-                        app.log(f"  ⚠ Auto-detection failed: {e}", info=True)
-                
-                if not mod_id:
-                    app.log(f"  ℹ Skipped: Cannot determine mod_id for {url}", info=True)
-                    continue
-
-                mod_obj = {
-                    "mod_id": mod_id,
-                    "name": name or mod_id,
-                    "download_url": url,
-                    "category": category or 'Uncategorized'
-                }
-                if mod_version:
-                    mod_obj['mod_version'] = mod_version
-                if game_version:
-                    mod_obj['game_version'] = game_version
-                
-                # Track new categories
-                if category and category not in app.categories and category not in new_categories:
-                    new_categories.append(category)
-
-                before = len(app.modlist_data.get('mods', []))
-                app.add_mod_to_config(mod_obj)
-                after = len(app.modlist_data.get('mods', []))
-                if after > before:
-                    added_count += 1
-                    app.log(f"  Added: {name}")
-                else:
-                    app.log(f"  ℹ Skipped: '{name}' (duplicate)", info=True)
-            
-            # Add new categories to the list
-            if new_categories:
-                # Insert new categories before "Uncategorized" if it exists
-                try:
-                    insert_pos = app.categories.index('Uncategorized')
-                except ValueError:
-                    insert_pos = len(app.categories)
-                
-                for new_cat in new_categories:
-                    app.categories.insert(insert_pos, new_cat)
-                    insert_pos += 1
-                    app.log(f"  Added new category: {new_cat}")
-                
-                app.config_manager.save_categories(app.categories)
-
-            summary = f"CSV import complete. {added_count} mod(s) added."
-            if metadata_updated:
-                summary += " Modlist metadata updated."
-            app.log(summary)
-            app.root.after(0, lambda: custom_dialogs.showsuccess("Import complete", summary))
-        else:
-            summary = "Modlist metadata updated."
-            app.log(summary)
-            app.root.after(0, lambda: custom_dialogs.showsuccess("Import complete", summary))
-        
-        app.root.after(0, lambda: _set_ui_enabled(app, True))
-    except (FileNotFoundError, csv.Error, UnicodeDecodeError, ValueError) as e:
-        app.log(f"  {LogSymbols.ERROR} Error importing CSV: {type(e).__name__}: {e}", error=True)
-        app.root.after(0, lambda: custom_dialogs.showerror("Import failed", f"Error during CSV import:\n{type(e).__name__}: {e}"))
-        app.root.after(0, lambda: _set_ui_enabled(app, True))
+        except Exception as e:
+            error_msg = f"Failed to apply preset: {e}"
+            showerror("Load Error", error_msg, parent=dialog)
+            app.log(f"✗ {error_msg}", error=True)
+            logger.error(error_msg)
+    
+    def cancel():
+        logger.info("Load preset cancelled by user")
+        dialog.destroy()
+    
+    # Buttons
+    button_frame = tk.Frame(main_frame, bg=AppTheme.SURFACE)
+    button_frame.pack(fill=tk.X)
+    
+    # Import _create_button for consistent styling
+    import sys
+    import os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+    from gui.ui_builder import _create_button
+    
+    cancel_btn = _create_button(
+        button_frame,
+        "Cancel",
+        cancel,
+        width=10,
+        font_size=10,
+        button_type="secondary"
+    )
+    cancel_btn.pack(side=tk.RIGHT, padx=(5, 0))
+    
+    load_btn = _create_button(
+        button_frame,
+        "Load Preset",
+        load_selected_preset,
+        width=12,
+        font_size=10,
+        button_type="primary"
+    )
+    load_btn.pack(side=tk.RIGHT)
+    
+    # Bind Enter key and double-click
+    dialog.bind('<Return>', lambda e: load_selected_preset())
+    dialog.bind('<Escape>', lambda e: cancel())
+    preset_listbox.bind('<Double-Button-1>', lambda e: load_selected_preset())
 
 
 def _set_UI_enabled(app, enabled: bool):
@@ -1055,24 +1005,398 @@ def _set_UI_enabled(app, enabled: bool):
         pass  # Widget not available or destroyed
 
 
+def open_export_preset_dialog(root, app):
+    """Open dialog to export current modlist as a preset.
+    
+    Args:
+        root: Parent Tk root window
+        app: ModlistInstaller instance with config_manager and log method
+    """
+    import tkinter as tk
+    from utils.theme import AppTheme
+    from pathlib import Path
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    # Create custom dialog
+    dialog = tk.Toplevel(root)
+    dialog.title("Export Preset")
+    dialog.geometry("500x300")
+    dialog.resizable(False, False)
+    dialog.configure(bg=AppTheme.SURFACE)
+    dialog.transient(root)
+    dialog.grab_set()
+    
+    # Center dialog
+    dialog.update_idletasks()
+    x = (dialog.winfo_screenwidth() // 2) - (500 // 2)
+    y = (dialog.winfo_screenheight() // 2) - (300 // 2)
+    dialog.geometry(f"500x300+{x}+{y}")
+    
+    # Get presets directory
+    presets_dir = app.config_manager.presets_dir
+    presets_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Main frame
+    main_frame = tk.Frame(dialog, bg=AppTheme.SURFACE, padx=20, pady=20)
+    main_frame.pack(fill=tk.BOTH, expand=True)
+    
+    # Title
+    title_label = tk.Label(
+        main_frame,
+        text="Export Current Modlist as Preset",
+        font=("Arial", 12, "bold"),
+        bg=AppTheme.SURFACE,
+        fg=AppTheme.TEXT_PRIMARY
+    )
+    title_label.pack(pady=(0, 5))
+    
+    # Info label
+    info_label = tk.Label(
+        main_frame,
+        text=f"Save location: {presets_dir}/",
+        font=("Arial", 9),
+        bg=AppTheme.SURFACE,
+        fg=AppTheme.TEXT_SECONDARY
+    )
+    info_label.pack(pady=(0, 15))
+    
+    # Preset name entry
+    name_frame = tk.Frame(main_frame, bg=AppTheme.SURFACE)
+    name_frame.pack(fill=tk.X, pady=(0, 15))
+    
+    tk.Label(
+        name_frame,
+        text="Preset Name:",
+        font=("Arial", 10),
+        bg=AppTheme.SURFACE,
+        fg=AppTheme.TEXT_PRIMARY
+    ).pack(side=tk.LEFT, padx=(0, 10))
+    
+    preset_name_var = tk.StringVar()
+    name_entry = tk.Entry(
+        name_frame,
+        textvariable=preset_name_var,
+        font=("Arial", 10),
+        bg=AppTheme.SURFACE_DARK,
+        fg=AppTheme.TEXT_PRIMARY,
+        insertbackground=AppTheme.PRIMARY,
+        relief=tk.FLAT,
+        highlightthickness=1,
+        highlightbackground=AppTheme.BORDER,
+        highlightcolor=AppTheme.PRIMARY
+    )
+    name_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    name_entry.focus_set()
+    
+    # Checkbox for including LunaLib
+    include_lunalib_var = tk.BooleanVar(value=False)
+    checkbox_frame = tk.Frame(main_frame, bg=AppTheme.SURFACE)
+    checkbox_frame.pack(fill=tk.X, pady=(0, 10))
+    
+    lunalib_check = tk.Checkbutton(
+        checkbox_frame,
+        text="Include current LunaSettings from game",
+        variable=include_lunalib_var,
+        font=("Arial", 10),
+        bg=AppTheme.SURFACE,
+        fg=AppTheme.TEXT_PRIMARY,
+        selectcolor=AppTheme.SURFACE_DARK,
+        activebackground=AppTheme.SURFACE,
+        activeforeground=AppTheme.TEXT_PRIMARY
+    )
+    lunalib_check.pack(anchor=tk.W)
+    
+    # Description label
+    desc_label = tk.Label(
+        main_frame,
+        text="This will save your current modlist configuration.\n"
+             "If checked, it will also copy the LunaSettings folder\n"
+             "from your Starsector installation.",
+        font=("Arial", 9),
+        bg=AppTheme.SURFACE,
+        fg=AppTheme.TEXT_SECONDARY,
+        justify=tk.LEFT
+    )
+    desc_label.pack(pady=(0, 15))
+    
+    # Status label
+    status_label = tk.Label(
+        main_frame,
+        text="",
+        font=("Arial", 9),
+        bg=AppTheme.SURFACE,
+        fg=AppTheme.WARNING
+    )
+    status_label.pack(pady=(5, 15))
+    
+    def export_preset():
+        preset_name = preset_name_var.get().strip()
+        if not preset_name:
+            status_label.config(text="⚠ Please enter a preset name", fg=AppTheme.WARNING)
+            return
+        
+        include_lunalib = include_lunalib_var.get()
+        starsector_path = None
+        
+        if include_lunalib:
+            # Get Starsector path from app
+            starsector_path = app.starsector_path.get()
+            if not starsector_path or not Path(starsector_path).exists():
+                status_label.config(
+                    text="⚠ Valid Starsector path required for LunaLib export",
+                    fg=AppTheme.WARNING
+                )
+                return
+        
+        # Export via ConfigManager
+        success, error_msg = app.config_manager.export_current_modlist_as_preset(
+            preset_name,
+            include_lunalib=include_lunalib,
+            starsector_path=starsector_path
+        )
+        
+        if success:
+            preset_path = presets_dir / preset_name
+            message = (
+                f"Preset '{preset_name}' created successfully!\n\n"
+                f"Location: {preset_path}/\n\n"
+                "The preset folder contains:\n"
+                "• modlist_config.json (your modlist)"
+            )
+            if include_lunalib:
+                message += "\n• LunaSettings/ (game settings)"
+            
+            showsuccess("Export Successful", message, parent=root)
+            app.log(f"✓ Exported preset: {preset_name}", info=True)
+            logger.info(f"Exported preset: {preset_name}")
+            dialog.destroy()
+        else:
+            status_label.config(text=f"✗ {error_msg}", fg=AppTheme.ERROR)
+            logger.error(f"Export preset failed: {error_msg}")
+    
+    def cancel():
+        logger.info("Export preset cancelled by user")
+        dialog.destroy()
+    
+    # Buttons
+    button_frame = tk.Frame(main_frame, bg=AppTheme.SURFACE)
+    button_frame.pack(fill=tk.X)
+    
+    # Import _create_button for consistent styling
+    import sys
+    import os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+    from gui.ui_builder import _create_button
+    
+    cancel_btn = _create_button(
+        button_frame,
+        "Cancel",
+        cancel,
+        width=10,
+        font_size=10,
+        button_type="secondary"
+    )
+    cancel_btn.pack(side=tk.RIGHT, padx=(5, 0))
+    
+    export_btn = _create_button(
+        button_frame,
+        "Export",
+        export_preset,
+        width=10,
+        font_size=10,
+        button_type="primary"
+    )
+    export_btn.pack(side=tk.RIGHT)
+    
+    # Bind Enter key
+    dialog.bind('<Return>', lambda e: export_preset())
+    dialog.bind('<Escape>', lambda e: cancel())
+
+
+def open_patch_lunalib_dialog(root, app):
+    """Open dialog to select a preset and patch LunaSettings.
+    
+    Args:
+        root: Parent Tk root window
+        app: ModlistInstaller instance with config_manager, starsector_path, and log method
+    """
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Check if Starsector path is set
+        starsector_path = app.starsector_path.get()
+        if not starsector_path or not Path(starsector_path).exists():
+            showerror(
+                "Starsector Path Required", 
+                "Please set a valid Starsector installation path before patching LunaSettings.",
+                parent=root
+            )
+            logger.warning("Patch LunaLib failed: no Starsector path set")
+            return
+        
+        # List available presets with LunaSettings
+        presets = app.config_manager.list_presets()
+        lunalib_presets = [(name, path) for name, path, has_lunalib in presets if has_lunalib]
+        
+        if not lunalib_presets:
+            showwarning(
+                "No LunaLib Presets",
+                "No presets with LunaSettings found.\n\n"
+                "Create a preset with LunaSettings first by exporting with the checkbox enabled.",
+                parent=root
+            )
+            logger.info("No LunaLib presets available")
+            return
+        
+        # Create selection dialog
+        dialog = _create_dialog(root, "Patch LunaSettings", 550, 400)
+        
+        main_frame = tk.Frame(dialog, bg=AppTheme.SURFACE)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # Title
+        tk.Label(
+            main_frame,
+            text="Select a preset to patch LunaSettings",
+            font=("Arial", 12, "bold"),
+            bg=AppTheme.SURFACE,
+            fg=AppTheme.TEXT_PRIMARY
+        ).pack(pady=(0, 10))
+        
+        # Description
+        desc_text = (
+            "This will copy the preset's LunaSettings files to your\\n"
+            "Starsector installation (saves/common/LunaSettings/).\\n\\n"
+            "\u2022 All preset files will overwrite existing settings"
+        )
+        tk.Label(
+            main_frame,
+            text=desc_text,
+            font=("Arial", 9),
+            bg=AppTheme.SURFACE,
+            fg=AppTheme.TEXT_SECONDARY,
+            justify=tk.LEFT
+        ).pack(pady=(0, 15))
+        
+        # Preset listbox
+        list_frame = tk.Frame(main_frame, bg=AppTheme.SURFACE)
+        list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+        
+        scrollbar = tk.Scrollbar(list_frame, bg=AppTheme.SURFACE)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        preset_listbox = tk.Listbox(
+            list_frame,
+            yscrollcommand=scrollbar.set,
+            height=10,
+            bg=AppTheme.SURFACE_DARK,
+            fg=AppTheme.TEXT_PRIMARY,
+            selectbackground=AppTheme.PRIMARY,
+            selectforeground=AppTheme.SURFACE_DARK,
+            relief=tk.FLAT,
+            highlightthickness=1,
+            highlightbackground=AppTheme.BORDER,
+            font=("Arial", 10)
+        )
+        preset_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=preset_listbox.yview)
+        
+        # Populate listbox
+        for name, path in lunalib_presets:
+            preset_listbox.insert(tk.END, name)
+        
+        # Select first preset by default
+        if lunalib_presets:
+            preset_listbox.selection_set(0)
+        
+        result = {'action': None, 'preset': None}
+        
+        def on_patch():
+            selection = preset_listbox.curselection()
+            if not selection:
+                showwarning("No Selection", "Please select a preset to patch.", parent=dialog)
+                return
+            
+            preset_name = lunalib_presets[selection[0]][0]
+            result['action'] = 'patch'
+            result['preset'] = preset_name
+            dialog.destroy()
+        
+        def on_cancel():
+            result['action'] = 'cancel'
+            dialog.destroy()
+        
+        # Buttons
+        button_frame = tk.Frame(main_frame, bg=AppTheme.SURFACE)
+        button_frame.pack(fill=tk.X)
+        
+        button_container = tk.Frame(button_frame, bg=AppTheme.SURFACE)
+        button_container.pack(anchor=tk.CENTER)
+        
+        _create_button(button_container, "Patch LunaLib", on_patch, width=14, button_type="success").pack(side=tk.LEFT, padx=5)
+        _create_button(button_container, "Cancel", on_cancel, width=12, button_type="secondary").pack(side=tk.LEFT, padx=5)
+        
+        # Keyboard bindings
+        dialog.bind("<Return>", lambda e: on_patch())
+        dialog.bind("<Escape>", lambda e: on_cancel())
+        preset_listbox.bind("<Double-Button-1>", lambda e: on_patch())
+        
+        _center_dialog(dialog, root)
+        dialog.wait_window()
+        
+        # Execute patch if user confirmed
+        if result['action'] == 'patch' and result['preset']:
+            preset_name = result['preset']
+            app.log(f"Patching LunaLib config from preset: {preset_name}", info=True)
+            
+            success, error_msg, backup_path = app.config_manager.patch_lunalib_config(
+                preset_name,
+                starsector_path
+            )
+            
+            if success:
+                message = (
+                    f"LunaLib config patched successfully from preset '{preset_name}'!\n\n"
+                    f"Target: {starsector_path}/saves/common/LunaSettings/"
+                )
+                
+                showsuccess("Patch Successful", message, parent=root)
+                app.log(f"✓ LunaSettings patched from preset: {preset_name}", success=True)
+                logger.info(f"LunaSettings patched: {preset_name}")
+            else:
+                showerror("Patch Failed", f"Failed to patch LunaSettings:\n\n{error_msg}", parent=root)
+                app.log(f"✗ LunaSettings patch failed: {error_msg}", error=True)
+                logger.error(f"LunaSettings patch failed: {error_msg}")
+    
+    except Exception as e:
+        error_msg = f"Unexpected error during LunaSettings patch: {e}"
+        showerror("Error", error_msg, parent=root)
+        app.log(f"✗ {error_msg}", error=True)
+        logger.exception("Patch LunaSettings dialog error")
+
+
 def show_google_drive_confirmation_dialog(parent, failed_mods, on_confirm_callback, on_cancel_callback):
     dialog = _create_dialog(parent, "Google Drive Confirmation Required")
     
-    main_frame = tk.Frame(dialog, bg=TriOSTheme.SURFACE)
+    main_frame = tk.Frame(dialog, bg=AppTheme.SURFACE)
     main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
     
-    gdrive_frame = tk.Frame(main_frame, bg=TriOSTheme.SURFACE)
+    gdrive_frame = tk.Frame(main_frame, bg=AppTheme.SURFACE)
     gdrive_frame.pack(fill=tk.X, pady=(0, 10))
     
     tk.Label(gdrive_frame, text=f"{len(failed_mods)} Google Drive mod(s) need confirmation to download:", 
-            font=("Arial", 10, "bold"), bg=TriOSTheme.SURFACE, fg=TriOSTheme.ERROR).pack(anchor=tk.W, pady=(0, 8))
+             font=("Arial", 10, "bold"), bg=AppTheme.SURFACE, fg=AppTheme.ERROR).pack(anchor=tk.W, pady=(0, 8))
     
     # List Google Drive mods
-    gdrive_list_frame = tk.Frame(gdrive_frame, bg=TriOSTheme.GDRIVE_BG)
+    gdrive_list_frame = tk.Frame(gdrive_frame, bg=AppTheme.GDRIVE_BG)
     gdrive_list_frame.pack(fill=tk.X, pady=(0, 10))
     
     gdrive_text = tk.Text(gdrive_list_frame, height=min(5, len(failed_mods)), width=60,
-                         font=("Courier", 9), wrap=tk.WORD, bg=TriOSTheme.GDRIVE_BG, fg=TriOSTheme.TEXT_PRIMARY, 
+                         font=("Courier", 9), wrap=tk.WORD, bg=AppTheme.GDRIVE_BG, fg=AppTheme.TEXT_PRIMARY, 
                          relief=tk.FLAT, highlightthickness=0, borderwidth=0)
     for mod in failed_mods:
         gdrive_text.insert(tk.END, f"  • {mod.get('name', 'Unknown')}\n")
@@ -1080,16 +1404,16 @@ def show_google_drive_confirmation_dialog(parent, failed_mods, on_confirm_callba
     gdrive_text.pack(padx=5, pady=5)
     
     # Warning message
-    warning_frame = tk.Frame(gdrive_frame, bg=TriOSTheme.SURFACE)
+    warning_frame = tk.Frame(gdrive_frame, bg=AppTheme.SURFACE)
     warning_frame.pack(fill=tk.X, pady=(0, 0))
     
     warning_text = tk.Label(warning_frame, 
         text=f"{LogSymbols.WARNING}  Google can't verify these files due to their size. Confirm only if from a trusted source.",
-        font=("Arial", 9), bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_SECONDARY, wraplength=500, justify=tk.LEFT)
+        font=("Arial", 9), bg=AppTheme.SURFACE, fg=AppTheme.TEXT_SECONDARY, wraplength=500, justify=tk.LEFT)
     warning_text.pack(anchor=tk.W)
     
     # Buttons frame
-    button_frame = tk.Frame(main_frame, bg=TriOSTheme.SURFACE)
+    button_frame = tk.Frame(main_frame, bg=AppTheme.SURFACE)
     button_frame.pack(fill=tk.X, pady=(20, 0))
     
     def on_confirm():
@@ -1109,7 +1433,7 @@ def show_google_drive_confirmation_dialog(parent, failed_mods, on_confirm_callba
         on_cancel_callback()
     
     # Center the buttons
-    button_container = tk.Frame(button_frame, bg=TriOSTheme.SURFACE)
+    button_container = tk.Frame(button_frame, bg=AppTheme.SURFACE)
     button_container.pack(anchor=tk.CENTER)
     
     _create_button(button_container, "Confirm Installation", on_confirm,
@@ -1123,266 +1447,6 @@ def show_google_drive_confirmation_dialog(parent, failed_mods, on_confirm_callba
     
     _center_dialog(dialog, parent)
     dialog.wait_window()
-
-
-def open_restore_backup_dialog(parent, app):
-    """Show enhanced dialog to restore a backup with detailed information.
-    
-    Args:
-        parent: Parent window
-        app: Main application instance
-    """
-    from datetime import datetime
-    from utils.backup_manager import BackupManager
-    import json
-    
-    starsector_dir = app.starsector_path.get()
-    if not starsector_dir:
-        showerror("Error", "Starsector path not set. Please configure it in settings.", parent)
-        return
-    
-    try:
-        backup_manager = BackupManager(starsector_dir)
-        backups = backup_manager.list_backups()
-        
-        if not backups:
-            showinfo("No Backups", "No backups found. Backups are created automatically before installation.", parent)
-            return
-        
-        # Create dialog with larger size for details panel
-        dialog = _create_dialog(parent, "Restore Backup", width=750, height=500)
-        
-        # Title
-        title_label = tk.Label(dialog, text="Select a backup to restore", font=("Arial", 13, "bold"), 
-                bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY)
-        title_label.pack(pady=(10, 5))
-        
-        # Main content frame (horizontal split)
-        content_frame = tk.Frame(dialog, bg=TriOSTheme.SURFACE)
-        content_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=10)
-        
-        # Left panel: Backup list
-        left_frame = tk.Frame(content_frame, bg=TriOSTheme.SURFACE)
-        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=False, padx=(0, 10))
-        
-        tk.Label(left_frame, text="Available Backups:", font=("Arial", 10, "bold"),
-                bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY).pack(anchor=tk.W, pady=(0, 5))
-        
-        list_frame = tk.Frame(left_frame, bg=TriOSTheme.SURFACE)
-        list_frame.pack(fill=tk.BOTH, expand=True)
-        
-        scrollbar = tk.Scrollbar(list_frame)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set, width=28,
-                            bg=TriOSTheme.SURFACE_DARK, fg=TriOSTheme.TEXT_PRIMARY,
-                            selectbackground=TriOSTheme.PRIMARY, selectforeground=TriOSTheme.SURFACE_DARK,
-                            font=("Courier", 10), activestyle='none')
-        listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.config(command=listbox.yview)
-        
-        # Right panel: Backup details
-        right_frame = tk.Frame(content_frame, bg=TriOSTheme.SURFACE_DARK, relief=tk.FLAT, bd=1)
-        right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
-        
-        # Details header
-        details_header = tk.Label(right_frame, text="Backup Details", font=("Arial", 11, "bold"),
-                                 bg=TriOSTheme.SURFACE_DARK, fg=TriOSTheme.PRIMARY, anchor=tk.W)
-        details_header.pack(fill=tk.X, padx=12, pady=(10, 8))
-        
-        # Details text widget with scrollbar
-        details_frame = tk.Frame(right_frame, bg=TriOSTheme.SURFACE_DARK)
-        details_frame.pack(fill=tk.BOTH, expand=True, padx=12, pady=(0, 10))
-        
-        details_scroll = tk.Scrollbar(details_frame)
-        details_scroll.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        details_text = tk.Text(details_frame, yscrollcommand=details_scroll.set, height=15,
-                              bg=TriOSTheme.SURFACE_DARK, fg=TriOSTheme.TEXT_PRIMARY,
-                              font=("Arial", 10), wrap=tk.WORD, relief=tk.FLAT, bd=0,
-                              cursor="arrow", state=tk.DISABLED)
-        details_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        details_scroll.config(command=details_text.yview)
-        
-        # Helper function to extract mod count from backup
-        def get_backup_details(backup_path):
-            """Extract detailed information from a backup."""
-            details = {}
-            
-            # Read enabled_mods.json
-            enabled_mods_file = backup_path / "enabled_mods.json"
-            if enabled_mods_file.exists():
-                try:
-                    with open(enabled_mods_file, 'r', encoding='utf-8') as f:
-                        enabled_data = json.load(f)
-                        details['mod_count'] = len(enabled_data.get('enabledMods', []))
-                        details['enabled_mods'] = enabled_data.get('enabledMods', [])
-                except:
-                    details['mod_count'] = 'Unknown'
-                    details['enabled_mods'] = []
-            else:
-                details['mod_count'] = 'Unknown'
-                details['enabled_mods'] = []
-            
-            return details
-        
-        # Populate backup list
-        for backup_path, metadata in backups:
-            timestamp = metadata.get('timestamp', 'Unknown')
-            try:
-                dt = datetime.strptime(timestamp, "%Y%m%d_%H%M%S")
-                formatted = dt.strftime("%Y-%m-%d %H:%M")
-            except:
-                formatted = timestamp
-            listbox.insert(tk.END, formatted)
-        
-        # Update details panel when selection changes
-        def on_select(event):
-            selection = listbox.curselection()
-            if not selection:
-                return
-            
-            idx = selection[0]
-            backup_path, metadata = backups[idx]
-            timestamp = metadata.get('timestamp', 'Unknown')
-            
-            # Get additional details
-            backup_details = get_backup_details(backup_path)
-            
-            # Format timestamp nicely
-            try:
-                dt = datetime.strptime(timestamp, "%Y%m%d_%H%M%S")
-                formatted_date = dt.strftime("%A, %B %d, %Y")
-                formatted_time = dt.strftime("%I:%M:%S %p")
-            except:
-                formatted_date = timestamp
-                formatted_time = ""
-            
-            # Build details text
-            details_str = f"📅 Date: {formatted_date}\n"
-            if formatted_time:
-                details_str += f"🕐 Time: {formatted_time}\n"
-            details_str += f"\n📊 Number of Mods: {backup_details['mod_count']}\n"
-            
-            # Show first few mods if available
-            if backup_details['enabled_mods'] and isinstance(backup_details['mod_count'], int):
-                details_str += f"\n📦 Enabled Mods:\n"
-                max_show = min(15, len(backup_details['enabled_mods']))
-                for i, mod_id in enumerate(backup_details['enabled_mods'][:max_show]):
-                    details_str += f"  • {mod_id}\n"
-                
-                if len(backup_details['enabled_mods']) > max_show:
-                    remaining = len(backup_details['enabled_mods']) - max_show
-                    details_str += f"  ... and {remaining} more mod(s)\n"
-            
-            # Update details panel
-            details_text.config(state=tk.NORMAL)
-            details_text.delete("1.0", tk.END)
-            details_text.insert("1.0", details_str)
-            details_text.config(state=tk.DISABLED)
-        
-        listbox.bind('<<ListboxSelect>>', on_select)
-        
-        # Select first backup by default
-        if backups:
-            listbox.selection_set(0)
-            listbox.event_generate('<<ListboxSelect>>')
-        
-        def on_restore():
-            selection = listbox.curselection()
-            if not selection:
-                showwarning("No Selection", "Please select a backup to restore.", parent)
-                return
-            
-            idx = selection[0]
-            backup_path, metadata = backups[idx]
-            timestamp = metadata.get('timestamp', 'Unknown')
-            
-            # Format timestamp for confirmation
-            try:
-                dt = datetime.strptime(timestamp, "%Y%m%d_%H%M%S")
-                formatted = dt.strftime("%Y-%m-%d at %H:%M:%S")
-            except:
-                formatted = timestamp
-            
-            # Confirm restore
-            if not askyesno("Confirm Restore", 
-                          f"Restore backup from {formatted}?\n\n" +
-                          "This will replace your current enabled_mods.json file.\n" +
-                          "A backup of the current state will be created automatically.", parent):
-                return
-            
-            # Use the safe restore function from app
-            success, error = app.restore_backup_safely(backup_path, formatted)
-            
-            if success:
-                showsuccess("Success", "Backup restored successfully!\n\nYour mod configuration has been restored.", parent)
-                dialog.destroy()
-            else:
-                showerror("Restore Failed", f"Failed to restore backup:\n{error}", parent)
-        
-        def on_delete():
-            selection = listbox.curselection()
-            if not selection:
-                showwarning("No Selection", "Please select a backup to delete.", parent)
-                return
-            
-            idx = selection[0]
-            backup_path, metadata = backups[idx]
-            timestamp = metadata.get('timestamp', 'Unknown')
-            
-            # Format timestamp for confirmation
-            try:
-                dt = datetime.strptime(timestamp, "%Y%m%d_%H%M%S")
-                formatted = dt.strftime("%Y-%m-%d at %H:%M:%S")
-            except:
-                formatted = timestamp
-            
-            if not askyesno("Confirm Delete", 
-                          f"Delete backup from {formatted}?\n\n" +
-                          "This action cannot be undone.", parent):
-                return
-            
-            success, error = backup_manager.delete_backup(backup_path)
-            if success:
-                app.log(f"{LogSymbols.SUCCESS} Deleted backup: {formatted}")
-                listbox.delete(idx)
-                backups.pop(idx)
-                
-                # Clear details panel
-                details_text.config(state=tk.NORMAL)
-                details_text.delete("1.0", tk.END)
-                details_text.config(state=tk.DISABLED)
-                
-                # Select next or previous backup
-                if backups:
-                    new_idx = min(idx, len(backups) - 1)
-                    listbox.selection_set(new_idx)
-                    listbox.event_generate('<<ListboxSelect>>')
-                else:
-                    showinfo("No Backups", "All backups deleted.", parent)
-                    dialog.destroy()
-            else:
-                showerror("Delete Failed", f"Failed to delete backup:\n{error}", parent)
-        
-        # Buttons frame
-        btn_frame = tk.Frame(dialog, bg=TriOSTheme.SURFACE)
-        btn_frame.pack(pady=(5, 15))
-        
-        restore_btn = _create_button(btn_frame, "Restore Backup", on_restore, width=16, button_type="success")
-        restore_btn.pack(side=tk.LEFT, padx=5)
-        
-        delete_btn = _create_button(btn_frame, "Delete Backup", on_delete, width=16, button_type="danger")
-        delete_btn.pack(side=tk.LEFT, padx=5)
-        
-        cancel_btn = _create_button(btn_frame, "Cancel", dialog.destroy, width=12, button_type="secondary")
-        cancel_btn.pack(side=tk.LEFT, padx=5)
-        
-        _center_dialog(dialog, parent)
-        
-    except Exception as e:
-        app.log(f"{LogSymbols.ERROR} Error accessing backups: {e}", error=True)
-        showerror("Error", f"Failed to access backups:\n{e}", parent)
 
 
 def open_edit_modlist_metadata_dialog(parent, app):
@@ -1400,10 +1464,10 @@ def open_edit_modlist_metadata_dialog(parent, app):
     
     # Title
     tk.Label(dialog, text="Modlist Metadata", font=("Arial", 14, "bold"),
-            bg=TriOSTheme.SURFACE, fg=TriOSTheme.PRIMARY).pack(pady=(15, 20))
+             bg=AppTheme.SURFACE, fg=AppTheme.PRIMARY).pack(pady=(15, 20))
     
     # Form frame
-    form_frame = tk.Frame(dialog, bg=TriOSTheme.SURFACE)
+    form_frame = tk.Frame(dialog, bg=AppTheme.SURFACE)
     form_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 15))
     
     # Fields
@@ -1417,12 +1481,12 @@ def open_edit_modlist_metadata_dialog(parent, app):
     entries = {}
     for i, (label_text, key, value) in enumerate(fields):
         tk.Label(form_frame, text=label_text, font=("Arial", 10),
-                bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY,
+            bg=AppTheme.SURFACE, fg=AppTheme.TEXT_PRIMARY,
                 anchor=tk.W).grid(row=i, column=0, sticky="w", pady=5)
         
         entry = tk.Entry(form_frame, font=("Arial", 10),
-                       bg=TriOSTheme.SURFACE_DARK, fg=TriOSTheme.TEXT_PRIMARY,
-                       insertbackground=TriOSTheme.PRIMARY)
+                   bg=AppTheme.SURFACE_DARK, fg=AppTheme.TEXT_PRIMARY,
+                   insertbackground=AppTheme.PRIMARY)
         entry.insert(0, value)
         entry.grid(row=i, column=1, sticky="ew", pady=5, padx=(10, 0))
         entries[key] = entry
@@ -1431,18 +1495,18 @@ def open_edit_modlist_metadata_dialog(parent, app):
     
     # Description field (multi-line)
     tk.Label(form_frame, text="Description:", font=("Arial", 10),
-            bg=TriOSTheme.SURFACE, fg=TriOSTheme.TEXT_PRIMARY,
-            anchor=tk.W).grid(row=len(fields), column=0, sticky="nw", pady=5)
+             bg=AppTheme.SURFACE, fg=AppTheme.TEXT_PRIMARY,
+             anchor=tk.W).grid(row=len(fields), column=0, sticky="nw", pady=5)
     
     desc_text = tk.Text(form_frame, font=("Arial", 10), height=6,
-                      bg=TriOSTheme.SURFACE_DARK, fg=TriOSTheme.TEXT_PRIMARY,
-                      insertbackground=TriOSTheme.PRIMARY, wrap=tk.WORD)
+                      bg=AppTheme.SURFACE_DARK, fg=AppTheme.TEXT_PRIMARY,
+                      insertbackground=AppTheme.PRIMARY, wrap=tk.WORD)
     desc_text.insert("1.0", app.modlist_data.get("description", ""))
     desc_text.grid(row=len(fields), column=1, sticky="ew", pady=5, padx=(10, 0))
     entries['description'] = desc_text
     
     # Buttons
-    button_frame = tk.Frame(dialog, bg=TriOSTheme.SURFACE)
+    button_frame = tk.Frame(dialog, bg=AppTheme.SURFACE)
     button_frame.pack(fill=tk.X, padx=20, pady=(0, 15))
     
     def save_metadata():
