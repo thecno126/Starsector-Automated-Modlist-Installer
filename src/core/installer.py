@@ -28,7 +28,7 @@ from utils.mod_utils import (
     read_mod_info_from_archive
 )
 from utils.error_messages import suggest_fix_for_error, get_user_friendly_error
-from utils.network_utils import retry_with_backoff
+from utils.network_utils import retry_with_backoff, fix_google_drive_url
 
 
 class ModInstaller:
@@ -100,16 +100,46 @@ class ModInstaller:
         
         def attempt_download():
             nonlocal temp_path
-            response = requests.get(mod['download_url'], stream=True, timeout=REQUEST_TIMEOUT)
+            url_to_use = mod['download_url']
+            response = requests.get(url_to_use, stream=True, timeout=REQUEST_TIMEOUT)
             response.raise_for_status()
             
-            url_lower = mod['download_url'].lower()
+            url_lower = url_to_use.lower()
             content_type = response.headers.get('Content-Type', '').lower()
             content_disposition = response.headers.get('Content-Disposition', '').lower()
             
+            # If Google Drive returns HTML, try to convert to a direct download URL once
             if not skip_gdrive_check and ('drive.google.com' in url_lower or 'drive.usercontent.google.com' in url_lower):
                 if 'text/html' in content_type:
-                    return DownloadResult('GDRIVE_HTML', False)
+                    # Read a small chunk of the HTML to check for virus scan message
+                    html_snippet = b''
+                    try:
+                        html_snippet = next(response.iter_content(chunk_size=4096))
+                    except Exception:
+                        pass
+                    html_text = html_snippet.decode(errors='ignore').lower()
+                    is_virus_scan = (
+                        'scan this file for viruses' in html_text or
+                        'too large for google to scan' in html_text or
+                        'google drive can’t scan this file' in html_text or
+                        'google drive can\'t scan this file' in html_text
+                    )
+                    fixed_url = fix_google_drive_url(url_to_use)
+                    if fixed_url and fixed_url != url_to_use:
+                        if is_virus_scan:
+                            self.log(f"  [fix] Google Drive virus scan bypassed: Download URL fixed for {mod.get('name', 'Unknown')}", info=True)
+                        else:
+                            self.log(f"  [fix] Google Drive: Download URL fixed for {mod.get('name', 'Unknown')}", info=True)
+                        # Retry immediately with fixed direct download URL
+                        url_to_use = fixed_url
+                        response = requests.get(url_to_use, stream=True, timeout=REQUEST_TIMEOUT)
+                        response.raise_for_status()
+                        url_lower = url_to_use.lower()
+                        content_type = response.headers.get('Content-Type', '').lower()
+                        content_disposition = response.headers.get('Content-Disposition', '').lower()
+                    # If still HTML after fix, signal for manual confirmation
+                    if 'text/html' in content_type:
+                        return DownloadResult('GDRIVE_HTML', False)
             
             is_7z = '.7z' in url_lower or '7z' in content_type or '.7z' in content_disposition
             temp_fd, temp_path = tempfile.mkstemp(suffix='.7z' if is_7z else '.zip', prefix='modlist_')

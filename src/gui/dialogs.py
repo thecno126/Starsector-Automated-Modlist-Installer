@@ -255,8 +255,8 @@ def show_validation_report(parent, github_mods, gdrive_mods, mediafire_mods, oth
         
         # Info about large files
         info_text = tk.Label(gdrive_frame, 
-            text="Large files bypass Google's virus scan and may need a second confirmation to download.",
-            font=("Arial", 9, "italic"), bg=AppTheme.SURFACE, fg=AppTheme.OTHER_FG, wraplength=450, justify=tk.LEFT)
+            text="Some Google Drive links are not direct downloads and may require an additional action. The app will attempt to auto-fix them.",
+            font=("Arial", 9, "italic"), bg=AppTheme.SURFACE, fg=AppTheme.TEXT_PRIMARY, wraplength=450, justify=tk.LEFT)
         info_text.pack(anchor=tk.W, padx=(20, 0), pady=(2, 0))
         
         # List Google Drive mods
@@ -267,7 +267,19 @@ def show_validation_report(parent, github_mods, gdrive_mods, mediafire_mods, oth
                      font=("Courier", 9), wrap=tk.WORD, bg=AppTheme.GDRIVE_BG, fg=AppTheme.TEXT_PRIMARY, 
                              relief=tk.FLAT, highlightthickness=0, borderwidth=0)
         for mod in gdrive_mods:
-            gdrive_text.insert(tk.END, f"  • {mod.get('name', 'Unknown')}\n")
+            name = mod.get('name', 'Unknown')
+            url = mod.get('download_url', '')
+            # Heuristic: mark as 'may need fix' only if not already a direct download
+            # - Not usercontent
+            # - Not confirm=t
+            # - Not export=download with id
+            is_gdrive = 'drive.google.com' in url
+            is_usercontent = 'drive.usercontent.google.com' in url
+            has_confirm = 'confirm=t' in url
+            has_export_id = 'export=download' in url and 'id=' in url
+            needs_fix = is_gdrive and not (is_usercontent or has_confirm or has_export_id)
+            suffix = " [may need fix]" if needs_fix else ""
+            gdrive_text.insert(tk.END, f"  • {name}{suffix}\n")
         gdrive_text.config(state=tk.DISABLED)
         gdrive_text.pack(padx=5, pady=5)
     
@@ -478,7 +490,9 @@ def open_add_mod_dialog(parent, app):
                     mod = {
                         "mod_id": metadata.get('id'),
                         "name": metadata.get('name', metadata.get('id')),
-                        "download_url": final_url,
+                        # Important: keep the original URL so the user can review it,
+                        # even if we had to use a fixed URL to retrieve metadata.
+                        "download_url": url,
                         "mod_version": metadata.get('version', ''),
                         "game_version": metadata.get('gameVersion', ''),
                         "category": category_var.get().strip() or "Uncategorized"
@@ -514,20 +528,20 @@ def open_add_mod_dialog(parent, app):
                 result = app.mod_installer.download_archive({'download_url': url, 'name': 'temp'})
                 temp_file, is_7z = result.temp_path, result.is_7z
                 
-                # Handle Google Drive HTML response (virus scan warning)
+                # Handle Google Drive HTML response (non-direct link)
                 if temp_file == 'GDRIVE_HTML':
                     def show_gdrive_dialog():
                         status_var.set("")
                         result = askyesno(
                             "Google Drive Confirmation Required",
-                            "This file is too large for Google's virus scan.\n\n"
-                            "Google Drive requires manual confirmation to download large files.\n"
-                            "The download URL will be automatically fixed to bypass this warning.\n\n"
+                            "This Google Drive link is not a direct download.\n\n"
+                            "Manual confirmation may be required to start the download.\n"
+                            "The URL will be automatically converted to a direct download link.\n\n"
                             "Do you want to continue?"
                         )
                         
                         if result:
-                            # Fix the URL to bypass virus scan and retry
+                            # Fix the URL to direct download and retry
                             fixed_url = fix_google_drive_url(url)
                             download_retry_async(fixed_url)
                         else:
@@ -1408,7 +1422,7 @@ def show_google_drive_confirmation_dialog(parent, failed_mods, on_confirm_callba
     warning_frame.pack(fill=tk.X, pady=(0, 0))
     
     warning_text = tk.Label(warning_frame, 
-        text=f"{LogSymbols.WARNING}  Google can't verify these files due to their size. Confirm only if from a trusted source.",
+        text=f"{LogSymbols.WARNING}  These Google Drive links might not be direct downloads and may require manual confirmation. Proceed only if the source is trusted.",
         font=("Arial", 9), bg=AppTheme.SURFACE, fg=AppTheme.TEXT_SECONDARY, wraplength=500, justify=tk.LEFT)
     warning_text.pack(anchor=tk.W)
     

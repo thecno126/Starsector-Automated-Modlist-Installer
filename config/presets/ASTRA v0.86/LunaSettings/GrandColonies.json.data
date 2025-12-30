@@ -1,0 +1,7 @@
+{
+   "GrandColonies_AddPenalty": true,
+   "GrandColonies_LegacyMode": false,
+   "GrandColonies_PenaltyThreshold": 12,
+   "GrandColonies_TogglePageButton": "q",
+   "GrandColonies_UpkeepPenaltyPerBuilding": 1.1
+}

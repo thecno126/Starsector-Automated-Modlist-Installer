@@ -2,6 +2,7 @@ import requests
 import time
 import concurrent.futures
 from urllib.parse import urlparse
+import re
 
 
 def retry_with_backoff(func, max_retries=3, delay=1, backoff=2, 
@@ -145,3 +146,28 @@ def validate_mod_urls(mods, progress_callback=None, timeout=3, max_workers=10):
                         })
     
     return results
+
+
+def fix_google_drive_url(url: str) -> str:
+    """Convert Google Drive view/share URLs into direct download URLs.
+
+    Supports formats like:
+    - https://drive.google.com/file/d/<ID>/view?usp=sharing
+    - https://drive.google.com/uc?id=<ID>&export=download
+
+    Returns the original URL if no Google Drive file ID can be found.
+    """
+    if not url or 'drive.google.com' not in url:
+        return url
+
+    # Try to extract file ID from /d/<ID>/ or id=<ID>
+    file_id_match = re.search(r"/d/([a-zA-Z0-9_-]+)", url)
+    if not file_id_match:
+        file_id_match = re.search(r"[?&]id=([a-zA-Z0-9_-]+)", url)
+
+    if file_id_match:
+        file_id = file_id_match.group(1)
+        # Construct direct download via usercontent domain
+        return f"https://drive.usercontent.google.com/download?id={file_id}&export=download&confirm=t"
+
+    return url

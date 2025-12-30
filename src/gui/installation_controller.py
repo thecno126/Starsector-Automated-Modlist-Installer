@@ -51,7 +51,7 @@ class InstallationController:
                     result = future.result()
                     if result.temp_path == 'GDRIVE_HTML':
                         gdrive_failed.append(mod)
-                        self.window.log(f"  {LogSymbols.WARNING}  Google Drive returned HTML (virus scan warning): {mod.get('name')}", error=True)
+                        self.window.log(f"  {LogSymbols.WARNING}  Google Drive returned HTML (non-direct link): {mod.get('name')}", error=True)
                     elif result.temp_path:
                         download_results.append((mod, result.temp_path, result.is_7z))
                         self.window.downloaded_temp_files.append(result.temp_path)

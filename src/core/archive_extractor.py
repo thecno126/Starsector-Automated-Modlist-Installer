@@ -17,6 +17,8 @@ from utils.mod_utils import (
 from utils.error_messages import suggest_fix_for_error, get_user_friendly_error
 
 
+import os
+
 class ArchiveExtractor:
     
     def __init__(self, log_callback):
@@ -42,13 +44,14 @@ class ArchiveExtractor:
                 self.log(f"  {LogSymbols.ERROR} Extraction error: {e}", error=True)
             return False
         except Exception as e:
+            import traceback, sys
+            tb = traceback.format_exc()
             error_type = suggest_fix_for_error(e)
+            self.log(f"  {LogSymbols.ERROR} Extraction error: {type(e).__name__}: {e}", error=True)
+            self.log(f"  [debug] Traceback:\n{tb}", error=True)
             if error_type:
-                self.log(f"  {LogSymbols.ERROR} Extraction failed: {type(e).__name__}", error=True)
                 friendly_msg = get_user_friendly_error(error_type)
                 self.log(f"\n{friendly_msg}", error=True)
-            else:
-                self.log(f"  {LogSymbols.ERROR} Extraction error: {e}", error=True)
             return False
     
     def _extract_7z(self, temp_file, mods_dir, expected_mod_version=None):
@@ -82,6 +85,8 @@ class ArchiveExtractor:
 
                 self.log("  Extracting...")
                 archive.extractall(path=mods_dir)
+                # Clean up macOS metadata after extraction
+                self._cleanup_macos_metadata(mods_dir)
                 return True
                 
         except py7zr.Bad7zFile:
@@ -124,6 +129,31 @@ class ArchiveExtractor:
 
             self.log("  Extracting...")
             zip_ref.extractall(mods_dir)
+            # Clean up macOS metadata after extraction
+            self._cleanup_macos_metadata(mods_dir)
+            return True
+
+    def _cleanup_macos_metadata(self, mods_dir):
+        """Remove __MACOSX, .DS_Store, and AppleDouble (._*) files from mods_dir recursively."""
+        import fnmatch
+        # Remove __MACOSX folder
+        macosx_dir = mods_dir / "__MACOSX"
+        if macosx_dir.exists() and macosx_dir.is_dir():
+            try:
+                shutil.rmtree(macosx_dir)
+                self.log("  Cleaned up __MACOSX metadata folder after extraction", info=True)
+            except Exception as e:
+                self.log(f"  {LogSymbols.WARNING} Could not remove __MACOSX: {e}", info=True)
+        # Remove .DS_Store and ._*
+        for root, dirs, files in os.walk(mods_dir):
+            for fname in files:
+                if fname == ".DS_Store" or fnmatch.fnmatch(fname, "._*"):
+                    fpath = Path(root) / fname
+                    try:
+                        fpath.unlink()
+                        self.log(f"  Removed macOS metadata file: {fpath}", info=True)
+                    except Exception as e:
+                        self.log(f"  {LogSymbols.WARNING} Could not remove {fpath}: {e}", info=True)
             return True
     
     def _check_if_installed(self, archive_ref, members, mods_dir, is_7z=False, expected_mod_version=None):
@@ -133,10 +163,19 @@ class ArchiveExtractor:
 
         # Early return: archive has multiple files at root level
         if len(top_level) != 1:
+            # Ignore common macOS metadata entries when checking overlaps
+            IGNORE_TOP_LEVEL = {"__MACOSX"}
             for member in members:
+                parts = Path(member).parts
+                if not parts:
+                    continue
+                top = parts[0]
+                if top in IGNORE_TOP_LEVEL or top.startswith("._"):
+                    continue
                 if (mods_dir / Path(member)).exists():
-                    self.log(f"  {LogSymbols.INFO} Skipped: Installation would overlap existing files", info=True)
+                    self.log(f"  {LogSymbols.INFO} Skipped: Installation would overlap existing files (conflict: {member})", info=True)
                     return 'skipped'
+            # No overlaps detected among meaningful entries; proceed with extraction
             return False
         
         # Archive has a single root folder

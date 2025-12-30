@@ -484,7 +484,7 @@ def create_enable_mods_section(main_frame, enable_mods_callback, patch_lunalib_c
     # Lunalib Patch button (right side) if callback provided
     patch_lunalib_btn = None
     if patch_lunalib_callback:
-        patch_lunalib_btn = _create_button(button_container, "Lunalib Patch", patch_lunalib_callback, height=1, button_type="pastel_purple")
+        patch_lunalib_btn = _create_button(button_container, "Apply Lunalib Patch", patch_lunalib_callback, height=1, button_type="pastel_purple")
         patch_lunalib_btn.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(10, 0))
         ToolTip(patch_lunalib_btn, "Patch LunaSettings from preset")
     
