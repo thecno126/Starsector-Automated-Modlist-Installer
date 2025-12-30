@@ -1150,10 +1150,22 @@ def open_export_preset_dialog(root, app):
         if not preset_name:
             status_label.config(text="⚠ Please enter a preset name", fg=AppTheme.WARNING)
             return
-        
+
         include_lunalib = include_lunalib_var.get()
         starsector_path = None
-        
+
+        from pathlib import Path
+        preset_path = presets_dir / preset_name
+        if preset_path.exists():
+            # Ask for confirmation before overwriting
+            if not askyesno(
+                "Overwrite Preset?",
+                f"Preset '{preset_name}' already exists. Overwrite?",
+                parent=dialog
+            ):
+                status_label.config(text=f"✗ Export cancelled (preset exists)", fg=AppTheme.WARNING)
+                return
+
         if include_lunalib:
             # Get Starsector path from app
             starsector_path = app.starsector_path.get()
@@ -1163,16 +1175,16 @@ def open_export_preset_dialog(root, app):
                     fg=AppTheme.WARNING
                 )
                 return
-        
+
         # Export via ConfigManager
         success, error_msg = app.config_manager.export_current_modlist_as_preset(
             preset_name,
             include_lunalib=include_lunalib,
-            starsector_path=starsector_path
+            starsector_path=starsector_path,
+            overwrite=True if preset_path.exists() else False
         )
-        
+
         if success:
-            preset_path = presets_dir / preset_name
             message = (
                 f"Preset '{preset_name}' created successfully!\n\n"
                 f"Location: {preset_path}/\n\n"
@@ -1181,7 +1193,7 @@ def open_export_preset_dialog(root, app):
             )
             if include_lunalib:
                 message += "\n• LunaSettings/ (game settings)"
-            
+
             showsuccess("Export Successful", message, parent=root)
             app.log(f"✓ Exported preset: {preset_name}", info=True)
             logger.info(f"Exported preset: {preset_name}")

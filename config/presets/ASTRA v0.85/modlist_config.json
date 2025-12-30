@@ -6,22 +6,6 @@
   "author": "thecno126",
   "mods": [
     {
-      "mod_id": "sun_nomadic_survival",
-      "name": "Nomadic Survival",
-      "download_url": "https://github.com/NateNBJ/NomadicSurvival/releases/latest/download/Nomadic.Survival.zip",
-      "mod_version": "1.5.0",
-      "game_version": "0.98a-RC7",
-      "category": "Gameplay"
-    },
-    {
-      "mod_id": "GrandColonies",
-      "name": "Grand.Colonies",
-      "download_url": "https://github.com/SirHartley/Grand.Colonies/releases/download/2.1.b/Grand.Colonies2.1.b.zip",
-      "mod_version": "2.1.b",
-      "game_version": "0.98a",
-      "category": "Gameplay"
-    },
-    {
       "mod_id": "shaderLib",
       "name": "GraphicsLib",
       "download_url": "https://bitbucket.org/DarkRevenant/graphicslib/downloads/GraphicsLib_1.12.1.7z",
@@ -64,7 +48,7 @@
     {
       "mod_id": "sidebarLib",
       "name": "sidebarLib",
-      "download_url": "https://download1321.mediafire.com/4leca9o6onxg3QWkkUMov8JBhxkTgGFfIOT5GgfncHCzl71Hc7g2hjxk8IBareGEC9z-LfwxVJTTaw8F80Zv3YVcaffsx1v5hwQfn8u695HuZCzTj7UMH_2zMzifYD33-k-Izmc-SrM97A7ol-NG7At12EwYVfJjmrp8Wx_cF6X4/cqq1zipsp97c8ro/sidebarLib-20250802.zip",
+      "download_url": "https://download2294.mediafire.com/aw0wj5vzjfsgZj69hlJeeqtrns7rZClKujT17TW-ls7sYdlBmMlvXkLEnyFGTUQWvdyuqKWzDR-ZcYBt7nr94xoso4iCaPVsiTkiU_0-aHbo2tOrCvF4xnqIqCKYC4Bh0qE5v0CSpGM_wz33UHAllONOUqRpoB8r2ZDeMQxcGt70ZQ/cqq1zipsp97c8ro/sidebarLib-20250802.zip",
       "mod_version": "20250802",
       "game_version": "0.98a",
       "category": "Libs"
@@ -86,12 +70,28 @@
       "category": "Megamods"
     },
     {
-      "mod_id": "memeportraits",
-      "name": "Meme portraits",
-      "download_url": "https://drive.google.com/uc?export=download&id=1W04kNVKEnZZDghE8jE9Yr6RJXXb_kBsq",
-      "mod_version": "1.06",
-      "game_version": "0.95a-RC15",
-      "category": "Bonuses"
+      "mod_id": "sun_nomadic_survival",
+      "name": "Nomadic Survival",
+      "download_url": "https://github.com/NateNBJ/NomadicSurvival/releases/latest/download/Nomadic.Survival.zip",
+      "mod_version": "1.5.0",
+      "game_version": "0.98a-RC7",
+      "category": "Gameplay"
+    },
+    {
+      "mod_id": "GrandColonies",
+      "name": "Grand.Colonies",
+      "download_url": "https://github.com/SirHartley/Grand.Colonies/releases/download/2.1.b/Grand.Colonies2.1.b.zip",
+      "mod_version": "2.1.b",
+      "game_version": "0.98a",
+      "category": "Gameplay"
+    },
+    {
+      "mod_id": "RetrofittedBridge",
+      "name": "Retrofitted Bridge",
+      "download_url": "https://drive.google.com/uc?export=download&id=1fBQWSGIVPeJRNR5ajxYzbxsfb6V91wMY",
+      "mod_version": "0.0.4",
+      "game_version": "0.98a-RC5",
+      "category": "Gameplay"
     },
     {
       "mod_id": "timid_xiv",
@@ -99,14 +99,6 @@
       "download_url": "https://github.com/TechpriestEnginseer/solid-winner4/releases/download/1.1813aj/Iron.Shell.zip",
       "mod_version": "1.18.3aj",
       "game_version": "0.97a-RC10",
-      "category": "Factions"
-    },
-    {
-      "mod_id": "PAGSM",
-      "name": "Phillip Andrada: Gas Station Manager",
-      "download_url": "https://drive.google.com/uc?export=download&id=1FDZoF81T14cAx3_feXBBqXuBFTFOGd1y",
-      "mod_version": "1.14.1aa",
-      "game_version": "0.98a-RC7",
       "category": "Factions"
     },
     {
@@ -118,12 +110,36 @@
       "category": "Factions"
     },
     {
+      "mod_id": "PAGSM",
+      "name": "Phillip Andrada: Gas Station Manager",
+      "download_url": "https://drive.google.com/uc?export=download&id=1FDZoF81T14cAx3_feXBBqXuBFTFOGd1y",
+      "mod_version": "1.14.1aa",
+      "game_version": "0.98a-RC7",
+      "category": "Factions"
+    },
+    {
       "mod_id": "roider",
       "name": "Roider Union",
       "download_url": "https://github.com/SafariJohn/Roider-Union/raw/refs/heads/main/Roider%20Union%202.2.6.zip",
       "mod_version": "2.2.6",
       "game_version": "0.98a-RC8",
       "category": "Factions"
+    },
+    {
+      "mod_id": "thorough_system_scan",
+      "name": "Thorough System Scan",
+      "download_url": "https://github.com/SaltyKarl/Thorough-System-Scan/archive/refs/heads/EN.zip",
+      "mod_version": "1.2.3.1",
+      "game_version": "0.98a",
+      "category": "QoL"
+    },
+    {
+      "mod_id": "memeportraits",
+      "name": "Meme portraits",
+      "download_url": "https://drive.google.com/uc?export=download&id=1W04kNVKEnZZDghE8jE9Yr6RJXXb_kBsq",
+      "mod_version": "1.06",
+      "game_version": "0.95a-RC15",
+      "category": "Bonuses"
     },
     {
       "mod_id": "zer0morphswavingbanners",
@@ -134,14 +150,6 @@
       "category": "Bonuses"
     },
     {
-      "mod_id": "RetrofittedBridge",
-      "name": "Retrofitted Bridge",
-      "download_url": "https://drive.google.com/uc?export=download&id=1fBQWSGIVPeJRNR5ajxYzbxsfb6V91wMY",
-      "mod_version": "0.0.4",
-      "game_version": "0.98a-RC5",
-      "category": "Gameplay"
-    },
-    {
       "mod_id": "wisp_magicAchievementsVanillaPack",
       "name": "Magic Achievements: Vanilla Pack",
       "download_url": "https://github.com/MagicLibStarsector/MagicAchievementsVanillaPack/releases/latest/download/MagicAchievementsVanillaPack.zip",
@@ -150,12 +158,12 @@
       "category": "Bonuses"
     },
     {
-      "mod_id": "systemRescan",
-      "name": "system rescan",
-      "download_url": "https://download1501.mediafire.com/3hx3s6hj82ugx-5JDK9L7rbHotry94bf66nWFgueAqg5M6qZFrc39pCTYXe8-199Lg0LoFJOLv6LSpgWrh2MmlWWpgX2B4nL3p1fXXpimO50txSWBYywv-zRkUcsw1eIRwi8OnyfK1nGkipWL9UyKE2Fa5VgxR52UGK2udkZZ9kDuw/qgvgn1onjy2mfka/systemRescan-20250502.zip",
-      "mod_version": "20250502",
-      "game_version": "0.98a",
-      "category": "QoL"
+      "mod_id": "NuclearWeapons",
+      "name": "Nuclear Weapons",
+      "download_url": "https://drive.google.com/file/d/1SzU0lAV6_9qC8t2V0eQE5abYY72rlLPe/view?usp=sharing",
+      "mod_version": "0.2",
+      "game_version": "0.98a-RC8",
+      "category": "Uncategorized"
     }
   ]
 }

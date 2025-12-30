@@ -286,13 +286,14 @@ class ConfigManager:
             self._log(error_msg, error=True)
             return (False, error_msg)
     
-    def export_current_modlist_as_preset(self, preset_name, include_lunalib=False, starsector_path=None):
+    def export_current_modlist_as_preset(self, preset_name, include_lunalib=False, starsector_path=None, overwrite=False):
         """Export the current modlist_config.json as a new preset.
         
         Args:
             preset_name: Name for the new preset
             include_lunalib: Whether to include current LunaSettings folder from Starsector
             starsector_path: Path to Starsector installation (required if include_lunalib=True)
+            overwrite: If True, overwrite existing preset
             
         Returns:
             tuple: (success: bool, error_message: str or None)
@@ -307,7 +308,14 @@ class ConfigManager:
             # Check if preset already exists
             preset_path = self.presets_dir / preset_name
             if preset_path.exists():
-                return (False, f"Preset '{preset_name}' already exists")
+                if not overwrite:
+                    return (False, f"Preset '{preset_name}' already exists")
+                # Remove existing preset directory before overwriting
+                import shutil
+                try:
+                    shutil.rmtree(preset_path)
+                except Exception as e:
+                    return (False, f"Failed to remove existing preset: {e}")
             
             # Load current modlist config
             if not self.modlist_config_path.exists():
